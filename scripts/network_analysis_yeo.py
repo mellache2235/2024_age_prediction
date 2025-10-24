@@ -90,12 +90,15 @@ def map_rois_to_networks(count_data: pd.DataFrame, yeo_atlas: pd.DataFrame) -> p
             network_mapping[roi_index] = row['Yeo_17network']
     
     # Extract ROI index from region names in count data
-    # Assuming region names are like "ROI_1", "ROI_2", etc. or just "1", "2", etc.
+    # The region names are likely the ROI indices themselves (1, 2, 3, ..., 246)
     def extract_roi_index(region_name):
         try:
-            # Try to extract number from region name
             if isinstance(region_name, str):
-                # Handle formats like "ROI_1", "Region_1", or just "1"
+                # Try direct conversion first (region names might be "1", "2", etc.)
+                if region_name.isdigit():
+                    return int(region_name)
+                
+                # Try to extract number from region name
                 import re
                 numbers = re.findall(r'\d+', region_name)
                 if numbers:
@@ -108,6 +111,12 @@ def map_rois_to_networks(count_data: pd.DataFrame, yeo_atlas: pd.DataFrame) -> p
     
     # Map regions to networks using ROI index
     count_data['roi_index'] = count_data['region'].apply(extract_roi_index)
+    
+    # Debug: Check ROI index extraction
+    logging.info(f"Sample region names: {count_data['region'].head().tolist()}")
+    logging.info(f"Sample extracted ROI indices: {count_data['roi_index'].head().tolist()}")
+    logging.info(f"Valid ROI indices: {count_data['roi_index'].notna().sum()}/{len(count_data)}")
+    
     count_data['network'] = count_data['roi_index'].map(network_mapping)
     
     # Handle unmapped regions
@@ -115,6 +124,7 @@ def map_rois_to_networks(count_data: pd.DataFrame, yeo_atlas: pd.DataFrame) -> p
     if unmapped > 0:
         logging.warning(f"{unmapped} regions could not be mapped to networks")
         logging.info(f"Sample unmapped regions: {count_data[count_data['network'].isna()]['region'].head().tolist()}")
+        logging.info(f"Sample unmapped ROI indices: {count_data[count_data['network'].isna()]['roi_index'].head().tolist()}")
         # Fill unmapped regions with 'Unknown'
         count_data['network'] = count_data['network'].fillna('Unknown')
     
@@ -133,6 +143,12 @@ def aggregate_by_networks(count_data: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Network-level aggregated data
     """
+    # Debug: Check data before aggregation
+    logging.info(f"Columns in count_data: {list(count_data.columns)}")
+    logging.info(f"Sample attribution values: {count_data['attribution'].head().tolist()}")
+    logging.info(f"Sample network assignments: {count_data['network'].head().tolist()}")
+    logging.info(f"Unique networks: {count_data['network'].unique()}")
+    
     # Group by network and aggregate
     network_agg = count_data.groupby('network').agg({
         'attribution': ['mean', 'std', 'count', 'sum']
@@ -152,6 +168,13 @@ def aggregate_by_networks(count_data: pd.DataFrame) -> pd.DataFrame:
     
     # Sort by mean attribution
     network_agg = network_agg.sort_values('mean_attribution', ascending=False)
+    
+    # Debug: Check final aggregated data
+    logging.info(f"Final network aggregation shape: {network_agg.shape}")
+    logging.info(f"Final network aggregation columns: {list(network_agg.columns)}")
+    logging.info(f"Sample mean_attribution values: {network_agg['mean_attribution'].head().tolist()}")
+    logging.info(f"Max mean_attribution: {network_agg['mean_attribution'].max()}")
+    logging.info(f"Min mean_attribution: {network_agg['mean_attribution'].min()}")
     
     return network_agg
 

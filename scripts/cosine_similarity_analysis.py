@@ -511,7 +511,7 @@ def main():
     parser.add_argument("--analysis_type", type=str, 
                        choices=['all', 'discovery_validation', 'within_condition', 'pooled_condition', 'cross_condition'],
                        default='all', help="Type of analysis to run")
-    parser.add_argument("--config", type=str, default="config.yaml",
+    parser.add_argument("--config", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml",
                        help="Path to configuration file")
     parser.add_argument("--data_dir", type=str, help="Directory containing count data CSV files (deprecated, use config)")
     parser.add_argument("--discovery_csv", type=str, help="Path to discovery cohort count data CSV")

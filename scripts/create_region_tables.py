@@ -526,7 +526,7 @@ def create_all_region_tables(config: Dict, output_dir: str = "results/region_tab
 def main():
     """Main function to create region tables."""
     parser = argparse.ArgumentParser(description="Create region tables from count data")
-    parser.add_argument("--config", type=str, default="config.yaml",
+    parser.add_argument("--config", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml",
                        help="Path to configuration file")
     parser.add_argument("--output_dir", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/region_tables",
                        help="Output directory for tables")
@@ -536,7 +536,15 @@ def main():
     args = parser.parse_args()
     
     # Load configuration
-    with open(args.config, 'r') as f:
+    config_path = Path(args.config)
+    if not config_path.exists():
+        # Try relative path as fallback
+        config_path = Path(__file__).parent.parent / 'config.yaml'
+        if not config_path.exists():
+            logging.error(f"Configuration file not found: {args.config} or {config_path}")
+            sys.exit(1)
+    
+    with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
     
     # Create all region tables

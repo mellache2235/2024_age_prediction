@@ -1096,7 +1096,7 @@ def main():
 Examples:
   # Run complete brain age prediction analysis
   python brain_age_prediction.py \\
-    --config config.yaml \\
+    --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml \\
     --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_prediction
 
   # Train models only

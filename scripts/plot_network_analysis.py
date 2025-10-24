@@ -59,8 +59,21 @@ def create_polar_bar_plot(network_data: pd.DataFrame,
     else:
         raise ValueError(f"Expected columns 'Network'/'network' and 'Count'/'mean_attribution'/'total_attribution' not found. Available columns: {list(network_data.columns)}")
     
+    # Check if we have any data
+    if len(networks) == 0 or len(counts) == 0:
+        logging.warning(f"No network data found for {title}. Skipping plot creation.")
+        return
+    
     # Set up angles
     angles = np.linspace(0, 2 * np.pi, len(networks), endpoint=False)
+    
+    # Calculate max value for scaling
+    if max_value is None:
+        if len(counts) > 0 and np.any(counts > 0):
+            max_value = counts.max()
+        else:
+            max_value = 1.0
+            logging.warning(f"No positive values found in network data for {title}. Using default max_value=1.0")
     
     # Create bars with distinct colors for each network
     colors = plt.cm.Set3(np.linspace(0, 1, len(networks)))
@@ -70,7 +83,7 @@ def create_polar_bar_plot(network_data: pd.DataFrame,
     # Customize plot
     ax.set_xticks(angles)
     ax.set_xticklabels(networks, fontsize=10, fontweight='bold', color='black')
-    ax.set_ylim(0, max_value or counts.max() * 1.1)
+    ax.set_ylim(0, max_value * 1.1)
     ax.set_title(title, fontsize=16, fontweight='bold', pad=20)
     
     # Remove y-axis labels and ticks
@@ -317,16 +330,16 @@ def main():
         epilog="""
 Examples:
   # Create network analysis plots for all datasets
-  python plot_network_analysis.py --config config.yaml
+  python plot_network_analysis.py --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml
   
   # Create plots in custom directory
   python plot_network_analysis.py \\
-    --config config.yaml \\
+    --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml \\
     --output_dir custom_network_plots/
         """
     )
     
-    parser.add_argument("--config", type=str, default="config.yaml",
+    parser.add_argument("--config", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml",
                        help="Path to configuration file (default: config.yaml)")
     parser.add_argument("--output_dir", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/network_analysis",
                        help="Output directory for plots (default: results/figures/network_analysis)")
