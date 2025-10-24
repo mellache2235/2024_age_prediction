@@ -233,7 +233,7 @@ class BrainAgePredictor:
                     # Use the legacy model path from config for all folds
                     import yaml
                     try:
-                        with open('config.yaml', 'r') as f:
+                        with open('/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml', 'r') as f:
                             config = yaml.safe_load(f)
                         legacy_model_path = config.get('existing_models', {}).get('legacy_model_path')
                         if legacy_model_path and os.path.exists(legacy_model_path):
@@ -360,7 +360,7 @@ class BrainAgePredictor:
             model = ConvNetLightning(
                 input_channels=X_train.shape[1],
                 dropout_rate=0.6,
-                learning_rate=0.0006
+                learning_rate=5e-4  # 0.0005 as requested
             )
             
             # Setup callbacks for best model saving
@@ -377,7 +377,7 @@ class BrainAgePredictor:
             early_stopping_callback = EarlyStopping(
                 monitor='val_loss',
                 mode='min',
-                patience=25,  # 25 epoch patience as requested
+                patience=35,  # 35 epoch patience as requested
                 verbose=True
             )
             
@@ -389,8 +389,7 @@ class BrainAgePredictor:
                 enable_progress_bar=True,
                 enable_model_summary=False,
                 callbacks=[checkpoint_callback, early_stopping_callback],
-                val_check_interval=0.25,  # Validate 4 times per epoch
-                check_val_every_n_epoch=1
+                check_val_every_n_epoch=1  # Validate once per epoch (proper way)
             )
             
             trainer.fit(model, train_loader, val_loader)
@@ -445,9 +444,7 @@ class BrainAgePredictor:
         try:
             # Load config to get HCP-Dev data directory
             import yaml
-            config_path = os.path.join(os.path.dirname(model_dir), '..', 'config.yaml')
-            if not os.path.exists(config_path):
-                config_path = 'config.yaml'  # Fallback to current directory
+            config_path = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml'
             
             with open(config_path, 'r') as f:
                 config = yaml.safe_load(f)
@@ -1098,7 +1095,7 @@ def main():
 Examples:
   # Run complete brain age prediction analysis
   python brain_age_prediction.py \\
-    --config config.yaml \\
+    --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml \\
     --output_dir results/brain_age_prediction
 
   # Train models only

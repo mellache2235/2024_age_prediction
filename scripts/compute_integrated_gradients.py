@@ -205,7 +205,7 @@ Examples:
     args = parser.parse_args()
     
     # Load configuration
-    with open('config.yaml', 'r') as f:
+    with open('/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml', 'r') as f:
         config = yaml.safe_load(f)
     
     # Create output directory

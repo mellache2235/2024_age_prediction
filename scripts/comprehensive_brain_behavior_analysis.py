@@ -607,7 +607,7 @@ Available Datasets:
 Examples:
   # Run comprehensive analysis for all datasets
   python comprehensive_brain_behavior_analysis.py \\
-    --config config.yaml \\
+    --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml \\
     --output_dir results/brain_behavior
 
   # Analyze specific dataset

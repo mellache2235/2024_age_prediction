@@ -28,7 +28,7 @@ def main():
     logging.info("Starting count data conversion...")
     
     # Load configuration
-    with open('config.yaml', 'r') as f:
+    with open('/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml', 'r') as f:
         config = yaml.safe_load(f)
     
     # Process all count data files

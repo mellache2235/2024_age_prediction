@@ -186,7 +186,25 @@ class ConvNetLightning(pl.LightningModule):
     
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=0.0001)
-        return optimizer
+        
+        # Learning rate scheduler with warmup
+        scheduler = {
+            'scheduler': torch.optim.lr_scheduler.OneCycleLR(
+                optimizer,
+                max_lr=0.001,  # Warmup to 0.001 as requested
+                epochs=200,    # Total epochs
+                steps_per_epoch=1,  # Will be updated by trainer
+                pct_start=0.1,  # 10% of training for warmup
+                anneal_strategy='cos'
+            ),
+            'interval': 'epoch',
+            'frequency': 1
+        }
+        
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': scheduler
+        }
 
 
 class Conv1dSame(nn.Module):

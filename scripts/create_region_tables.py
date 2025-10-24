@@ -16,6 +16,12 @@ import numpy as np
 import pandas as pd
 import logging
 
+# Try to import openpyxl for Excel support
+try:
+    import openpyxl
+except ImportError:
+    logging.warning("openpyxl not found. Install with: pip install openpyxl")
+
 # Add utils to path
 sys.path.append(str(Path(__file__).parent.parent / 'utils'))
 
@@ -23,6 +29,62 @@ from count_data_utils import load_count_data, create_region_mapping
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+def create_dataset_region_table_from_dataframe(count_data: pd.DataFrame, 
+                                               roi_labels_path: str,
+                                               output_path: str,
+                                               top_n: int = 50) -> pd.DataFrame:
+    """
+    Create a region table for a single dataset from a DataFrame.
+    
+    Args:
+        count_data (pd.DataFrame): Count data DataFrame
+        roi_labels_path (str): Path to ROI labels file
+        output_path (str): Output path for the table
+        top_n (int): Number of top regions to include
+        
+    Returns:
+        pd.DataFrame: Region table
+    """
+    # Load ROI labels
+    roi_mapping = create_region_mapping(roi_labels_path)
+    
+    # Extract ROI index from region names
+    def extract_roi_index(region_name):
+        try:
+            if isinstance(region_name, str):
+                import re
+                numbers = re.findall(r'\d+', region_name)
+                if numbers:
+                    return int(numbers[0])
+            elif isinstance(region_name, (int, float)):
+                return int(region_name)
+        except:
+            pass
+        return None
+    
+    count_data['roi_index'] = count_data['region'].apply(extract_roi_index)
+    
+    # Map ROI indices to region names
+    count_data['region_name'] = count_data['roi_index'].map(roi_mapping)
+    
+    # Sort by count and get top N
+    top_regions = count_data.nlargest(top_n, 'Count')
+    
+    # Create final table
+    region_table = pd.DataFrame({
+        'ROI_Index': top_regions['roi_index'],
+        'Region_Name': top_regions['region_name'],
+        'Count': top_regions['Count'],
+        'Rank': range(1, len(top_regions) + 1)
+    })
+    
+    # Save table
+    region_table.to_csv(output_path, index=False)
+    logging.info(f"Created region table for dataset: {len(region_table)} regions saved to {output_path}")
+    
+    return region_table
 
 
 def create_dataset_region_table(count_csv_path: str, 
@@ -82,6 +144,104 @@ def create_dataset_region_table(count_csv_path: str,
     logging.info(f"Created region table for dataset: {len(region_table)} regions saved to {output_path}")
     
     return region_table
+
+
+def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
+                                         roi_labels_path: str,
+                                         output_path: str,
+                                         top_n: int = 50,
+                                         min_datasets: int = 2) -> pd.DataFrame:
+    """
+    Create a table of regions shared across multiple datasets from Excel files.
+    
+    Args:
+        dataset_excel_paths (List[str]): List of paths to count data Excel files
+        roi_labels_path (str): Path to ROI labels file
+        output_path (str): Output path for the table
+        top_n (int): Number of top regions to include per dataset
+        min_datasets (int): Minimum number of datasets a region must appear in
+        
+    Returns:
+        pd.DataFrame: Shared regions table
+    """
+    # Load ROI labels
+    roi_mapping = create_region_mapping(roi_labels_path)
+    
+    # Collect top regions from each dataset
+    all_regions = {}
+    
+    for excel_path in dataset_excel_paths:
+        if not os.path.exists(excel_path):
+            logging.warning(f"Count data file not found: {excel_path}")
+            continue
+            
+        dataset_name = Path(excel_path).stem.replace('top_50_consensus_features_', '').replace('_aging', '')
+        try:
+            count_data = pd.read_excel(excel_path)
+        except Exception as e:
+            logging.error(f"Error reading Excel file {excel_path}: {e}")
+            continue
+        
+        # Extract ROI index
+        def extract_roi_index(region_name):
+            try:
+                if isinstance(region_name, str):
+                    import re
+                    numbers = re.findall(r'\d+', region_name)
+                    if numbers:
+                        return int(numbers[0])
+                elif isinstance(region_name, (int, float)):
+                    return int(region_name)
+            except:
+                pass
+            return None
+        
+        count_data['roi_index'] = count_data['region'].apply(extract_roi_index)
+        
+        # Get top N regions
+        top_regions = count_data.nlargest(top_n, 'Count')
+        
+        for _, row in top_regions.iterrows():
+            roi_idx = row['roi_index']
+            if roi_idx is not None:
+                if roi_idx not in all_regions:
+                    all_regions[roi_idx] = {
+                        'region_name': roi_mapping.get(roi_idx, f'ROI_{roi_idx}'),
+                        'datasets': [],
+                        'counts': [],
+                        'total_count': 0
+                    }
+                all_regions[roi_idx]['datasets'].append(dataset_name)
+                all_regions[roi_idx]['counts'].append(row['Count'])
+                all_regions[roi_idx]['total_count'] += row['Count']
+    
+    # Filter regions that appear in at least min_datasets
+    shared_regions = {roi_idx: data for roi_idx, data in all_regions.items() 
+                     if len(data['datasets']) >= min_datasets}
+    
+    # Create table
+    table_data = []
+    for roi_idx, data in shared_regions.items():
+        table_data.append({
+            'ROI_Index': roi_idx,
+            'Region_Name': data['region_name'],
+            'N_Datasets': len(data['datasets']),
+            'Datasets': ', '.join(data['datasets']),
+            'Total_Count': data['total_count'],
+            'Mean_Count': np.mean(data['counts']),
+            'Max_Count': np.max(data['counts'])
+        })
+    
+    # Sort by total count
+    shared_table = pd.DataFrame(table_data)
+    shared_table = shared_table.sort_values('Total_Count', ascending=False)
+    shared_table['Rank'] = range(1, len(shared_table) + 1)
+    
+    # Save table
+    shared_table.to_csv(output_path, index=False)
+    logging.info(f"Created shared region table: {len(shared_table)} regions shared across datasets, saved to {output_path}")
+    
+    return shared_table
 
 
 def create_shared_region_table(dataset_csv_paths: List[str],
@@ -194,66 +354,81 @@ def create_all_region_tables(config: Dict, output_dir: str = "results/region_tab
     
     # Get paths from config
     roi_labels_path = config.get('network_analysis', {}).get('roi_labels_path')
-    count_data_config = config.get('network_analysis', {}).get('count_data', {})
     
-    if not roi_labels_path or not count_data_config:
-        logging.error("Missing required configuration: roi_labels_path or count_data")
+    if not roi_labels_path:
+        logging.error("Missing required configuration: roi_labels_path")
         return {}
     
     tables = {}
     
+    # Define the actual Excel file paths as specified by user
+    excel_file_paths = {
+        'dev': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/dev/ig_files/top_50_consensus_features_hcp_dev_aging.xlsx',
+        'nki': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/nki/ig_files/top_50_consensus_features_nki_cog_dev_aging.xlsx',
+        'adhd200_adhd': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files/top_50_consensus_features_adhd200_adhd_aging.xlsx',
+        'adhd200_td': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files_td/top_50_consensus_features_adhd200_td_aging.xlsx',
+        'cmihbn_adhd': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files/top_50_consensus_features_cmihbn_adhd_aging.xlsx',
+        'cmihbn_td': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files_td/top_50_consensus_features_cmihbn_td_aging.xlsx',
+        'abide_asd': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/abide/ig_files/top_50_consensus_features_abide_asd_aging.xlsx',
+        'stanford_asd': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/stanford/ig_files/top_50_consensus_features_stanford_asd_aging.xlsx'
+    }
+    
     # Create individual dataset tables
     logging.info("Creating individual dataset region tables...")
-    for dataset_name, excel_path in count_data_config.items():
-        csv_path = f"results/count_data/{dataset_name}_count_data.csv"
-        if os.path.exists(csv_path):
-            output_path = os.path.join(output_dir, f"{dataset_name}_top_regions.csv")
-            table = create_dataset_region_table(csv_path, roi_labels_path, output_path)
-            tables[f"{dataset_name}_individual"] = table
+    for dataset_name, excel_path in excel_file_paths.items():
+        if os.path.exists(excel_path):
+            # Convert Excel to CSV if needed, or read directly
+            try:
+                # Read Excel file directly
+                count_data = pd.read_excel(excel_path)
+                output_path = os.path.join(output_dir, f"{dataset_name}_top_regions.csv")
+                table = create_dataset_region_table_from_dataframe(count_data, roi_labels_path, output_path)
+                tables[f"{dataset_name}_individual"] = table
+            except Exception as e:
+                logging.error(f"Error reading Excel file {excel_path}: {e}")
         else:
-            logging.warning(f"Count data CSV not found for {dataset_name}: {csv_path}")
+            logging.warning(f"Count data Excel file not found for {dataset_name}: {excel_path}")
     
     # Create shared TD regions table
     td_datasets = ['nki', 'adhd200_td', 'cmihbn_td']
-    td_csv_paths = [f"results/count_data/{dataset}_count_data.csv" for dataset in td_datasets]
-    td_csv_paths = [path for path in td_csv_paths if os.path.exists(path)]
+    td_excel_paths = [excel_file_paths[dataset] for dataset in td_datasets if dataset in excel_file_paths]
+    td_excel_paths = [path for path in td_excel_paths if os.path.exists(path)]
     
-    if td_csv_paths:
+    if td_excel_paths:
         logging.info("Creating shared TD regions table...")
         output_path = os.path.join(output_dir, "shared_td_regions.csv")
-        td_table = create_shared_region_table(td_csv_paths, roi_labels_path, output_path)
+        td_table = create_shared_region_table_from_excel(td_excel_paths, roi_labels_path, output_path)
         tables['shared_td'] = td_table
     
     # Create shared ADHD regions table
     adhd_datasets = ['adhd200_adhd', 'cmihbn_adhd']
-    adhd_csv_paths = [f"results/count_data/{dataset}_count_data.csv" for dataset in adhd_datasets]
-    adhd_csv_paths = [path for path in adhd_csv_paths if os.path.exists(path)]
+    adhd_excel_paths = [excel_file_paths[dataset] for dataset in adhd_datasets if dataset in excel_file_paths]
+    adhd_excel_paths = [path for path in adhd_excel_paths if os.path.exists(path)]
     
-    if adhd_csv_paths:
+    if adhd_excel_paths:
         logging.info("Creating shared ADHD regions table...")
         output_path = os.path.join(output_dir, "shared_adhd_regions.csv")
-        adhd_table = create_shared_region_table(adhd_csv_paths, roi_labels_path, output_path)
+        adhd_table = create_shared_region_table_from_excel(adhd_excel_paths, roi_labels_path, output_path)
         tables['shared_adhd'] = adhd_table
     
     # Create shared ASD regions table
     asd_datasets = ['abide_asd', 'stanford_asd']
-    asd_csv_paths = [f"results/count_data/{dataset}_count_data.csv" for dataset in asd_datasets]
-    asd_csv_paths = [path for path in asd_csv_paths if os.path.exists(path)]
+    asd_excel_paths = [excel_file_paths[dataset] for dataset in asd_datasets if dataset in excel_file_paths]
+    asd_excel_paths = [path for path in asd_excel_paths if os.path.exists(path)]
     
-    if asd_csv_paths:
+    if asd_excel_paths:
         logging.info("Creating shared ASD regions table...")
         output_path = os.path.join(output_dir, "shared_asd_regions.csv")
-        asd_table = create_shared_region_table(asd_csv_paths, roi_labels_path, output_path)
+        asd_table = create_shared_region_table_from_excel(asd_excel_paths, roi_labels_path, output_path)
         tables['shared_asd'] = asd_table
     
     # Create overall shared regions table (across all datasets)
-    all_csv_paths = [f"results/count_data/{dataset}_count_data.csv" for dataset in count_data_config.keys()]
-    all_csv_paths = [path for path in all_csv_paths if os.path.exists(path)]
+    all_excel_paths = [path for path in excel_file_paths.values() if os.path.exists(path)]
     
-    if all_csv_paths:
+    if all_excel_paths:
         logging.info("Creating overall shared regions table...")
         output_path = os.path.join(output_dir, "shared_all_regions.csv")
-        all_table = create_shared_region_table(all_csv_paths, roi_labels_path, output_path, min_datasets=3)
+        all_table = create_shared_region_table_from_excel(all_excel_paths, roi_labels_path, output_path, min_datasets=3)
         tables['shared_all'] = all_table
     
     logging.info(f"Created {len(tables)} region tables in {output_dir}")
@@ -263,7 +438,7 @@ def create_all_region_tables(config: Dict, output_dir: str = "results/region_tab
 def main():
     """Main function to create region tables."""
     parser = argparse.ArgumentParser(description="Create region tables from count data")
-    parser.add_argument("--config", type=str, default="config.yaml",
+    parser.add_argument("--config", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml",
                        help="Path to configuration file")
     parser.add_argument("--output_dir", type=str, default="results/region_tables",
                        help="Output directory for tables")

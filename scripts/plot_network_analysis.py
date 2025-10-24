@@ -280,16 +280,16 @@ def main():
         epilog="""
 Examples:
   # Create network analysis plots for all datasets
-  python plot_network_analysis.py --config config.yaml
+  python plot_network_analysis.py --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml
   
   # Create plots in custom directory
   python plot_network_analysis.py \\
-    --config config.yaml \\
+    --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml \\
     --output_dir custom_network_plots/
         """
     )
     
-    parser.add_argument("--config", type=str, default="config.yaml",
+    parser.add_argument("--config", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml",
                        help="Path to configuration file (default: config.yaml)")
     parser.add_argument("--output_dir", type=str, default="results/figures/network_analysis",
                        help="Output directory for plots (default: results/figures/network_analysis)")

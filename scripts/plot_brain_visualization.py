@@ -180,17 +180,17 @@ def main():
         epilog="""
 Examples:
   # Create brain visualizations for all datasets
-  python plot_brain_visualization.py --config config.yaml
+  python plot_brain_visualization.py --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml
   
   # Create visualizations with custom parameters
   python plot_brain_visualization.py \\
-    --config config.yaml \\
+    --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml \\
     --output_dir custom_brain_plots/ \\
     --top_n 100
         """
     )
     
-    parser.add_argument("--config", type=str, default="config.yaml",
+    parser.add_argument("--config", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml",
                        help="Path to configuration file (default: config.yaml)")
     parser.add_argument("--output_dir", type=str, default="results/figures/brain_visualization",
                        help="Output directory for plots (default: results/figures/brain_visualization)")
