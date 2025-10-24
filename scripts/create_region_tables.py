@@ -178,6 +178,44 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
         dataset_name = Path(excel_path).stem.replace('top_50_consensus_features_', '').replace('_aging', '')
         try:
             count_data = pd.read_excel(excel_path)
+            logging.info(f"Columns in {excel_path}: {list(count_data.columns)}")
+            
+            # Check if we have the expected columns
+            if 'region' not in count_data.columns:
+                # Try alternative column names
+                possible_region_cols = ['Region', 'ROI', 'roi', 'Region Label', 'Region_Label']
+                region_col = None
+                for col in possible_region_cols:
+                    if col in count_data.columns:
+                        region_col = col
+                        break
+                
+                if region_col:
+                    # Rename the column to 'region' for consistency
+                    count_data = count_data.rename(columns={region_col: 'region'})
+                    logging.info(f"Renamed column '{region_col}' to 'region'")
+                else:
+                    logging.error(f"No region column found in {excel_path}. Available columns: {list(count_data.columns)}")
+                    continue
+            
+            # Check for Count column
+            if 'Count' not in count_data.columns:
+                # Try alternative column names for count
+                possible_count_cols = ['count', 'Counts', 'counts', 'Frequency', 'frequency']
+                count_col = None
+                for col in possible_count_cols:
+                    if col in count_data.columns:
+                        count_col = col
+                        break
+                
+                if count_col:
+                    # Rename the column to 'Count' for consistency
+                    count_data = count_data.rename(columns={count_col: 'Count'})
+                    logging.info(f"Renamed column '{count_col}' to 'Count'")
+                else:
+                    logging.error(f"No count column found in {excel_path}. Available columns: {list(count_data.columns)}")
+                    continue
+                    
         except Exception as e:
             logging.error(f"Error reading Excel file {excel_path}: {e}")
             continue
@@ -378,14 +416,52 @@ def create_all_region_tables(config: Dict, output_dir: str = "results/region_tab
     for dataset_name, excel_path in excel_file_paths.items():
         if os.path.exists(excel_path):
             # Convert Excel to CSV if needed, or read directly
-            try:
-                # Read Excel file directly
-                count_data = pd.read_excel(excel_path)
-                output_path = os.path.join(output_dir, f"{dataset_name}_top_regions.csv")
-                table = create_dataset_region_table_from_dataframe(count_data, roi_labels_path, output_path)
-                tables[f"{dataset_name}_individual"] = table
-            except Exception as e:
-                logging.error(f"Error reading Excel file {excel_path}: {e}")
+        try:
+            # Read Excel file directly
+            count_data = pd.read_excel(excel_path)
+            logging.info(f"Columns in {excel_path}: {list(count_data.columns)}")
+            
+            # Check if we have the expected columns
+            if 'region' not in count_data.columns:
+                # Try alternative column names
+                possible_region_cols = ['Region', 'ROI', 'roi', 'Region Label', 'Region_Label']
+                region_col = None
+                for col in possible_region_cols:
+                    if col in count_data.columns:
+                        region_col = col
+                        break
+                
+                if region_col:
+                    # Rename the column to 'region' for consistency
+                    count_data = count_data.rename(columns={region_col: 'region'})
+                    logging.info(f"Renamed column '{region_col}' to 'region'")
+                else:
+                    logging.error(f"No region column found in {excel_path}. Available columns: {list(count_data.columns)}")
+                    continue
+            
+            # Check for Count column
+            if 'Count' not in count_data.columns:
+                # Try alternative column names for count
+                possible_count_cols = ['count', 'Counts', 'counts', 'Frequency', 'frequency']
+                count_col = None
+                for col in possible_count_cols:
+                    if col in count_data.columns:
+                        count_col = col
+                        break
+                
+                if count_col:
+                    # Rename the column to 'Count' for consistency
+                    count_data = count_data.rename(columns={count_col: 'Count'})
+                    logging.info(f"Renamed column '{count_col}' to 'Count'")
+                else:
+                    logging.error(f"No count column found in {excel_path}. Available columns: {list(count_data.columns)}")
+                    continue
+            
+            output_path = os.path.join(output_dir, f"{dataset_name}_top_regions.csv")
+            table = create_dataset_region_table_from_dataframe(count_data, roi_labels_path, output_path)
+            tables[f"{dataset_name}_individual"] = table
+        except Exception as e:
+            logging.error(f"Error reading Excel file {excel_path}: {e}")
         else:
             logging.warning(f"Count data Excel file not found for {dataset_name}: {excel_path}")
     
