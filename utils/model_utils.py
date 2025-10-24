@@ -129,49 +129,33 @@ class ConvNetLightning(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         
-        # Use the same architecture as ConvNet
-        self.conv1 = nn.Conv1d(input_channels, 64, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv1d(64, 128, kernel_size=3, padding=1)
-        self.conv3 = nn.Conv1d(128, 256, kernel_size=3, padding=1)
-        
-        self.pool = nn.MaxPool1d(2)
-        self.dropout = nn.Dropout(dropout_rate)
-        
-        # Calculate the size after convolutions and pooling
-        # Assuming input sequence length of 200 (adjust if different)
-        self.fc_input_size = 256 * 25  # 256 channels * 25 time points (200/2/2/2)
-        
-        self.fc1 = nn.Linear(self.fc_input_size, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 1)
+        # Use the exact same architecture as ConvNet
+        self.layer1 = nn.Sequential(
+            nn.Conv1d(input_channels, 32, kernel_size=5, stride=1, bias=False),
+            nn.BatchNorm1d(32),
+            nn.PReLU(32),
+            nn.MaxPool1d(kernel_size=2, stride=2))
+        self.layer2 = nn.Sequential(
+            nn.Conv1d(32, 32, kernel_size=7, stride=1, bias=False),
+            nn.BatchNorm1d(32),
+            nn.PReLU(32),
+            nn.MaxPool1d(kernel_size=2, stride=2))
+
+        self.drop_out = nn.Dropout(p=dropout_rate)
+        self.regressor = nn.Linear(32, 1)
         
         self.loss_fn = RMSELoss()
         self.learning_rate = learning_rate
         
     def forward(self, x):
         # x shape: (batch_size, channels, sequence_length)
-        x = F.relu(self.conv1(x))
-        x = self.pool(x)
-        x = self.dropout(x)
-        
-        x = F.relu(self.conv2(x))
-        x = self.pool(x)
-        x = self.dropout(x)
-        
-        x = F.relu(self.conv3(x))
-        x = self.pool(x)
-        x = self.dropout(x)
-        
-        # Flatten for fully connected layers
-        x = x.view(x.size(0), -1)
-        
-        x = F.relu(self.fc1(x))
-        x = self.dropout(x)
-        x = F.relu(self.fc2(x))
-        x = self.dropout(x)
-        x = self.fc3(x)
-        
-        return x.squeeze()
+        out = self.layer1(x)
+        out = self.drop_out(out)
+        out = self.layer2(out)
+        out = self.drop_out(out)
+        out = out.mean(axis=2)  # Global average pooling
+        out = self.regressor(out)
+        return out.squeeze()
     
     def training_step(self, batch, batch_idx):
         x, y = batch
