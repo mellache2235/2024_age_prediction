@@ -160,21 +160,27 @@ class ConvNetLightning(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        loss = self.loss_fn(y_hat, y)
+        # Use RMSE loss like the previous approach
+        mse_loss = F.mse_loss(y_hat, y)
+        loss = torch.sqrt(mse_loss)
         self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True)
         return loss
     
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        loss = self.loss_fn(y_hat, y)
+        # Use RMSE loss for validation (same as training)
+        mse_loss = F.mse_loss(y_hat, y)
+        loss = torch.sqrt(mse_loss)
         self.log('val_loss', loss, on_step=False, on_epoch=True, prog_bar=True)
         return loss
     
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        loss = self.loss_fn(y_hat, y)
+        # Use RMSE loss for testing (consistent with training and validation)
+        mse_loss = F.mse_loss(y_hat, y)
+        loss = torch.sqrt(mse_loss)
         self.log('test_loss', loss, on_step=False, on_epoch=True)
         return loss
     
