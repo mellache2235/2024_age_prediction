@@ -27,6 +27,58 @@ from plotting_utils import setup_fonts, save_figure
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
+def plot_brain_behavior_scatter(brain_scores: np.ndarray,
+                               behavior_scores: np.ndarray,
+                               brain_label: str,
+                               behavior_label: str,
+                               output_path: str,
+                               title: str = None) -> None:
+    """
+    Create scatter plot of brain-behavior correlation.
+    
+    Args:
+        brain_scores (np.ndarray): Brain scores (e.g., PCA component scores)
+        behavior_scores (np.ndarray): Behavioral scores
+        brain_label (str): Label for brain scores
+        behavior_label (str): Label for behavioral scores
+        output_path (str): Output path for the plot
+        title (str): Plot title
+    """
+    setup_fonts()
+    
+    # Calculate metrics
+    from scipy.stats import spearmanr
+    r, p = spearmanr(brain_scores, behavior_scores)
+    
+    # Format p-value
+    if p < 0.001:
+        p_text = "P < 0.001"
+    else:
+        p_text = f"P = {p:.3f}"
+    
+    # Create plot
+    plt.figure(figsize=(8, 6))
+    plt.scatter(brain_scores, behavior_scores, alpha=0.6, s=50)
+    
+    # Add regression line
+    z = np.polyfit(brain_scores, behavior_scores, 1)
+    p_line = np.poly1d(z)
+    plt.plot(brain_scores, p_line(brain_scores), "r--", alpha=0.8, linewidth=2)
+    
+    # Add metrics text
+    plt.text(0.05, 0.95, f'r = {r:.3f}\n{p_text}', 
+             transform=plt.gca().transAxes, verticalalignment='top',
+             bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+    
+    plt.xlabel(brain_label)
+    plt.ylabel(behavior_label)
+    plt.title(title or f'Brain-Behavior Correlation: {brain_label} vs {behavior_label}')
+    plt.grid(True, alpha=0.3)
+    
+    save_figure(plt, output_path)
+    plt.close()
+
+
 def plot_correlation_matrix(correlation_data: pd.DataFrame,
                            output_path: str,
                            title: str = "Brain-Behavior Correlations",
@@ -275,6 +327,34 @@ def create_all_brain_behavior_plots(results_file: str, output_dir: str) -> None:
             beh_data = pd.DataFrame(dataset_results['behavioral_data'])
             beh_path = os.path.join(output_dir, f"{dataset_name}_behavioral_distributions.png")
             plot_behavioral_distributions(beh_data, beh_path, f"Behavioral Distributions - {dataset_name}")
+        
+        # Create scatter plots for significant correlations
+        if 'correlation_results' in dataset_results:
+            corr_data = pd.DataFrame(dataset_results['correlation_results'])
+            significant_corrs = corr_data[corr_data['fdr_corrected_p'] < 0.05]
+            
+            for _, row in significant_corrs.iterrows():
+                # Create scatter plot for each significant correlation
+                brain_comp = row['pca_component']
+                behavior = row['behavior']
+                
+                # Get the actual data for plotting
+                if 'pca_scores' in dataset_results and 'behavioral_scores' in dataset_results:
+                    pca_scores = np.array(dataset_results['pca_scores'])
+                    beh_scores = np.array(dataset_results['behavioral_scores'])
+                    
+                    # Extract specific component and behavior
+                    brain_scores = pca_scores[:, int(brain_comp.split('_')[-1]) - 1]  # Extract component number
+                    behavior_scores = beh_scores[:, behavior]  # Assuming behavior is column index
+                    
+                    scatter_path = os.path.join(output_dir, f"{dataset_name}_{brain_comp}_{behavior}_scatter.png")
+                    plot_brain_behavior_scatter(
+                        brain_scores, behavior_scores,
+                        f"PCA Component {brain_comp.split('_')[-1]}",
+                        behavior,
+                        scatter_path,
+                        f"Brain-Behavior Correlation - {dataset_name}"
+                    )
     
     logging.info(f"Created brain-behavior analysis plots in {output_dir}")
 

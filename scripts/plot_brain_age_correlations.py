@@ -47,7 +47,14 @@ def plot_age_prediction_scatter(true_ages: np.ndarray,
     # Calculate metrics
     from scipy.stats import pearsonr
     r, p = pearsonr(true_ages, predicted_ages)
+    r_squared = r ** 2
     mae = np.mean(np.abs(true_ages - predicted_ages))
+    
+    # Format p-value
+    if p < 0.001:
+        p_text = "P < 0.001"
+    else:
+        p_text = f"P = {p:.3f}"
     
     # Create plot
     plt.figure(figsize=(8, 6))
@@ -59,7 +66,7 @@ def plot_age_prediction_scatter(true_ages: np.ndarray,
     plt.plot([min_age, max_age], [min_age, max_age], 'r--', alpha=0.8, linewidth=2)
     
     # Add metrics text
-    plt.text(0.05, 0.95, f'R = {r:.3f}\nP = {p:.3f}\nMAE = {mae:.2f} years', 
+    plt.text(0.05, 0.95, f'R² = {r_squared:.3f}\n{p_text}\nMAE = {mae:.2f} years', 
              transform=plt.gca().transAxes, verticalalignment='top',
              bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
     
