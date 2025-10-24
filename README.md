@@ -55,31 +55,33 @@ The pipeline is configured to use the following existing data files:
 
 **Ready to run the complete pipeline with existing data:**
 
+> **Note**: All commands below assume you are running from the `scripts/` directory. The `config.yaml` file is located in the parent directory, and results will be saved to `../results/`.
+
 ```bash
 # 1. Test pre-trained models on all external datasets
-python scripts/brain_age_prediction.py \
-  --config config.yaml \
+python brain_age_prediction.py \
+  --config ../config.yaml \
   --use_existing_models \
   --model_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/train_regression_models/dev \
-  --output_dir results/brain_age_prediction
+  --output_dir ../results/brain_age_prediction
 
 # 2. Convert existing count data and create region tables
-python scripts/convert_count_data.py
-python scripts/create_region_tables.py
+python convert_count_data.py
+python create_region_tables.py
 
 # 3. Generate all plots
-python scripts/plot_brain_age_correlations.py \
-  --results_file results/brain_age_prediction/brain_age_prediction_results_*.json \
-  --output_dir results/figures/brain_age_plots
+python plot_brain_age_correlations.py \
+  --results_file ../results/brain_age_prediction/brain_age_prediction_results_*.json \
+  --output_dir ../results/figures/brain_age_plots
 
-python scripts/plot_network_analysis.py \
-  --config config.yaml \
-  --output_dir results/figures/network_plots
+python plot_network_analysis.py \
+  --config ../config.yaml \
+  --output_dir ../results/figures/network_plots
 
 # 4. Run brain-behavior analysis
-python scripts/comprehensive_brain_behavior_analysis.py --dataset nki_rs_td
-python scripts/comprehensive_brain_behavior_analysis.py --dataset adhd200_adhd
-python scripts/comprehensive_brain_behavior_analysis.py --dataset abide_asd
+python comprehensive_brain_behavior_analysis.py --dataset nki_rs_td
+python comprehensive_brain_behavior_analysis.py --dataset adhd200_adhd
+python comprehensive_brain_behavior_analysis.py --dataset abide_asd
 ```
 
 **Expected Results:**
@@ -288,70 +290,72 @@ brain_behavior:
 
 Follow this 8-step workflow using existing trained models and data:
 
+> **Note**: Run all commands from the `scripts/` directory. Use `../config.yaml` for config file and `../results/` for output paths.
+
 ```bash
 # Step 1: Test pre-trained models on external TD, ADHD, ASD datasets
-python scripts/brain_age_prediction.py \
-  --config config.yaml \
+python brain_age_prediction.py \
+  --config ../config.yaml \
   --use_existing_models \
   --model_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/train_regression_models/dev
 
 # Step 2: Generate brain age prediction plots
-python scripts/plot_brain_age_correlations.py \
-  --results_file results/brain_age_prediction/brain_age_prediction_results_*.json \
-  --output_dir results/figures/brain_age_plots
+python plot_brain_age_correlations.py \
+  --results_file ../results/brain_age_prediction/brain_age_prediction_results_*.json \
+  --output_dir ../results/figures/brain_age_plots
 
 # Step 3: Compute Integrated Gradients for each dataset (using pre-trained model)
-python scripts/compute_integrated_gradients.py --dataset nki_rs_td --fold 0
-python scripts/compute_integrated_gradients.py --dataset cmihbn_td --fold 0
-python scripts/compute_integrated_gradients.py --dataset adhd200_td --fold 0
-python scripts/compute_integrated_gradients.py --dataset adhd200_adhd --fold 0
-python scripts/compute_integrated_gradients.py --dataset cmihbn_adhd --fold 0
-python scripts/compute_integrated_gradients.py --dataset abide_asd --fold 0
-python scripts/compute_integrated_gradients.py --dataset stanford_asd --fold 0
+python compute_integrated_gradients.py --dataset nki_rs_td --fold 0
+python compute_integrated_gradients.py --dataset cmihbn_td --fold 0
+python compute_integrated_gradients.py --dataset adhd200_td --fold 0
+python compute_integrated_gradients.py --dataset adhd200_adhd --fold 0
+python compute_integrated_gradients.py --dataset cmihbn_adhd --fold 0
+python compute_integrated_gradients.py --dataset abide_asd --fold 0
+python compute_integrated_gradients.py --dataset stanford_asd --fold 0
 
 # Step 4: Convert existing count data Excel files to CSV format
 # (Uses existing Excel files from results/figures/*/ig_files/)
-python scripts/convert_count_data.py
+python convert_count_data.py
 
 # Step 5: Generate count data from IG computed from 5 trained CV models (if needed)
-python scripts/generate_count_data.py --dataset nki_rs_td
-python scripts/generate_count_data.py --dataset cmihbn_td
-python scripts/generate_count_data.py --dataset adhd200_td
-python scripts/generate_count_data.py --dataset adhd200_adhd
-python scripts/generate_count_data.py --dataset cmihbn_adhd
-python scripts/generate_count_data.py --dataset abide_asd
-python scripts/generate_count_data.py --dataset stanford_asd
+python generate_count_data.py --dataset nki_rs_td
+python generate_count_data.py --dataset cmihbn_td
+python generate_count_data.py --dataset adhd200_td
+python generate_count_data.py --dataset adhd200_adhd
+python generate_count_data.py --dataset cmihbn_adhd
+python generate_count_data.py --dataset abide_asd
+python generate_count_data.py --dataset stanford_asd
 
 # Step 6: Create region tables for each dataset and shared regions
-python scripts/create_region_tables.py
+python create_region_tables.py
 
 # Step 7: Compute cosine similarity between discovery and validation cohorts
-python scripts/cosine_similarity_analysis.py --analysis_type all --data_dir results/count_data/
+python cosine_similarity_analysis.py --analysis_type all --data_dir ../results/count_data/
 
 # Step 8: Generate feature maps and network analysis for each dataset
-python scripts/network_analysis_yeo.py --process_all
+python network_analysis_yeo.py --process_all
 
 # Step 9: Brain behavior analysis for TD, ADHD, ASD
-python scripts/comprehensive_brain_behavior_analysis.py --dataset nki_rs_td
-python scripts/comprehensive_brain_behavior_analysis.py --dataset cmihbn_td
-python scripts/comprehensive_brain_behavior_analysis.py --dataset adhd200_td
-python scripts/comprehensive_brain_behavior_analysis.py --dataset adhd200_adhd
-python scripts/comprehensive_brain_behavior_analysis.py --dataset cmihbn_adhd
-python scripts/comprehensive_brain_behavior_analysis.py --dataset abide_asd
-python scripts/comprehensive_brain_behavior_analysis.py --dataset stanford_asd
+python comprehensive_brain_behavior_analysis.py --dataset nki_rs_td
+python comprehensive_brain_behavior_analysis.py --dataset cmihbn_td
+python comprehensive_brain_behavior_analysis.py --dataset adhd200_td
+python comprehensive_brain_behavior_analysis.py --dataset adhd200_adhd
+python comprehensive_brain_behavior_analysis.py --dataset cmihbn_adhd
+python comprehensive_brain_behavior_analysis.py --dataset abide_asd
+python comprehensive_brain_behavior_analysis.py --dataset stanford_asd
 
 # Step 10: Create all plots (separate plotting scripts)
 # Brain age prediction plots
-python scripts/plot_brain_age_correlations.py --results_file results/brain_age_prediction_results.json
+python plot_brain_age_correlations.py --results_file ../results/brain_age_prediction_results.json
 
 # Brain visualization plots (3D brain surface plots)
-python scripts/plot_brain_visualization.py --config config.yaml
+python plot_brain_visualization.py --config ../config.yaml
 
 # Network analysis plots
-python scripts/plot_network_analysis.py --config config.yaml
+python plot_network_analysis.py --config ../config.yaml
 
 # Brain-behavior analysis plots
-python scripts/plot_brain_behavior_analysis.py --results_file results/brain_behavior_results.json
+python plot_brain_behavior_analysis.py --results_file ../results/brain_behavior_results.json
 ```
 
 **🔄 Alternative: Training New Models (Optional)**
@@ -360,13 +364,13 @@ If you need to train new models instead of using existing ones:
 
 ```bash
 # Train new models on HCP-Dev (5-fold CV)
-python scripts/brain_age_prediction.py \
+python brain_age_prediction.py \
   --hcp_dev_dir /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/hcp_dev_age_five_fold \
-  --output_dir results/training
+  --output_dir ../results/training
 
 # Then run analysis with newly trained models
-python scripts/brain_age_prediction.py \
-  --config config.yaml \
+python brain_age_prediction.py \
+  --config ../config.yaml \
   --use_existing_models \
   --model_dir results/training
 ```
@@ -375,16 +379,16 @@ python scripts/brain_age_prediction.py \
 
 ```bash
 # Step 1: Train models
-python scripts/train_brain_age_model.py
+python train_brain_age_model.py
 
 # Step 2: Test on external data
-python scripts/test_external_dataset.py --dataset nki_rs_td
+python test_external_dataset.py --dataset nki_rs_td
 
 # Step 3: Compute IG scores
-python scripts/compute_integrated_gradients.py --dataset nki_rs_td --fold 0
+python compute_integrated_gradients.py --dataset nki_rs_td --fold 0
 
 # Step 4: Brain-behavior analysis
-python scripts/brain_behavior_analysis.py --dataset nki_rs_td
+python brain_behavior_analysis.py --dataset nki_rs_td
 ```
 
 ### 4. Available Datasets
@@ -421,10 +425,10 @@ Creates comprehensive tables for regions of importance based on count data:
 **Usage:**
 ```bash
 # Create all region tables
-python scripts/create_region_tables.py
+python create_region_tables.py
 
 # With custom parameters
-python scripts/create_region_tables.py --top_n 100 --output_dir results/custom_tables
+python create_region_tables.py --top_n 100 --output_dir ../results/custom_tables
 ```
 
 ### Comprehensive Cosine Similarity Analysis (`scripts/cosine_similarity_analysis.py`)
@@ -447,14 +451,14 @@ Computes cosine similarity for multiple comparison types using count data:
 **Usage:**
 ```bash
 # Option 1: Run all analyses (requires data_dir with all count data files)
-python scripts/cosine_similarity_analysis.py --analysis_type all --data_dir results/count_data/
+python cosine_similarity_analysis.py --analysis_type all --data_dir ../results/count_data/
 
 # Option 2: Run specific analysis types
-python scripts/cosine_similarity_analysis.py --analysis_type discovery_validation --discovery_csv hcp_dev_count_data.csv --nki_csv nki_rs_td_count_data.csv --cmihbn_csv cmihbn_td_count_data.csv --adhd200_csv adhd200_td_count_data.csv
+python cosine_similarity_analysis.py --analysis_type discovery_validation --discovery_csv hcp_dev_count_data.csv --nki_csv nki_rs_td_count_data.csv --cmihbn_csv cmihbn_td_count_data.csv --adhd200_csv adhd200_td_count_data.csv
 
-python scripts/cosine_similarity_analysis.py --analysis_type within_condition --data_dir results/count_data/
-python scripts/cosine_similarity_analysis.py --analysis_type pooled_condition --data_dir results/count_data/
-python scripts/cosine_similarity_analysis.py --analysis_type cross_condition --data_dir results/count_data/
+python cosine_similarity_analysis.py --analysis_type within_condition --data_dir ../results/count_data/
+python cosine_similarity_analysis.py --analysis_type pooled_condition --data_dir ../results/count_data/
+python cosine_similarity_analysis.py --analysis_type cross_condition --data_dir ../results/count_data/
 ```
 
 **Expected Count Data Files:**
@@ -499,16 +503,16 @@ The pipeline now includes dedicated plotting scripts for different analysis type
 **Usage:**
 ```bash
 # Brain age prediction plots
-python scripts/plot_brain_age_correlations.py --results_file results/brain_age_prediction_results.json
+python plot_brain_age_correlations.py --results_file ../results/brain_age_prediction_results.json
 
 # Brain visualization plots
-python scripts/plot_brain_visualization.py --config config.yaml
+python plot_brain_visualization.py --config ../config.yaml
 
 # Network analysis plots
-python scripts/plot_network_analysis.py --config config.yaml
+python plot_network_analysis.py --config ../config.yaml
 
 # Brain-behavior analysis plots
-python scripts/plot_brain_behavior_analysis.py --results_file results/brain_behavior_results.json
+python plot_brain_behavior_analysis.py --results_file ../results/brain_behavior_results.json
 ```
 
 ### Network Analysis with Yeo Atlas (`scripts/network_analysis_yeo.py`)
@@ -524,10 +528,10 @@ Network-level analysis using Yeo 17-network atlas to group ROIs by brain network
 **Usage:**
 ```bash
 # Step 1: Generate count data from IG scores
-python scripts/generate_count_data.py --ig_csv results/integrated_gradients/nki_rs_td/nki_rs_td_features_IG_convnet_regressor_trained_on_hcp_dev_fold_0.csv --output yeao_attrib_collapsed_mean_nki_rs_td_top50.csv
+python generate_count_data.py --ig_csv results/integrated_gradients/nki_rs_td/nki_rs_td_features_IG_convnet_regressor_trained_on_hcp_dev_fold_0.csv --output yeao_attrib_collapsed_mean_nki_rs_td_top50.csv
 
 # Step 2: Run Yeo network analysis
-python scripts/network_analysis_yeo.py --count_csv yeao_attrib_collapsed_mean_nki_rs_td_top50.csv --yeo_atlas /path/to/yeo_atlas.csv
+python network_analysis_yeo.py --count_csv yeao_attrib_collapsed_mean_nki_rs_td_top50.csv --yeo_atlas /path/to/yeo_atlas.csv
 ```
 
 

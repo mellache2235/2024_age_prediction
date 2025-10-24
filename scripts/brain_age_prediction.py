@@ -202,32 +202,74 @@ class BrainAgePredictor:
         }
         
         for fold in range(num_folds):
-            # Look for model checkpoints
+            # Look for PyTorch Lightning checkpoints first
             checkpoint_dir = os.path.join(model_dir, f"fold_{fold}_checkpoints")
             scaler_path = os.path.join(model_dir, f"age_scaler_fold_{fold}.pkl")
+            model_path = None
             
-            # Find best model checkpoint
+            # Try PyTorch Lightning checkpoints first
             if os.path.exists(checkpoint_dir):
                 import glob
                 checkpoint_files = glob.glob(os.path.join(checkpoint_dir, "best_model*.ckpt"))
                 if checkpoint_files:
                     model_path = checkpoint_files[0]  # Use first match
-                    
-                    if os.path.exists(scaler_path):
-                        results['fold_results'].append({
-                            'fold': fold,
-                            'model_path': model_path,
-                            'scaler_path': scaler_path
-                        })
-                        results['model_paths'].append(model_path)
-                        results['age_scalers'].append(scaler_path)
-                        logging.info(f"Loaded fold {fold}: {model_path}")
-                    else:
-                        logging.warning(f"Age scaler not found for fold {fold}: {scaler_path}")
+                    logging.info(f"Found PyTorch Lightning checkpoint for fold {fold}: {model_path}")
+            
+            # If no Lightning checkpoint, try legacy PyTorch models
+            if model_path is None:
+                # Look for legacy .pt files in the main directory
+                import glob
+                legacy_files = glob.glob(os.path.join(model_dir, f"*fold_{fold}*.pt"))
+                if not legacy_files:
+                    # Try alternative naming patterns
+                    legacy_files = glob.glob(os.path.join(model_dir, f"*fold_{fold}*"))
+                    legacy_files = [f for f in legacy_files if f.endswith('.pt')]
+                
+                # If still no files, try using the single legacy model for all folds
+                if not legacy_files:
+                    # Use the legacy model path from config for all folds
+                    import yaml
+                    try:
+                        with open('config.yaml', 'r') as f:
+                            config = yaml.safe_load(f)
+                        legacy_model_path = config.get('existing_models', {}).get('legacy_model_path')
+                        if legacy_model_path and os.path.exists(legacy_model_path):
+                            model_path = legacy_model_path
+                            logging.info(f"Using single legacy model for all folds: {model_path}")
+                        else:
+                            logging.warning(f"No model found for fold {fold} in {model_dir}")
+                            continue
+                    except Exception as e:
+                        logging.warning(f"Could not load config: {e}")
+                        continue
                 else:
-                    logging.warning(f"No model checkpoint found for fold {fold} in {checkpoint_dir}")
+                    model_path = legacy_files[0]  # Use first match
+                    logging.info(f"Found legacy PyTorch model for fold {fold}: {model_path}")
+            
+            # Check for age scaler (may not exist for legacy models)
+            if os.path.exists(scaler_path):
+                results['fold_results'].append({
+                    'fold': fold,
+                    'model_path': model_path,
+                    'scaler_path': scaler_path,
+                    'model_type': 'lightning' if model_path.endswith('.ckpt') else 'legacy'
+                })
+                results['model_paths'].append(model_path)
+                results['age_scalers'].append(scaler_path)
+                logging.info(f"Loaded fold {fold}: {model_path}")
             else:
-                logging.warning(f"Checkpoint directory not found for fold {fold}: {checkpoint_dir}")
+                # For legacy models, we might not have age scalers
+                logging.warning(f"Age scaler not found for fold {fold}: {scaler_path}")
+                # Still add the model but without scaler
+                results['fold_results'].append({
+                    'fold': fold,
+                    'model_path': model_path,
+                    'scaler_path': None,
+                    'model_type': 'lightning' if model_path.endswith('.ckpt') else 'legacy'
+                })
+                results['model_paths'].append(model_path)
+                results['age_scalers'].append(None)
+                logging.info(f"Loaded fold {fold} (no scaler): {model_path}")
         
         logging.info(f"Loaded {len(results['model_paths'])} existing models")
         return results
@@ -349,21 +391,35 @@ class BrainAgePredictor:
                 if not os.path.exists(model_path):
                     continue
                 
-                # Load corresponding age scaler
+                # Get model type and scaler path
+                fold_result = self.models.get('fold_results', [])[i]
+                model_type = fold_result.get('model_type', 'legacy')
                 scaler_path = self.models.get('age_scalers', [])[i]
-                if not os.path.exists(scaler_path):
+                
+                # Load age scaler if available
+                age_scaler = None
+                if scaler_path and os.path.exists(scaler_path):
+                    age_scaler = AgeScaler.load(scaler_path)
+                elif model_type == 'legacy':
+                    logging.info(f"Using legacy model without age scaler for fold {i}")
+                else:
                     logging.warning(f"Age scaler not found: {scaler_path}")
                     continue
                 
-                age_scaler = AgeScaler.load(scaler_path)
-                    
-                # Load PyTorch Lightning model from checkpoint
-                model = load_lightning_model_from_checkpoint(
-                    checkpoint_path=model_path,
-                    input_channels=X_test.shape[1],
-                    dropout_rate=self.model_config.get('dropout_rate', 0.6),
-                    learning_rate=self.model_config.get('learning_rate', 0.001)
-                )
+                # Load model based on type
+                if model_type == 'lightning' or model_path.endswith('.ckpt'):
+                    # Load PyTorch Lightning model from checkpoint
+                    model = load_lightning_model_from_checkpoint(
+                        checkpoint_path=model_path,
+                        input_channels=X_test.shape[1],
+                        dropout_rate=self.model_config.get('dropout_rate', 0.6),
+                        learning_rate=self.model_config.get('learning_rate', 0.001)
+                    )
+                else:
+                    # Load legacy PyTorch model
+                    from model_utils import ConvNet
+                    model = ConvNet(input_channels=X_test.shape[1], dropout_rate=0.6)
+                    model.load_state_dict(torch.load(model_path, map_location=torch.device('cuda' if torch.cuda.is_available() else 'cpu')))
                 
                 # Move model to device
                 if torch.cuda.is_available():
@@ -377,8 +433,15 @@ class BrainAgePredictor:
                         X_tensor = X_tensor.cuda()
                     predictions_scaled = model(X_tensor).cpu().numpy().flatten()
                     
-                    # Inverse transform predictions back to original age scale
-                    predictions = age_scaler.inverse_transform(predictions_scaled)
+                    # Handle age scaling
+                    if age_scaler is not None:
+                        # Inverse transform predictions back to original age scale
+                        predictions = age_scaler.inverse_transform(predictions_scaled)
+                    else:
+                        # For legacy models without scalers, assume predictions are already in original scale
+                        predictions = predictions_scaled
+                        logging.info(f"Using raw predictions for legacy model (no age scaling)")
+                    
                     all_predictions.append(predictions)
             
             if not all_predictions:

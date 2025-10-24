@@ -30,7 +30,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 def create_polar_bar_plot(network_data: pd.DataFrame,
                          output_path: str,
                          title: str = "Network Analysis",
-                         max_value: Optional[float] = None) -> None:
+                         max_value: Optional[float] = None,
+                         show_values: bool = True) -> None:
     """
     Create polar bar plot for network analysis results.
     
@@ -52,13 +53,14 @@ def create_polar_bar_plot(network_data: pd.DataFrame,
     # Set up angles
     angles = np.linspace(0, 2 * np.pi, len(networks), endpoint=False)
     
-    # Create bars
-    bars = ax.bar(angles, counts, width=0.8, alpha=0.8, 
-                  color=plt.cm.viridis(np.linspace(0, 1, len(networks))))
+    # Create bars with distinct colors for each network
+    colors = plt.cm.Set3(np.linspace(0, 1, len(networks)))
+    bars = ax.bar(angles, counts, width=0.8, alpha=0.7, 
+                  color=colors, edgecolor='white', linewidth=1)
     
     # Customize plot
     ax.set_xticks(angles)
-    ax.set_xticklabels(networks, fontsize=10, fontweight='bold')
+    ax.set_xticklabels(networks, fontsize=10, fontweight='bold', color='black')
     ax.set_ylim(0, max_value or counts.max() * 1.1)
     ax.set_title(title, fontsize=16, fontweight='bold', pad=20)
     
@@ -66,14 +68,19 @@ def create_polar_bar_plot(network_data: pd.DataFrame,
     ax.set_yticklabels([])
     ax.tick_params(axis='y', which='major', length=0)
     
-    # Add value labels on bars
-    for angle, count, bar in zip(angles, counts, bars):
-        if count > 0:
-            ax.text(angle, count + max_value * 0.02, f'{count:.1f}', 
-                   ha='center', va='bottom', fontsize=8, fontweight='bold')
+    # Add subtle grid
+    ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
     
-    # Remove grid
-    ax.grid(False)
+    # Add value labels on bars (optional, can be removed for cleaner look)
+    if show_values:
+        for angle, count, bar in zip(angles, counts, bars):
+            if count > 0:
+                ax.text(angle, count + max_value * 0.02, f'{count:.1f}', 
+                       ha='center', va='bottom', fontsize=8, fontweight='bold')
+    
+    # Set background color
+    ax.set_facecolor('white')
+    fig.patch.set_facecolor('white')
     
     # Save plot
     save_figure(plt, output_path)
