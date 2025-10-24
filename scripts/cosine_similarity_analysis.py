@@ -215,34 +215,45 @@ def run_discovery_validation_analysis(discovery_csv: str, validation_csvs: List[
     return analyze_cosine_similarities(discovery_csv, validation_csvs, validation_names)
 
 def run_within_condition_analysis(config: Dict) -> Dict:
-    """Run within-condition comparisons."""
+    """Run within-condition comparisons (ADHD vs TD within same dataset, ASD vs ASD)."""
     logging.info("Running within-condition analysis...")
     
     # Get count data paths from config
     count_data_paths = get_count_data_paths(config)
     
-    # ADHD comparisons
-    adhd200_adhd_csv = count_data_paths.get('adhd200_adhd')
-    cmihbn_adhd_csv = count_data_paths.get('cmihbn_adhd')
+    results = {}
     
-    # ASD comparisons
+    # ADHD200: ADHD vs TD within same dataset
+    adhd200_adhd_csv = count_data_paths.get('adhd200_adhd')
+    adhd200_td_csv = count_data_paths.get('adhd200_td')
+    
+    if adhd200_adhd_csv and adhd200_td_csv and os.path.exists(adhd200_adhd_csv) and os.path.exists(adhd200_td_csv):
+        adhd200_results = analyze_cosine_similarities(
+            adhd200_adhd_csv, [adhd200_td_csv], ['ADHD200_TD']
+        )
+        results['ADHD200_within_dataset'] = adhd200_results
+    else:
+        logging.warning("ADHD200 count data files not found")
+        results['ADHD200_within_dataset'] = {'error': 'Files not found'}
+    
+    # CMI-HBN: ADHD vs TD within same dataset
+    cmihbn_adhd_csv = count_data_paths.get('cmihbn_adhd')
+    cmihbn_td_csv = count_data_paths.get('cmihbn_td')
+    
+    if cmihbn_adhd_csv and cmihbn_td_csv and os.path.exists(cmihbn_adhd_csv) and os.path.exists(cmihbn_td_csv):
+        cmihbn_results = analyze_cosine_similarities(
+            cmihbn_adhd_csv, [cmihbn_td_csv], ['CMIHBN_TD']
+        )
+        results['CMIHBN_within_dataset'] = cmihbn_results
+    else:
+        logging.warning("CMI-HBN count data files not found")
+        results['CMIHBN_within_dataset'] = {'error': 'Files not found'}
+    
+    # ASD: ABIDE vs Stanford (both ASD datasets)
     abide_asd_csv = count_data_paths.get('abide_asd')
     stanford_asd_csv = count_data_paths.get('stanford_asd')
     
-    results = {}
-    
-    # ADHD within-condition
-    if os.path.exists(adhd200_adhd_csv) and os.path.exists(cmihbn_adhd_csv):
-        adhd_results = analyze_cosine_similarities(
-            adhd200_adhd_csv, [cmihbn_adhd_csv], ['CMI-HBN_ADHD']
-        )
-        results['ADHD_within_condition'] = adhd_results
-    else:
-        logging.warning("ADHD count data files not found")
-        results['ADHD_within_condition'] = {'error': 'Files not found'}
-    
-    # ASD within-condition
-    if os.path.exists(abide_asd_csv) and os.path.exists(stanford_asd_csv):
+    if abide_asd_csv and stanford_asd_csv and os.path.exists(abide_asd_csv) and os.path.exists(stanford_asd_csv):
         asd_results = analyze_cosine_similarities(
             abide_asd_csv, [stanford_asd_csv], ['Stanford_ASD']
         )
@@ -366,19 +377,34 @@ def run_cross_condition_analysis(config: Dict) -> Dict:
     
     return results
 
-def create_pooled_data(csv_files: List[str], name: str) -> str:
-    """Create pooled data by averaging across multiple CSV files."""
-    logging.info(f"Creating pooled data for {name} from {len(csv_files)} files...")
+def create_pooled_data(file_paths: List[str], name: str) -> str:
+    """Create pooled data by averaging across multiple files (CSV or Excel)."""
+    logging.info(f"Creating pooled data for {name} from {len(file_paths)} files...")
     
     all_data = []
-    for csv_file in csv_files:
-        df = pd.read_csv(csv_file)
+    for file_path in file_paths:
+        if not os.path.exists(file_path):
+            logging.warning(f"File not found: {file_path}")
+            continue
+        
+        # Read file based on extension
+        if file_path.endswith('.xlsx') or file_path.endswith('.xls'):
+            df = pd.read_excel(file_path)
+            # Handle Excel column names
+            if 'Count' in df.columns and 'Region ID' in df.columns:
+                df = df.rename(columns={'Count': 'attribution', 'Region ID': 'region'})
+        else:
+            df = pd.read_csv(file_path)
+        
         all_data.append(df)
     
+    if not all_data:
+        raise ValueError(f"No valid data files found for {name}")
+    
     # Align regions across all datasets
-    common_regions = set(all_data[0]['region'])
+    common_regions = set(all_data[0]['region'].astype(str))
     for df in all_data[1:]:
-        common_regions = common_regions & set(df['region'])
+        common_regions = common_regions & set(df['region'].astype(str))
     
     logging.info(f"Found {len(common_regions)} common regions for pooling")
     
@@ -387,7 +413,7 @@ def create_pooled_data(csv_files: List[str], name: str) -> str:
     for region in sorted(common_regions):
         region_attrs = []
         for df in all_data:
-            region_attr = df[df['region'] == region]['attribution'].iloc[0]
+            region_attr = df[df['region'].astype(str) == region]['attribution'].iloc[0]
             region_attrs.append(region_attr)
         pooled_attr = np.mean(region_attrs)
         pooled_attributions.append(pooled_attr)
