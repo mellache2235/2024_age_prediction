@@ -374,13 +374,22 @@ class BrainAgePredictor:
         logging.info(f"Testing on external dataset: {dataset_name}")
         
         try:
-            # Load external data with IDs
-            X_train, X_test, id_train, Y_train, Y_test, id_test = load_finetune_dataset_w_ids(data_path)
-            
-            # Combine train and test data for external testing
-            X_test = np.concatenate([X_train, X_test], axis=0)
-            Y_test = np.concatenate([Y_train, Y_test], axis=0)
-            id_test = id_train + id_test
+            # Try to load external data with IDs first
+            try:
+                X_train, X_test, id_train, Y_train, Y_test, id_test = load_finetune_dataset_w_ids(data_path)
+                # Combine train and test data for external testing
+                X_test = np.concatenate([X_train, X_test], axis=0)
+                Y_test = np.concatenate([Y_train, Y_test], axis=0)
+                id_test = np.concatenate([id_train, id_test], axis=0)
+            except KeyError:
+                # Fallback to loading without IDs if 'id_train' key is missing
+                logging.warning(f"ID keys not found in {data_path}, loading without IDs")
+                X_train, X_test, Y_train, Y_test = load_finetune_dataset(data_path)
+                # Combine train and test data for external testing
+                X_test = np.concatenate([X_train, X_test], axis=0)
+                Y_test = np.concatenate([Y_train, Y_test], axis=0)
+                # Create dummy IDs
+                id_test = np.arange(len(Y_test))
             
             X_test = reshape_data(X_test)
             
@@ -418,7 +427,7 @@ class BrainAgePredictor:
                 else:
                     # Load legacy PyTorch model
                     from model_utils import ConvNet
-                    model = ConvNet(input_channels=X_test.shape[1], dropout_rate=0.6)
+                    model = ConvNet(dropout_rate=0.6)
                     model.load_state_dict(torch.load(model_path, map_location=torch.device('cuda' if torch.cuda.is_available() else 'cpu')))
                 
                 # Move model to device
@@ -536,9 +545,12 @@ def run_brain_age_prediction_analysis(config: Dict, output_dir: str) -> Dict:
                 td_results = predictor.test_on_external_data(
                     data_path, cohort_name, apply_bias_correction=False
                 )
-                if td_results:
+                if td_results and 'true_ages' in td_results and 'raw_predictions' in td_results:
                     all_ages.extend(td_results['true_ages'])
                     all_predictions.extend(td_results['raw_predictions'])
+                    logging.info(f"Successfully processed {cohort_name}: {len(td_results['true_ages'])} subjects")
+                else:
+                    logging.warning(f"No valid results from {cohort_name}")
         
         if all_ages and all_predictions:
             td_bias_params = predictor.fit_bias_correction({
@@ -664,9 +676,12 @@ def run_brain_age_prediction_analysis_with_existing_models(config: Dict, model_d
                 td_results = predictor.test_on_external_data(
                     data_path, cohort_name, apply_bias_correction=False
                 )
-                if td_results:
+                if td_results and 'true_ages' in td_results and 'raw_predictions' in td_results:
                     all_ages.extend(td_results['true_ages'])
                     all_predictions.extend(td_results['raw_predictions'])
+                    logging.info(f"Successfully processed {cohort_name}: {len(td_results['true_ages'])} subjects")
+                else:
+                    logging.warning(f"No valid results from {cohort_name}")
         
         if all_ages and all_predictions:
             td_bias_params = predictor.fit_bias_correction({
