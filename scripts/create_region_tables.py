@@ -23,9 +23,9 @@ except ImportError:
     logging.warning("openpyxl not found. Install with: pip install openpyxl")
 
 # Add utils to path
-sys.path.append(str(Path(__file__).parent.parent / 'utils'))
+sys.path.append(str(Path(__file__).parent.parent))
 
-from count_data_utils import load_count_data, create_region_mapping
+from utils.count_data_utils import load_count_data, create_region_mapping
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -411,17 +411,24 @@ def create_all_region_tables(config: Dict, output_dir: str = "results/region_tab
     
     tables = {}
     
-    # Define the actual Excel file paths as specified by user
-    excel_file_paths = {
-        'dev': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/dev/ig_files/top_50_consensus_features_hcp_dev_aging.xlsx',
-        'nki': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/nki/ig_files/top_50_consensus_features_nki_cog_dev_aging.xlsx',
-        'adhd200_adhd': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/adhd200/ig_files/top_50_consensus_features_adhd200_adhd_aging.xlsx',
-        'adhd200_td': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/adhd200/ig_files_td/top_50_consensus_features_adhd200_td_aging.xlsx',
-        'cmihbn_adhd': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/cmihbn/ig_files/top_50_consensus_features_cmihbn_adhd_aging.xlsx',
-        'cmihbn_td': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/cmihbn/ig_files_td/top_50_consensus_features_cmihbn_td_aging.xlsx',
-        'abide_asd': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/abide/ig_files/top_50_consensus_features_abide_asd_aging.xlsx',
-        'stanford_asd': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/stanford/ig_files/top_50_consensus_features_stanford_asd_aging.xlsx'
-    }
+    # Load Excel file paths from config
+    config_path = Path(args.config)
+    if not config_path.exists():
+        # Try relative path as fallback
+        config_path = Path(__file__).parent.parent / 'config.yaml'
+        if not config_path.exists():
+            logging.error(f"Configuration file not found: {args.config} or {config_path}")
+            sys.exit(1)
+    
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+    
+    # Get Excel file paths from config
+    excel_file_paths = config.get('network_analysis', {}).get('count_data', {})
+    
+    if not excel_file_paths:
+        logging.error("No count_data paths found in config file")
+        sys.exit(1)
     
     # Create individual dataset tables
     logging.info("Creating individual dataset region tables...")

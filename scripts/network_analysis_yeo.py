@@ -320,7 +320,8 @@ def analyze_network_patterns(network_data: pd.DataFrame) -> Dict:
     return results
 
 def process_single_dataset(count_csv_path: str, yeo_atlas_path: str, 
-                          output_dir: str, title: str, network_names: List[str] = None) -> None:
+                          output_dir: str, title: str, network_names: List[str] = None, 
+                          dataset_name: str = None) -> None:
     """Process a single dataset for network analysis."""
     # Create output directory
     output_dir = Path(output_dir)
@@ -357,19 +358,22 @@ def process_single_dataset(count_csv_path: str, yeo_atlas_path: str,
     # Aggregate by networks
     network_data = aggregate_by_networks(count_data_with_networks)
     
-    # Save network data
-    network_csv = output_dir / "network_aggregated_data.csv"
+    # Save network data with dataset name in filename
+    # Use provided dataset_name or extract from title
+    if dataset_name is None:
+        dataset_name = title.split(" - ")[-1].lower().replace(" ", "_")
+    network_csv = output_dir / f"{dataset_name}_network_analysis.csv"
     network_data.to_csv(network_csv, index=False)
     logging.info(f"Network data saved to: {network_csv}")
     
     # Create visualizations
     from plot_network_analysis import create_polar_bar_plot, create_network_comparison_plot
     
-    polar_plot = output_dir / "network_polar_plot.png"
+    polar_plot = output_dir / f"{dataset_name}_network_polar_plot.png"
     create_polar_bar_plot(network_data, str(polar_plot), f"{title} - Polar Plot")
     
     # Also create a simple bar plot using the same function with different styling
-    bar_plot = output_dir / "network_bar_plot.png"
+    bar_plot = output_dir / f"{dataset_name}_network_bar_plot.png"
     create_polar_bar_plot(network_data, str(bar_plot), f"{title} - Bar Plot", show_values=False)
     
     # Analyze patterns
@@ -377,7 +381,7 @@ def process_single_dataset(count_csv_path: str, yeo_atlas_path: str,
     
     # Save analysis results
     import json
-    results_file = output_dir / "network_analysis_results.json"
+    results_file = output_dir / f"{dataset_name}_network_analysis_results.json"
     with open(results_file, 'w') as f:
         json.dump(analysis_results, f, indent=2, default=str)
     
@@ -430,7 +434,7 @@ def main():
             title = f"Network Analysis - {dataset_name.replace('_', ' ').title()}"
             
             logging.info(f"Processing {dataset_name}...")
-            process_single_dataset(csv_path, yeo_atlas_path, output_dir, title, network_names)
+            process_single_dataset(csv_path, yeo_atlas_path, output_dir, title, network_names, dataset_name)
         
         logging.info("All datasets processed!")
         
@@ -441,7 +445,9 @@ def main():
             return
         
         network_names = config.get('network_analysis', {}).get('network_names', None)
-        process_single_dataset(args.count_csv, args.yeo_atlas, args.output_dir, args.title, network_names)
+        # Extract dataset name from title for single dataset processing
+        single_dataset_name = args.title.split(" - ")[-1].lower().replace(" ", "_") if " - " in args.title else "dataset"
+        process_single_dataset(args.count_csv, args.yeo_atlas, args.output_dir, args.title, network_names, single_dataset_name)
 
 if __name__ == "__main__":
     main()

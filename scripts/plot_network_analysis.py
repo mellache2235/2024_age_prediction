@@ -265,7 +265,7 @@ def create_all_network_plots(config: Dict, output_dir: str = "/oak/stanford/grou
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     
     # Get network analysis results (assuming they exist from network_analysis_yeo.py)
-    network_results_dir = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis"
+    network_results_dir = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo"
     
     if not os.path.exists(network_results_dir):
         logging.warning(f"Network analysis results directory not found: {network_results_dir}")
@@ -277,7 +277,9 @@ def create_all_network_plots(config: Dict, output_dir: str = "/oak/stanford/grou
     count_data_config = config.get('network_analysis', {}).get('count_data', {})
     
     for dataset_name in count_data_config.keys():
-        network_file = os.path.join(network_results_dir, f"{dataset_name}_network_analysis.csv")
+        # Look in the dataset-specific subdirectory
+        dataset_dir = os.path.join(network_results_dir, dataset_name)
+        network_file = os.path.join(dataset_dir, f"{dataset_name}_network_analysis.csv")
         if os.path.exists(network_file):
             network_data = pd.read_csv(network_file)
             network_data_dict[dataset_name] = network_data
