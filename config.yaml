@@ -3,12 +3,27 @@
 
 # Network Analysis Configuration
 network_analysis:
-  ig_dir: "/path/to/integrated_gradients"
+  ig_dir: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures"
   model_prefix: "dev_age_model"
   num_models: 5
-  yeo_atlas_path: "/path/to/yeo_atlas.csv"
-  atlas_nifti_path: "/path/to/atlas.nii.gz"
+  yeo_atlas_path: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/feature_attribution/csv_files/subregion_func_network_Yeo_updated_yz.csv"
+  atlas_nifti_path: "/oak/stanford/groups/menon/projects/sryali/2019_DNN/scripts/features/BN_Atlas_246_2mm.nii"
+  network_names: ["Yeo17_0", "VisPeri", "VisCent", "SomMotA", "SomMotB", "DorsAttnA", "DorsAttnB", "SalVentAttnA", "SalVentAttnB", "LimbicB", "LimbicA", "FPA", "FPB", "FPC", "DefaultA", "DefaultB", "DefaultC", "TempPar", "AmyHip", "Striatum", "Thalamus"]
   percentile: 95.0
+  roi_labels_path: "/oak/stanford/groups/menon/projects/cdla/2021_hcp_earlypsychosis/scripts/restfmri/classify/CNN1dPyTorch/brainnetome_roi_labels.txt"
+  arial_font_path: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/clustering_analysis/arial.ttf"
+  hcp_dev_model_path: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/train_regression_models/dev/best_outer_fold_0_hcp_dev_model_2_27_24.pt"
+  
+  # Count Data Paths (Excel files to be converted to CSV)
+  count_data:
+    dev: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/dev/ig_files/top_50_consensus_features_hcp_dev_aging.xlsx"
+    nki: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/nki/ig_files/top_50_consensus_features_nki_cog_dev_aging.xlsx"
+    adhd200_adhd: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files/top_50_consensus_features_adhd200_adhd_aging.xlsx"
+    adhd200_td: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files_td/top_50_consensus_features_adhd200_td_aging.xlsx"
+    cmihbn_adhd: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files/top_50_consensus_features_cmihbn_adhd_aging.xlsx"
+    cmihbn_td: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files_td/top_50_consensus_features_cmihbn_td_aging.xlsx"
+    abide_asd: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/abide/ig_files/top_50_consensus_features_abide_asd_aging.xlsx"
+    stanford_asd: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/stanford/ig_files/top_50_consensus_features_stanford_asd_aging.xlsx"
 
 # Brain-Behavior Correlation Analysis Configuration
 brain_behavior:
@@ -28,57 +43,64 @@ feature_attribution:
 data_paths:
   # HCP-Dev (Discovery Cohort)
   hcp_dev:
-    training_data_dir: "/path/to/hcp_dev_training_data"
+    training_data_dir: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/hcp_dev_age_five_fold"
     behavioral_data: "/path/to/hcp_dev_behavioral.csv"
   
   # TD Cohorts for Bias Correction
   td_cohorts:
-    nki_rs_td: "/path/to/nki_rs_td_data.bin"
-    adhd200_td: "/path/to/adhd200_td_data.bin"
-    cmihbn_td: "/path/to/cmihbn_td_data.bin"
+    nki_rs_td: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/nki_age_cog_dev_wIDs/fold_0.bin"
+    adhd200_td: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/adhd200_regression_age_TD_wIDs/fold_0.bin"
+    cmihbn_td: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/cmihbn_age_TD/fold_0.bin"
   
   # External Datasets for Testing
   external_datasets:
-  nki_rs_td: "/path/to/nki_rs_td_fold_0.bin"
-  adhd200_adhd: "/path/to/adhd200_adhd_fold_0.bin"
-  cmihbn_adhd: "/path/to/cmihbn_adhd_fold_0.bin"
-  adhd200_td: "/path/to/adhd200_td_fold_0.bin"
-  cmihbn_td: "/path/to/cmihbn_td_fold_0.bin"
-  abide_asd: "/path/to/abide_asd_fold_0.bin"
-  stanford_asd: "/path/to/stanford_asd_fold_0.bin"
+    nki_rs_td: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/nki_age_cog_dev_wIDs/fold_0.bin"
+    adhd200_adhd: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/adhd200_regression_age_ADHD_wIDs/fold_0.bin"
+    cmihbn_adhd: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/cmihbn_age/fold_0.bin"
+    adhd200_td: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/adhd200_regression_age_TD_wIDs/fold_0.bin"
+    cmihbn_td: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/cmihbn_age_TD/fold_0.bin"
+    abide_asd: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/abide_asd_asd_dev_age_wIDs/fold_0.bin"
+    stanford_asd: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/stanford_autism_age_wIDS/fold_0.bin"
   
   # Comprehensive Brain-Behavior Analysis Datasets
   nki_rs_td:
     ig_csv: "/path/to/nki_cog_dev_features_IG_convnet_regressor_single_model_fold_0.csv"
-    behavioral_data: "/path/to/8100_CAARS-S-S_20191009.csv"
+    behavioral_data: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/nki_age_cog_dev_wIDs/fold_0.bin"
   adhd200_adhd:
     ig_csv: "/path/to/adhd200_adhd_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv"
-    behavioral_data: "/oak/stanford/groups/menon/deriveddata/public/adhd200/restfmri/timeseries/group_level/brainnetome/normz/adhd200_run-rest_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs_nn.pklz"
+    behavioral_data: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/adhd200_regression_age_ADHD_wIDs/fold_0.bin"
   cmihbn_adhd:
     ig_csv: "/path/to/cmihbn_adhd_weidong_cutoffs_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv"
-    behavioral_data: "/oak/stanford/groups/menon/projects/wdcai/2019_ADHD_NN/data/imaging/timeseries/CMIHBN/restfmri/timeseries/group_level/brainnetome/normz/"
+    behavioral_data: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/cmihbn_age/fold_0.bin"
     c3sr_data: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/adhd/C3SR.csv"
   adhd200_td:
     ig_csv: "/path/to/adhd200_td_features_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS.csv"
-    behavioral_data: "/oak/stanford/groups/menon/deriveddata/public/adhd200/restfmri/timeseries/group_level/brainnetome/normz/adhd200_run-rest_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs_nn.pklz"
+    behavioral_data: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/adhd200_regression_age_TD_wIDs/fold_0.bin"
   cmihbn_td:
     ig_csv: "/path/to/cmihbn_td_features_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS.csv"
-    behavioral_data: "/oak/stanford/groups/menon/projects/wdcai/2019_ADHD_NN/data/imaging/timeseries/CMIHBN/restfmri/timeseries/group_level/brainnetome/normz/"
+    behavioral_data: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/cmihbn_age_TD/fold_0.bin"
     c3sr_data: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/adhd/C3SR.csv"
   abide_asd:
     ig_csv: "/path/to/abide_asd_features_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS.csv"
-    behavioral_data: "/oak/stanford/groups/menon/deriveddata/public/abide/restfmri/timeseries/group_level/brainnetome/normz/"
+    behavioral_data: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/abide_asd_asd_dev_age_wIDs/fold_0.bin"
   stanford_asd:
     ig_csv: "/path/to/stanford_asd_features_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS.csv"
-    behavioral_data: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/stanford_autism/"
+    behavioral_data: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/stanford_autism_age_wIDS/fold_0.bin"
 
 # Model Configuration
-model:
-  architecture: "ConvNet"
+model_config:
+  architecture: "ConvNetLightning"
   learning_rate: 0.001
   batch_size: 32
   num_epochs: 100
   dropout_rate: 0.6
+  patience: 10
+
+# Existing Model Paths (for testing with pre-trained models)
+existing_models:
+  hcp_dev_models_dir: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/train_regression_models/dev"
+  # Legacy PyTorch model path (ready to use)
+  legacy_model_path: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/train_regression_models/dev/best_outer_fold_0_hcp_dev_model_2_27_24.pt"
 
 # Plotting Configuration
 plotting:

@@ -20,7 +20,6 @@ sys.path.append(str(Path(__file__).parent.parent / 'utils'))
 
 from data_utils import detect_roi_columns
 from statistical_utils import compute_similarity_metrics
-from plotting_utils import plot_correlation_matrix, save_figure
 import matplotlib.pyplot as plt
 
 
@@ -229,45 +228,10 @@ class FeatureComparison:
             os.path.join(output_dir, 'ranked_IG_B.csv'), header=[self.selection_mode]
         )
         
-        # Create visualizations
-        self.create_visualizations(results, output_dir)
+        # Note: Visualizations are now created using separate plotting scripts
         
         return results
     
-    def create_visualizations(self, results: Dict[str, any], 
-                            output_dir: str) -> None:
-        """
-        Create visualizations for comparison results.
-        
-        Args:
-            results (Dict[str, any]): Comparison results
-            output_dir (str): Output directory
-        """
-        # Create correlation plot for intersection features
-        intersection_df = results['intersection_features']
-        
-        if len(intersection_df) > 1:
-            fig, ax = plt.subplots(figsize=(8, 6))
-            
-            ax.scatter(intersection_df['cohort_a_score'], 
-                      intersection_df['cohort_b_score'],
-                      alpha=0.7, s=50)
-            
-            # Add correlation coefficient
-            corr = np.corrcoef(intersection_df['cohort_a_score'], 
-                             intersection_df['cohort_b_score'])[0, 1]
-            ax.text(0.05, 0.95, f'r = {corr:.3f}', 
-                   transform=ax.transAxes, fontsize=12,
-                   bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
-            
-            ax.set_xlabel('Cohort A Feature Scores')
-            ax.set_ylabel('Cohort B Feature Scores')
-            ax.set_title('Feature Score Correlation (Intersection)')
-            
-            plt.tight_layout()
-            plt.savefig(os.path.join(output_dir, 'feature_correlation.png'), 
-                       dpi=300, bbox_inches='tight')
-            plt.close()
         
         # Create summary plot
         metrics = results['overlap_metrics']

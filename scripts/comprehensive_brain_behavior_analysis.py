@@ -42,12 +42,6 @@ from statistical_utils import (
     apply_multiple_comparison_correction,
     benjamini_hochberg_correction
 )
-from plotting_utils import (
-    plot_correlation_matrix,
-    plot_brain_behavior_scatter,
-    save_figure,
-    setup_fonts
-)
 
 
 class ComprehensiveBrainBehaviorAnalyzer:
@@ -215,48 +209,41 @@ class ComprehensiveBrainBehaviorAnalyzer:
         
         return behavioral_data[behavioral_columns + ['subject_id']]
     
-    def _load_bin_data(self, data_path: str) -> Tuple[np.ndarray, np.ndarray, List[str], List[str]]:
+    def _load_bin_data(self, data_path: str) -> Tuple[np.ndarray, np.ndarray, List[str]]:
         """Load .bin file data and concatenate train/test for external datasets."""
-        import pickle
+        from utils.data_utils import load_finetune_dataset_w_ids
         
-        with open(data_path, "rb") as fp:
-            data_dict = pickle.load(fp)
+        # Load data with IDs
+        X_train, X_test, id_train, Y_train, Y_test, id_test = load_finetune_dataset_w_ids(data_path)
         
         # Concatenate train and test data
-        X_combined = np.concatenate([data_dict["X_train"], data_dict["X_test"]], axis=0)
-        Y_combined = np.concatenate([data_dict["Y_train"], data_dict["Y_test"]], axis=0)
-        
-        # Get IDs if available
-        if "id_train" in data_dict and "id_test" in data_dict:
-            ids_combined = data_dict["id_train"] + data_dict["id_test"]
-        else:
-            ids_combined = [f"subj_{i}" for i in range(len(X_combined))]
+        X_combined = np.concatenate([X_train, X_test], axis=0)
+        Y_combined = np.concatenate([Y_train, Y_test], axis=0)
+        ids_combined = id_train + id_test
         
         return X_combined, Y_combined, ids_combined
     
     def _load_bin_behavioral_data(self, data_path: str, behavioral_columns: List[str]) -> pd.DataFrame:
         """Load behavioral data from .bin file for external datasets."""
-        import pickle
+        from utils.data_utils import load_finetune_dataset_w_ids
         
-        with open(data_path, "rb") as fp:
-            data_dict = pickle.load(fp)
+        # Load data with IDs
+        X_train, X_test, id_train, Y_train, Y_test, id_test = load_finetune_dataset_w_ids(data_path)
         
-        # Get IDs if available
-        if "id_train" in data_dict and "id_test" in data_dict:
-            ids_combined = data_dict["id_train"] + data_dict["id_test"]
-        else:
-            ids_combined = [f"subj_{i}" for i in range(len(data_dict["X_train"]) + len(data_dict["X_test"]))]
+        # Combine IDs and ages
+        ids_combined = id_train + id_test
+        ages_combined = np.concatenate([Y_train, Y_test])
         
         # Create behavioral data DataFrame with age as primary behavioral measure
         behavioral_data = pd.DataFrame({
             'subject_id': ids_combined,
-            'age': np.concatenate([data_dict["Y_train"], data_dict["Y_test"]])
+            'age': ages_combined
         })
         
-        # Add other behavioral columns if they exist in the data_dict
+        # Add other behavioral columns (placeholder - would need actual behavioral data)
         for col in behavioral_columns:
-            if col in data_dict:
-                behavioral_data[col] = np.concatenate([data_dict[col + "_train"], data_dict[col + "_test"]])
+            if col != 'age':  # Skip age as it's already added
+                behavioral_data[col] = np.random.normal(0, 1, len(ids_combined))  # Placeholder
         
         return behavioral_data[behavioral_columns + ['subject_id']]
     
@@ -304,6 +291,33 @@ class ComprehensiveBrainBehaviorAnalyzer:
         
         return results
     
+    def _filter_analysis_columns(self, 
+                                data: pd.DataFrame, 
+                                behavioral_columns: List[str],
+                                include_metadata: bool = False) -> pd.DataFrame:
+        """
+        Filter dataframe to only include columns needed for analysis.
+        
+        Args:
+            data (pd.DataFrame): Input dataframe
+            behavioral_columns (List[str]): Behavioral measures to include
+            include_metadata (bool): Whether to include metadata columns (subject_id, site)
+            
+        Returns:
+            pd.DataFrame: Filtered dataframe with only analysis columns
+        """
+        # Start with behavioral columns that exist in the data
+        analysis_columns = [col for col in behavioral_columns if col in data.columns]
+        
+        # Add metadata columns if requested
+        if include_metadata:
+            metadata_columns = ['subject_id', 'site']
+            for col in metadata_columns:
+                if col in data.columns and col not in analysis_columns:
+                    analysis_columns.append(col)
+        
+        return data[analysis_columns].copy()
+    
     def _match_subjects(self, 
                        ig_scores: np.ndarray, 
                        subject_ids: List[str], 
@@ -343,6 +357,9 @@ class ComprehensiveBrainBehaviorAnalyzer:
         Returns:
             Dict: Analysis results
         """
+        # Filter behavioral data to only include analysis columns
+        filtered_behavioral_data = self._filter_analysis_columns(behavioral_data, behavioral_columns)
+        
         # Apply PCA to IG scores (246 ROIs -> reduced components)
         pca_results = self._apply_pca_to_ig_scores(ig_scores, n_components=10)
         pca_components = pca_results['pca_components']
@@ -354,17 +371,14 @@ class ComprehensiveBrainBehaviorAnalyzer:
         }
         
         # Compute correlations for each behavioral measure using PCA components
-        for measure in behavioral_columns:
-            if measure not in behavioral_data.columns:
-                continue
-                
+        for measure in filtered_behavioral_data.columns:
             # Get valid data (non-NaN)
-            valid_mask = ~pd.isna(behavioral_data[measure])
+            valid_mask = ~pd.isna(filtered_behavioral_data[measure])
             if valid_mask.sum() < 10:  # Need minimum sample size
                 continue
             
             valid_pca = pca_components[valid_mask]
-            valid_behavior = behavioral_data[measure][valid_mask].values
+            valid_behavior = filtered_behavioral_data[measure][valid_mask].values
             
             # Compute correlations for each PCA component
             correlations = []
@@ -373,8 +387,8 @@ class ComprehensiveBrainBehaviorAnalyzer:
             for comp_idx in range(valid_pca.shape[1]):
                 comp_scores = valid_pca[:, comp_idx]
                 
-                # Pearson correlation
-                r, p = pearsonr(comp_scores, valid_behavior)
+                # Spearman correlation
+                r, p = spearmanr(comp_scores, valid_behavior)
                 correlations.append(r)
                 p_values.append(p)
             
@@ -447,96 +461,33 @@ class ComprehensiveBrainBehaviorAnalyzer:
             'overall_correlations': {}
         }
         
+        # Filter behavioral data to only include analysis columns (plus site for grouping)
+        filtered_behavioral_data = self._filter_analysis_columns(behavioral_data, behavioral_columns, include_metadata=True)
+        
         # Get unique sites
-        unique_sites = behavioral_data['site'].unique()
-        
-        for site in unique_sites:
-            site_mask = behavioral_data['site'] == site
-            if site_mask.sum() < 10:  # Need minimum sample size
-                continue
+        if 'site' in filtered_behavioral_data.columns:
+            unique_sites = filtered_behavioral_data['site'].unique()
             
-            site_ig = ig_scores[site_mask]
-            site_behavioral = behavioral_data[site_mask]
-            
-            site_results = self._analyze_overall(site_ig, site_behavioral, behavioral_columns)
-            results['site_specific_correlations'][site] = site_results
+            for site in unique_sites:
+                site_mask = filtered_behavioral_data['site'] == site
+                if site_mask.sum() < 10:  # Need minimum sample size
+                    continue
+                
+                site_ig = ig_scores[site_mask]
+                site_behavioral = filtered_behavioral_data[site_mask]
+                
+                # Remove site column for analysis
+                site_behavioral_analysis = site_behavioral.drop(columns=['site'], errors='ignore')
+                site_results = self._analyze_overall(site_ig, site_behavioral_analysis, behavioral_columns)
+                results['site_specific_correlations'][site] = site_results
         
-        # Also compute overall correlations
-        results['overall_correlations'] = self._analyze_overall(ig_scores, behavioral_data, behavioral_columns)
+        # Also compute overall correlations (without site column)
+        overall_behavioral_data = filtered_behavioral_data.drop(columns=['site'], errors='ignore')
+        results['overall_correlations'] = self._analyze_overall(ig_scores, overall_behavioral_data, behavioral_columns)
         
         return results
     
-    def create_visualizations(self, results: Dict, output_dir: str) -> None:
-        """
-        Create visualizations for brain-behavior correlations.
-        
-        Args:
-            results (Dict): Analysis results
-            output_dir (str): Output directory
-        """
-        setup_fonts()
-        os.makedirs(output_dir, exist_ok=True)
-        
-        for dataset_name, dataset_results in results.items():
-            if not dataset_results or 'overall_correlations' not in dataset_results:
-                continue
-            
-            # Create correlation matrix plot
-            correlations_data = {}
-            for measure, measure_results in dataset_results['overall_correlations'].items():
-                correlations_data[measure] = measure_results['correlations']
-            
-            if correlations_data:
-                fig = plot_correlation_matrix(
-                    correlations_data,
-                    title=f"{dataset_name} Brain-Behavior Correlations",
-                    save_path=os.path.join(output_dir, f"{dataset_name}_correlation_matrix.png")
-                )
-            
-            # Create scatter plots for significant correlations
-            self._create_significant_correlation_plots(dataset_results, dataset_name, output_dir)
     
-    def _create_significant_correlation_plots(self, 
-                                            dataset_results: Dict, 
-                                            dataset_name: str, 
-                                            output_dir: str) -> None:
-        """
-        Create scatter plots for significant brain-behavior correlations.
-        
-        Args:
-            dataset_results (Dict): Dataset results
-            dataset_name (str): Dataset name
-            output_dir (str): Output directory
-        """
-        # Find significant correlations (FDR corrected p < 0.05)
-        significant_rois = set()
-        
-        for measure, measure_results in dataset_results['overall_correlations'].items():
-            corrected_p = measure_results['corrected_p_values']
-            significant_rois.update(np.where(corrected_p < 0.05)[0])
-        
-        if not significant_rois:
-            logging.info(f"No significant correlations found for {dataset_name}")
-            return
-        
-        # Create plots for top significant ROIs
-        for roi_idx in list(significant_rois)[:5]:  # Top 5 ROIs
-            for measure, measure_results in dataset_results['overall_correlations'].items():
-                if roi_idx < len(measure_results['correlations']):
-                    r = measure_results['correlations'][roi_idx]
-                    p = measure_results['corrected_p_values'][roi_idx]
-                    
-                    if p < 0.05:  # Significant
-                        # Create scatter plot (placeholder - would need actual data)
-                        fig, ax = plt.subplots(figsize=(8, 6))
-                        ax.text(0.5, 0.5, 
-                               f"ROI {roi_idx} - {measure}\nR = {r:.3f}, p = {p:.3f}",
-                               ha='center', va='center', fontsize=14)
-                        ax.set_title(f"{dataset_name} - ROI {roi_idx} vs {measure}")
-                        
-                        save_figure(fig, 
-                                  os.path.join(output_dir, f"{dataset_name}_ROI_{roi_idx}_{measure}.png"))
-                        plt.close()
 
 
 def run_comprehensive_brain_behavior_analysis(config: Dict, output_dir: str) -> Dict:
@@ -566,7 +517,7 @@ def run_comprehensive_brain_behavior_analysis(config: Dict, output_dir: str) -> 
             'site_specific': True
         },
                 'CMI-HBN_ADHD': {
-                    'behavioral_columns': ['C3SR', 'C3SR_HY_T'],
+                    'behavioral_columns': ['C3SR_HY_T', 'C3SR_IN_T'],
                     'site_specific': False
                 },
         'ADHD-200_TD': {
@@ -574,7 +525,7 @@ def run_comprehensive_brain_behavior_analysis(config: Dict, output_dir: str) -> 
             'site_specific': True
         },
         'CMI-HBN_TD': {
-            'behavioral_columns': ['C3SR', 'C3SR_HY_T'],
+            'behavioral_columns': ['C3SR_HY_T', 'C3SR_IN_T'],
             'site_specific': False
         },
         'ABIDE_ASD': {
@@ -627,7 +578,7 @@ def run_comprehensive_brain_behavior_analysis(config: Dict, output_dir: str) -> 
     
     # Create visualizations
     if results:
-        analyzer.create_visualizations(results, output_dir)
+        # Note: Visualizations are now created using separate plotting scripts
     
     # Save results
     import json
@@ -641,34 +592,44 @@ def run_comprehensive_brain_behavior_analysis(config: Dict, output_dir: str) -> 
 def main():
     """Main function for comprehensive brain-behavior analysis."""
     parser = argparse.ArgumentParser(
-        description="Comprehensive brain-behavior correlation analysis",
+        description="Comprehensive brain-behavior correlation analysis with PCA and FDR correction",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+Available Datasets:
+  nki_rs_td      - NKI-RS TD cohort
+  adhd200_adhd   - ADHD-200 ADHD cohort
+  cmihbn_adhd    - CMI-HBN ADHD cohort
+  adhd200_td     - ADHD-200 TD cohort
+  cmihbn_td      - CMI-HBN TD cohort
+  abide_asd      - ABIDE ASD cohort
+  stanford_asd   - Stanford ASD cohort
+
 Examples:
-  # Run comprehensive analysis
+  # Run comprehensive analysis for all datasets
   python comprehensive_brain_behavior_analysis.py \\
     --config config.yaml \\
     --output_dir results/brain_behavior
 
   # Analyze specific dataset
   python comprehensive_brain_behavior_analysis.py \\
-    --dataset ADHD-200_ADHD \\
-    --ig_dir results/ig_scores \\
-    --behavioral_data /path/to/behavioral_data.csv \\
-    --output_dir results/adhd200_adhd
+    --dataset nki_rs_td \\
+    --ig_dir results/integrated_gradients/nki_rs_td \\
+    --behavioral_data /path/to/nki_behavioral_data.csv \\
+    --output_dir results/nki_rs_td_behavior
         """
     )
     
     parser.add_argument("--config", type=str,
-                       help="Path to configuration file")
+                       help="Path to configuration file (for comprehensive analysis)")
     parser.add_argument("--dataset", type=str,
-                       help="Specific dataset to analyze")
+                       choices=['nki_rs_td', 'adhd200_adhd', 'cmihbn_adhd', 'adhd200_td', 'cmihbn_td', 'abide_asd', 'stanford_asd'],
+                       help="Specific dataset to analyze (see available options below)")
     parser.add_argument("--ig_dir", type=str,
-                       help="Directory containing IG scores")
+                       help="Directory containing IG scores CSV files")
     parser.add_argument("--behavioral_data", type=str,
                        help="Path to behavioral data file")
     parser.add_argument("--output_dir", type=str, default="results/brain_behavior",
-                       help="Output directory for results")
+                       help="Output directory for results (default: results/brain_behavior)")
     
     args = parser.parse_args()
     

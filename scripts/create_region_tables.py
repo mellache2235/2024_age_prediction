@@ -1,348 +1,290 @@
 #!/usr/bin/env python3
 """
-Create tables for regions of importance based on consensus count data.
+Create tables for regions of importance based on count data from CSV files.
 
 This script generates comprehensive tables summarizing important brain regions
-across different datasets and cohorts.
+across different datasets and cohorts using the count data CSV files.
 """
 
 import os
 import sys
+import yaml
 import argparse
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
+import logging
 
 # Add utils to path
 sys.path.append(str(Path(__file__).parent.parent / 'utils'))
 
-from feature_utils import (
-    compute_consensus_features_across_models,
-    create_feature_summary_table,
-    compare_feature_sets_across_cohorts,
-    extract_top_features_by_consensus
-)
-from data_utils import load_roi_labels
+from count_data_utils import load_count_data, create_region_mapping
+
+# Setup logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-def create_consensus_region_table(consensus_counts: Dict[int, int],
-                                roi_labels: List[str],
-                                network_mapping: Optional[Dict[str, List[int]]] = None,
-                                output_path: str = "results/tables/consensus_regions.csv") -> pd.DataFrame:
+def create_dataset_region_table(count_csv_path: str, 
+                               roi_labels_path: str,
+                               output_path: str,
+                               top_n: int = 50) -> pd.DataFrame:
     """
-    Create a table of consensus regions with their importance scores.
+    Create a region table for a single dataset.
     
     Args:
-        consensus_counts (Dict[int, int]): Feature consensus counts
-        roi_labels (List[str]): ROI labels
-        network_mapping (Dict[str, List[int]], optional): Network assignments
-        output_path (str): Output path for the table
-        
-    Returns:
-        pd.DataFrame: Consensus regions table
-    """
-    # Create summary data
-    summary_data = []
-    
-    for feature_idx, count in consensus_counts.items():
-        if feature_idx < len(roi_labels):
-            row = {
-                'roi_index': feature_idx,
-                'roi_name': roi_labels[feature_idx],
-                'consensus_count': count,
-                'consensus_percentage': count / max(consensus_counts.values()) * 100,
-                'importance_rank': 0  # Will be set after sorting
-            }
-            
-            # Add network information if available
-            if network_mapping:
-                for network, features in network_mapping.items():
-                    if feature_idx in features:
-                        row['network'] = network
-                        break
-                else:
-                    row['network'] = 'Unknown'
-            
-            summary_data.append(row)
-    
-    # Create DataFrame and sort by consensus count
-    summary_df = pd.DataFrame(summary_data)
-    summary_df = summary_df.sort_values('consensus_count', ascending=False)
-    summary_df['importance_rank'] = range(1, len(summary_df) + 1)
-    
-    # Save table
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    summary_df.to_csv(output_path, index=False)
-    print(f"Consensus regions table saved to: {output_path}")
-    
-    return summary_df
-
-
-def create_overlap_analysis_table(cohort_features: Dict[str, List[int]],
-                                cohort_names: List[str],
-                                roi_labels: List[str],
-                                output_path: str = "results/tables/overlap_analysis.csv") -> pd.DataFrame:
-    """
-    Create a table analyzing overlap between cohorts.
-    
-    Args:
-        cohort_features (Dict[str, List[int]]): Dictionary mapping cohort names to feature lists
-        cohort_names (List[str]): Names of cohorts
-        roi_labels (List[str]): ROI labels
-        output_path (str): Output path for the table
-        
-    Returns:
-        pd.DataFrame: Overlap analysis table
-    """
-    # Compare feature sets across cohorts
-    comparison_df = compare_feature_sets_across_cohorts(cohort_features, cohort_names)
-    
-    # Add ROI information for intersection features
-    if len(comparison_df) > 0:
-        # Get all unique features across cohorts
-        all_features = set()
-        for features in cohort_features.values():
-            all_features.update(features)
-        
-        # Create feature information table
-        feature_info = []
-        for feature_idx in all_features:
-            if feature_idx < len(roi_labels):
-                feature_info.append({
-                    'roi_index': feature_idx,
-                    'roi_name': roi_labels[feature_idx]
-                })
-        
-        feature_info_df = pd.DataFrame(feature_info)
-        
-        # Save tables
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        comparison_df.to_csv(output_path, index=False)
-        feature_info_df.to_csv(output_path.replace('.csv', '_features.csv'), index=False)
-        
-        print(f"Overlap analysis table saved to: {output_path}")
-        print(f"Feature information table saved to: {output_path.replace('.csv', '_features.csv')}")
-    
-    return comparison_df
-
-
-def create_network_summary_table(network_scores: Dict[str, float],
-                               network_mapping: Dict[str, List[int]],
-                               roi_labels: List[str],
-                               output_path: str = "results/tables/network_summary.csv") -> pd.DataFrame:
-    """
-    Create a summary table of network-level analysis.
-    
-    Args:
-        network_scores (Dict[str, float]): Network-level scores
-        network_mapping (Dict[str, List[int]]): Network to feature mapping
-        roi_labels (List[str]): ROI labels
-        output_path (str): Output path for the table
-        
-    Returns:
-        pd.DataFrame: Network summary table
-    """
-    network_summary = []
-    
-    for network, score in network_scores.items():
-        features = network_mapping.get(network, [])
-        
-        # Get ROI names for features in this network
-        roi_names = [roi_labels[i] for i in features if i < len(roi_labels)]
-        
-        network_summary.append({
-            'network': network,
-            'score': score,
-            'n_features': len(features),
-            'feature_indices': ','.join(map(str, features)),
-            'roi_names': '; '.join(roi_names)
-        })
-    
-    # Create DataFrame and sort by score
-    summary_df = pd.DataFrame(network_summary)
-    summary_df = summary_df.sort_values('score', ascending=False)
-    summary_df['network_rank'] = range(1, len(summary_df) + 1)
-    
-    # Save table
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    summary_df.to_csv(output_path, index=False)
-    print(f"Network summary table saved to: {output_path}")
-    
-    return summary_df
-
-
-def create_comprehensive_region_table(consensus_data: Dict[str, Dict],
-                                    roi_labels_path: str,
-                                    output_dir: str = "results/tables") -> None:
-    """
-    Create comprehensive region tables for all datasets.
-    
-    Args:
-        consensus_data (Dict[str, Dict]): Consensus data for different datasets
+        count_csv_path (str): Path to count data CSV file
         roi_labels_path (str): Path to ROI labels file
-        output_dir (str): Output directory for tables
+        output_path (str): Output path for the table
+        top_n (int): Number of top regions to include
+        
+    Returns:
+        pd.DataFrame: Region table
+    """
+    # Load count data
+    count_data = pd.read_csv(count_csv_path)
+    
+    # Load ROI labels
+    roi_mapping = create_region_mapping(roi_labels_path)
+    
+    # Extract ROI index from region names
+    def extract_roi_index(region_name):
+        try:
+            if isinstance(region_name, str):
+                import re
+                numbers = re.findall(r'\d+', region_name)
+                if numbers:
+                    return int(numbers[0])
+            elif isinstance(region_name, (int, float)):
+                return int(region_name)
+        except:
+            pass
+        return None
+    
+    count_data['roi_index'] = count_data['region'].apply(extract_roi_index)
+    
+    # Map ROI indices to region names
+    count_data['region_name'] = count_data['roi_index'].map(roi_mapping)
+    
+    # Sort by count and get top N
+    top_regions = count_data.nlargest(top_n, 'Count')
+    
+    # Create final table
+    region_table = pd.DataFrame({
+        'ROI_Index': top_regions['roi_index'],
+        'Region_Name': top_regions['region_name'],
+        'Count': top_regions['Count'],
+        'Rank': range(1, len(top_regions) + 1)
+    })
+    
+    # Save table
+    region_table.to_csv(output_path, index=False)
+    logging.info(f"Created region table for dataset: {len(region_table)} regions saved to {output_path}")
+    
+    return region_table
+
+
+def create_shared_region_table(dataset_csv_paths: List[str],
+                              roi_labels_path: str,
+                              output_path: str,
+                              top_n: int = 50,
+                              min_datasets: int = 2) -> pd.DataFrame:
+    """
+    Create a table of regions shared across multiple datasets.
+    
+    Args:
+        dataset_csv_paths (List[str]): List of paths to count data CSV files
+        roi_labels_path (str): Path to ROI labels file
+        output_path (str): Output path for the table
+        top_n (int): Number of top regions to include per dataset
+        min_datasets (int): Minimum number of datasets a region must appear in
+        
+    Returns:
+        pd.DataFrame: Shared regions table
     """
     # Load ROI labels
-    roi_labels = load_roi_labels(roi_labels_path)
+    roi_mapping = create_region_mapping(roi_labels_path)
     
-    # Create individual tables for each dataset
-    for dataset_name, data in consensus_data.items():
-        print(f"Creating tables for {dataset_name}...")
-        
-        if 'consensus_counts' not in data:
-            print(f"Warning: No consensus counts found for {dataset_name}")
+    # Collect top regions from each dataset
+    all_regions = {}
+    
+    for csv_path in dataset_csv_paths:
+        if not os.path.exists(csv_path):
+            logging.warning(f"Count data file not found: {csv_path}")
             continue
+            
+        dataset_name = Path(csv_path).stem.replace('_count_data', '')
+        count_data = pd.read_csv(csv_path)
         
-        # Create consensus regions table
-        consensus_table = create_consensus_region_table(
-            data['consensus_counts'],
-            roi_labels,
-            data.get('network_mapping'),
-            os.path.join(output_dir, f"{dataset_name}_consensus_regions.csv")
-        )
+        # Extract ROI index
+        def extract_roi_index(region_name):
+            try:
+                if isinstance(region_name, str):
+                    import re
+                    numbers = re.findall(r'\d+', region_name)
+                    if numbers:
+                        return int(numbers[0])
+                elif isinstance(region_name, (int, float)):
+                    return int(region_name)
+            except:
+                pass
+            return None
         
-        # Create network summary table if network mapping available
-        if 'network_mapping' in data and 'network_scores' in data:
-            network_table = create_network_summary_table(
-                data['network_scores'],
-                data['network_mapping'],
-                roi_labels,
-                os.path.join(output_dir, f"{dataset_name}_network_summary.csv")
-            )
+        count_data['roi_index'] = count_data['region'].apply(extract_roi_index)
+        
+        # Get top N regions
+        top_regions = count_data.nlargest(top_n, 'Count')
+        
+        for _, row in top_regions.iterrows():
+            roi_idx = row['roi_index']
+            if roi_idx is not None:
+                if roi_idx not in all_regions:
+                    all_regions[roi_idx] = {
+                        'region_name': roi_mapping.get(roi_idx, f'ROI_{roi_idx}'),
+                        'datasets': [],
+                        'counts': [],
+                        'total_count': 0
+                    }
+                all_regions[roi_idx]['datasets'].append(dataset_name)
+                all_regions[roi_idx]['counts'].append(row['Count'])
+                all_regions[roi_idx]['total_count'] += row['Count']
     
-    # Create cross-dataset comparison table
-    if len(consensus_data) > 1:
-        print("Creating cross-dataset comparison table...")
+    # Filter regions that appear in at least min_datasets
+    shared_regions = {roi_idx: data for roi_idx, data in all_regions.items() 
+                     if len(data['datasets']) >= min_datasets}
+    
+    # Create table
+    table_data = []
+    for roi_idx, data in shared_regions.items():
+        table_data.append({
+            'ROI_Index': roi_idx,
+            'Region_Name': data['region_name'],
+            'N_Datasets': len(data['datasets']),
+            'Datasets': ', '.join(data['datasets']),
+            'Total_Count': data['total_count'],
+            'Mean_Count': np.mean(data['counts']),
+            'Max_Count': np.max(data['counts'])
+        })
+    
+    # Sort by total count
+    shared_table = pd.DataFrame(table_data)
+    shared_table = shared_table.sort_values('Total_Count', ascending=False)
+    shared_table['Rank'] = range(1, len(shared_table) + 1)
+    
+    # Save table
+    shared_table.to_csv(output_path, index=False)
+    logging.info(f"Created shared region table: {len(shared_table)} regions shared across datasets, saved to {output_path}")
+    
+    return shared_table
+
+
+def create_all_region_tables(config: Dict, output_dir: str = "results/region_tables") -> Dict[str, pd.DataFrame]:
+    """
+    Create all region tables for different dataset groups.
+    
+    Args:
+        config (Dict): Configuration dictionary
+        output_dir (str): Output directory for tables
         
-        # Extract feature lists for each dataset
-        cohort_features = {}
-        for dataset_name, data in consensus_data.items():
-            if 'consensus_counts' in data:
-                # Get top features (e.g., top 20%)
-                top_features = extract_top_features_by_consensus(
-                    data['consensus_counts'], top_percentage=0.2
-                )
-                cohort_features[dataset_name] = top_features
-        
-        if cohort_features:
-            overlap_table = create_overlap_analysis_table(
-                cohort_features,
-                list(cohort_features.keys()),
-                roi_labels,
-                os.path.join(output_dir, "cross_dataset_overlap.csv")
-            )
+    Returns:
+        Dict[str, pd.DataFrame]: Dictionary of created tables
+    """
+    # Create output directory
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    
+    # Get paths from config
+    roi_labels_path = config.get('network_analysis', {}).get('roi_labels_path')
+    count_data_config = config.get('network_analysis', {}).get('count_data', {})
+    
+    if not roi_labels_path or not count_data_config:
+        logging.error("Missing required configuration: roi_labels_path or count_data")
+        return {}
+    
+    tables = {}
+    
+    # Create individual dataset tables
+    logging.info("Creating individual dataset region tables...")
+    for dataset_name, excel_path in count_data_config.items():
+        csv_path = f"results/count_data/{dataset_name}_count_data.csv"
+        if os.path.exists(csv_path):
+            output_path = os.path.join(output_dir, f"{dataset_name}_top_regions.csv")
+            table = create_dataset_region_table(csv_path, roi_labels_path, output_path)
+            tables[f"{dataset_name}_individual"] = table
+        else:
+            logging.warning(f"Count data CSV not found for {dataset_name}: {csv_path}")
+    
+    # Create shared TD regions table
+    td_datasets = ['nki', 'adhd200_td', 'cmihbn_td']
+    td_csv_paths = [f"results/count_data/{dataset}_count_data.csv" for dataset in td_datasets]
+    td_csv_paths = [path for path in td_csv_paths if os.path.exists(path)]
+    
+    if td_csv_paths:
+        logging.info("Creating shared TD regions table...")
+        output_path = os.path.join(output_dir, "shared_td_regions.csv")
+        td_table = create_shared_region_table(td_csv_paths, roi_labels_path, output_path)
+        tables['shared_td'] = td_table
+    
+    # Create shared ADHD regions table
+    adhd_datasets = ['adhd200_adhd', 'cmihbn_adhd']
+    adhd_csv_paths = [f"results/count_data/{dataset}_count_data.csv" for dataset in adhd_datasets]
+    adhd_csv_paths = [path for path in adhd_csv_paths if os.path.exists(path)]
+    
+    if adhd_csv_paths:
+        logging.info("Creating shared ADHD regions table...")
+        output_path = os.path.join(output_dir, "shared_adhd_regions.csv")
+        adhd_table = create_shared_region_table(adhd_csv_paths, roi_labels_path, output_path)
+        tables['shared_adhd'] = adhd_table
+    
+    # Create shared ASD regions table
+    asd_datasets = ['abide_asd', 'stanford_asd']
+    asd_csv_paths = [f"results/count_data/{dataset}_count_data.csv" for dataset in asd_datasets]
+    asd_csv_paths = [path for path in asd_csv_paths if os.path.exists(path)]
+    
+    if asd_csv_paths:
+        logging.info("Creating shared ASD regions table...")
+        output_path = os.path.join(output_dir, "shared_asd_regions.csv")
+        asd_table = create_shared_region_table(asd_csv_paths, roi_labels_path, output_path)
+        tables['shared_asd'] = asd_table
+    
+    # Create overall shared regions table (across all datasets)
+    all_csv_paths = [f"results/count_data/{dataset}_count_data.csv" for dataset in count_data_config.keys()]
+    all_csv_paths = [path for path in all_csv_paths if os.path.exists(path)]
+    
+    if all_csv_paths:
+        logging.info("Creating overall shared regions table...")
+        output_path = os.path.join(output_dir, "shared_all_regions.csv")
+        all_table = create_shared_region_table(all_csv_paths, roi_labels_path, output_path, min_datasets=3)
+        tables['shared_all'] = all_table
+    
+    logging.info(f"Created {len(tables)} region tables in {output_dir}")
+    return tables
 
 
 def main():
-    """Main function for creating region tables."""
-    parser = argparse.ArgumentParser(
-        description="Create tables for regions of importance",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Create tables for a single dataset
-  python create_region_tables.py \\
-    --consensus_file results/consensus_data.npz \\
-    --roi_labels /path/to/roi_labels.txt \\
-    --output_dir results/tables
-
-  # Create comprehensive tables for multiple datasets
-  python create_region_tables.py \\
-    --consensus_dir results/consensus/ \\
-    --roi_labels /path/to/roi_labels.txt \\
-    --output_dir results/tables
-        """
-    )
-    
-    parser.add_argument("--consensus_file", type=str,
-                       help="Path to single consensus data file")
-    parser.add_argument("--consensus_dir", type=str,
-                       help="Directory containing multiple consensus data files")
-    parser.add_argument("--roi_labels", type=str, required=True,
-                       help="Path to ROI labels file")
-    parser.add_argument("--output_dir", type=str, default="results/tables",
+    """Main function to create region tables."""
+    parser = argparse.ArgumentParser(description="Create region tables from count data")
+    parser.add_argument("--config", type=str, default="config.yaml",
+                       help="Path to configuration file")
+    parser.add_argument("--output_dir", type=str, default="results/region_tables",
                        help="Output directory for tables")
-    parser.add_argument("--dataset_name", type=str,
-                       help="Name of dataset (for single file mode)")
+    parser.add_argument("--top_n", type=int, default=50,
+                       help="Number of top regions to include")
     
     args = parser.parse_args()
     
-    if not args.consensus_file and not args.consensus_dir:
-        print("Error: Must specify either --consensus_file or --consensus_dir")
-        sys.exit(1)
+    # Load configuration
+    with open(args.config, 'r') as f:
+        config = yaml.safe_load(f)
     
-    if args.consensus_file:
-        # Single file mode
-        if not args.dataset_name:
-            args.dataset_name = "dataset"
-        
-        try:
-            # Load consensus data
-            consensus_data = np.load(args.consensus_file, allow_pickle=True)
-            consensus_counts = consensus_data['consensus_counts'].item()
-            network_mapping = consensus_data.get('network_mapping', {}).item()
-            
-            # Create single dataset tables
-            roi_labels = load_roi_labels(args.roi_labels)
-            
-            create_consensus_region_table(
-                consensus_counts,
-                roi_labels,
-                network_mapping,
-                os.path.join(args.output_dir, f"{args.dataset_name}_consensus_regions.csv")
-            )
-            
-            if network_mapping:
-                network_scores = consensus_data.get('network_scores', {}).item()
-                create_network_summary_table(
-                    network_scores,
-                    network_mapping,
-                    roi_labels,
-                    os.path.join(args.output_dir, f"{args.dataset_name}_network_summary.csv")
-                )
-            
-            print(f"Tables created successfully for {args.dataset_name}")
-            
-        except Exception as e:
-            print(f"Error processing single file: {e}")
-            sys.exit(1)
+    # Create all region tables
+    tables = create_all_region_tables(config, args.output_dir)
     
-    else:
-        # Multiple files mode
-        try:
-            # Load consensus data from multiple files
-            consensus_data = {}
-            
-            for file_path in Path(args.consensus_dir).glob("*.npz"):
-                dataset_name = file_path.stem
-                
-                try:
-                    data = np.load(file_path, allow_pickle=True)
-                    consensus_data[dataset_name] = {
-                        'consensus_counts': data['consensus_counts'].item(),
-                        'network_mapping': data.get('network_mapping', {}).item(),
-                        'network_scores': data.get('network_scores', {}).item()
-                    }
-                except Exception as e:
-                    print(f"Warning: Could not load {file_path}: {e}")
-            
-            if not consensus_data:
-                print("Error: No valid consensus data files found")
-                sys.exit(1)
-            
-            # Create comprehensive tables
-            create_comprehensive_region_table(
-                consensus_data,
-                args.roi_labels,
-                args.output_dir
-            )
-            
-            print(f"Comprehensive tables created for {len(consensus_data)} datasets")
-            
-        except Exception as e:
-            print(f"Error processing multiple files: {e}")
-            sys.exit(1)
+    # Print summary
+    logging.info("=== REGION TABLES SUMMARY ===")
+    for table_name, table in tables.items():
+        logging.info(f"{table_name}: {len(table)} regions")
+    
+    logging.info("Region table creation completed!")
 
 
 if __name__ == "__main__":

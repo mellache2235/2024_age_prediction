@@ -1,6 +1,93 @@
 # Age Prediction Analysis Pipeline
 
-A comprehensive, modular pipeline for brain age prediction analysis using deep learning and neuroimaging data. This repository provides tools for feature attribution, network-level analysis, brain-behavior correlations, and statistical analysis with proper multiple comparison correction.
+A comprehensive, modular pipeline for brain age prediction analysis using **pre-trained models** and existing data files. This repository provides tools for feature attribution, network-level analysis, brain-behavior correlations, and statistical analysis with proper multiple comparison correction.
+
+## 🎯 **Ready-to-Use Pipeline**
+
+This pipeline is designed to work with **existing trained models** and **pre-processed data files**:
+
+- ✅ **Pre-trained HCP-Dev models** (PyTorch Lightning checkpoints + legacy PyTorch models)
+- ✅ **Existing count data** (Excel files with consensus features)
+- ✅ **Behavioral data** (CSV files with clinical measures)
+- ✅ **Pre-processed imaging data** (.pklz and .bin files)
+- ✅ **ROI labels and atlas files** (Brainnetome 246 ROI)
+
+**No additional training required** - the pipeline uses existing models to generate results and plots.
+
+## 📂 **Existing Data Files**
+
+The pipeline is configured to use the following existing data files:
+
+### **Pre-trained Models**
+- **HCP-Dev Models**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/train_regression_models/dev/`
+- **Legacy Model**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/train_regression_models/dev/best_outer_fold_0_hcp_dev_model_2_27_24.pt`
+
+### **Count Data (Excel Files)**
+- **HCP-Dev**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/dev/ig_files/top_50_consensus_features_hcp_dev_aging.xlsx`
+- **NKI**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/nki/ig_files/top_50_consensus_features_nki_cog_dev_aging.xlsx`
+- **ADHD200**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files/top_50_consensus_features_adhd200_*_aging.xlsx`
+- **CMI-HBN**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files/top_50_consensus_features_cmihbn_*_aging.xlsx`
+- **ABIDE**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/abide/ig_files/top_50_consensus_features_abide_asd_aging.xlsx`
+- **Stanford**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/stanford/ig_files/top_50_consensus_features_stanford_asd_aging.xlsx`
+
+### **Behavioral Data**
+- **NKI**: `8100_CAARS-S-S_20191009.csv` (CAARS_36, CAARS_37 for IN, HY)
+- **CMI-HBN**: `/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/adhd/C3SR.csv` (C3SR_HY_T, C3SR_IN_T)
+- **ADHD200**: `adhd200_run-rest_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs_nn.pklz`
+- **ABIDE**: ADOS Total, Social, Comm scores
+- **Stanford**: `/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/stanford_autism/SRS_data_20230925.csv` (srs_total_score_standard)
+
+### **Imaging Data (.bin files)**
+- **HCP-Dev**: `/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/hcp_dev_age_five_fold/`
+- **NKI**: `/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/nki_age_cog_dev_wIDs/fold_0.bin`
+- **ADHD200**: `/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/adhd200_regression_age_*_wIDs/fold_0.bin`
+- **CMI-HBN**: `/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/cmihbn_age*/fold_0.bin`
+- **ABIDE**: `/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/abide_asd_*/fold_0.bin`
+- **Stanford**: `/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/stanford_autism_*/fold_0.bin`
+
+### **Atlas and Labels**
+- **ROI Labels**: `/oak/stanford/groups/menon/projects/cdla/2021_hcp_earlypsychosis/scripts/restfmri/classify/CNN1dPyTorch/brainnetome_roi_labels.txt`
+- **Yeo Atlas**: `/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/feature_attribution/csv_files/subregion_func_network_Yeo_updated_yz.csv`
+- **Brain Atlas**: `/oak/stanford/groups/menon/projects/sryali/2019_DNN/scripts/features/BN_Atlas_246_2mm.nii`
+- **Arial Font**: `/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/clustering_analysis/arial.ttf`
+
+## ⚡ **Quick Start with Existing Models**
+
+**Ready to run the complete pipeline with existing data:**
+
+```bash
+# 1. Test pre-trained models on all external datasets
+python scripts/brain_age_prediction.py \
+  --config config.yaml \
+  --use_existing_models \
+  --model_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/train_regression_models/dev \
+  --output_dir results/brain_age_prediction
+
+# 2. Convert existing count data and create region tables
+python scripts/convert_count_data.py
+python scripts/create_region_tables.py
+
+# 3. Generate all plots
+python scripts/plot_brain_age_correlations.py \
+  --results_file results/brain_age_prediction/brain_age_prediction_results_*.json \
+  --output_dir results/figures/brain_age_plots
+
+python scripts/plot_network_analysis.py \
+  --config config.yaml \
+  --output_dir results/figures/network_plots
+
+# 4. Run brain-behavior analysis
+python scripts/comprehensive_brain_behavior_analysis.py --dataset nki_rs_td
+python scripts/comprehensive_brain_behavior_analysis.py --dataset adhd200_adhd
+python scripts/comprehensive_brain_behavior_analysis.py --dataset abide_asd
+```
+
+**Expected Results:**
+- ✅ Brain age predictions with bias correction
+- ✅ Comprehensive brain age gap analysis
+- ✅ Region importance tables
+- ✅ Network analysis plots
+- ✅ Brain-behavior correlations with FDR correction
 
 ## 🚀 Features
 
@@ -27,17 +114,37 @@ A comprehensive, modular pipeline for brain age prediction analysis using deep l
 │   ├── model_utils.py              # Neural network models and training
 │   ├── plotting_utils.py           # Visualization functions
 │   ├── statistical_utils.py        # Statistical analysis and corrections
-│   └── feature_utils.py            # Feature attribution and analysis
+│   ├── feature_utils.py            # Feature attribution and analysis
+│   └── count_data_utils.py         # Count data processing utilities
 │
 ├── scripts/                         # Analysis scripts
-│   ├── network_analysis.py         # Network-level analysis
-│   ├── brain_behavior_correlation.py # Brain-behavior correlations
+│   ├── brain_age_prediction.py     # Brain age prediction pipeline
+│   ├── compute_integrated_gradients.py # IG computation for all datasets
+│   ├── generate_count_data.py      # Generate count data from IG scores
+│   ├── convert_count_data.py       # Convert Excel count data to CSV
+│   ├── create_region_tables.py     # Create region importance tables
+│   ├── network_analysis_yeo.py     # Yeo atlas network analysis
+│   ├── cosine_similarity_analysis.py # Cosine similarity between cohorts
+│   ├── comprehensive_brain_behavior_analysis.py # Brain-behavior correlations
 │   ├── feature_comparison.py       # Feature comparison between cohorts
+│   │
+│   ├── plotting/                   # Separate plotting scripts
+│   │   ├── plot_brain_age_correlations.py    # Brain age prediction plots
+│   │   ├── plot_brain_visualization.py       # 3D brain surface plots
+│   │   ├── plot_network_analysis.py          # Network analysis plots
+│   │   └── plot_brain_behavior_analysis.py   # Brain-behavior plots
+│   │
 │   └── [legacy scripts]            # Original scripts (to be refactored)
 │
 ├── results/                         # Output directory
 │   ├── figures/                    # Generated plots
+│   │   ├── brain_age_correlations/ # Brain age prediction plots
+│   │   ├── brain_visualization/    # 3D brain surface plots
+│   │   ├── network_analysis/       # Network analysis plots
+│   │   └── brain_behavior_analysis/ # Brain-behavior plots
 │   ├── tables/                     # Statistical tables
+│   ├── region_tables/              # Region importance tables
+│   ├── count_data/                 # Count data CSV files
 │   ├── network_analysis/           # Network analysis results
 │   └── brain_behavior/             # Brain-behavior results
 │
@@ -50,8 +157,62 @@ A comprehensive, modular pipeline for brain age prediction analysis using deep l
 
 - Python 3.8 or higher
 - CUDA-capable GPU (recommended for model training)
+- Conda or Miniconda
 
 ### Setup
+
+#### Option 1: Using Conda (Recommended)
+
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd 2024_age_prediction
+   ```
+
+2. **Create a conda environment**:
+   ```bash
+   # Create environment with Python 3.9
+   conda create -n age_prediction python=3.9 -y
+   
+   # Activate the environment
+   conda activate age_prediction
+   ```
+
+3. **Install PyTorch with CUDA support** (if you have a CUDA-capable GPU):
+   ```bash
+   # For CUDA 11.8
+   conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia -y
+   
+   # For CUDA 12.1
+   conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia -y
+   
+   # For CPU only
+   conda install pytorch torchvision torchaudio cpuonly -c pytorch -y
+   ```
+
+4. **Install other dependencies**:
+   ```bash
+   # Install scientific computing packages
+   conda install numpy pandas scipy scikit-learn matplotlib seaborn -c conda-forge -y
+   
+   # Install neuroimaging packages
+   conda install nilearn -c conda-forge -y
+   
+   # Install PyTorch Lightning
+   conda install pytorch-lightning -c conda-forge -y
+   
+   # Install remaining packages via pip
+   pip install captum statsmodels pyyaml
+   ```
+
+5. **Verify installation**:
+   ```bash
+   python -c "import torch; print(f'PyTorch version: {torch.__version__}')"
+   python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+   python -c "import utils; print('Installation successful!')"
+   ```
+
+#### Option 2: Using pip (Alternative)
 
 1. **Clone the repository**:
    ```bash
@@ -74,6 +235,29 @@ A comprehensive, modular pipeline for brain age prediction analysis using deep l
    ```bash
    python -c "import utils; print('Installation successful!')"
    ```
+
+### Environment Management
+
+**To deactivate the environment**:
+```bash
+conda deactivate  # For conda
+# or
+deactivate        # For venv
+```
+
+**To remove the environment** (if needed):
+```bash
+conda env remove -n age_prediction  # For conda
+# or
+rm -rf venv                        # For venv
+```
+
+**To reactivate the environment**:
+```bash
+conda activate age_prediction  # For conda
+# or
+source venv/bin/activate       # For venv
+```
 
 ## 🚀 Quick Start
 
@@ -98,42 +282,256 @@ brain_behavior:
   correction_method: "fdr_bh"
 ```
 
-### 2. Run Complete Pipeline
+### 2. Complete Analysis Workflow
+
+**🎯 Using Pre-trained Models (Recommended)**
+
+Follow this 8-step workflow using existing trained models and data:
 
 ```bash
-# Run all analyses in correct order (simplified - no command line arguments needed)
-python main.py
-```
+# Step 1: Test pre-trained models on external TD, ADHD, ASD datasets
+python scripts/brain_age_prediction.py \
+  --config config.yaml \
+  --use_existing_models \
+  --model_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/train_regression_models/dev
 
-**Analysis Order:**
-1. **Brain Age Prediction** → Train models and generate predictions
-2. **Feature Attribution** → Compute Integrated Gradients (IG) for each individual
-3. **Brain Visualization** → Create 3D brain surface plots from IG scores
-4. **Network Analysis** → Network-level analysis using consensus IG data
-5. **Brain-Behavior Analysis** → Correlate individual IG scores with behavioral measures
+# Step 2: Generate brain age prediction plots
+python scripts/plot_brain_age_correlations.py \
+  --results_file results/brain_age_prediction/brain_age_prediction_results_*.json \
+  --output_dir results/figures/brain_age_plots
 
-### 3. Individual Scripts
+# Step 3: Compute Integrated Gradients for each dataset (using pre-trained model)
+python scripts/compute_integrated_gradients.py --dataset nki_rs_td --fold 0
+python scripts/compute_integrated_gradients.py --dataset cmihbn_td --fold 0
+python scripts/compute_integrated_gradients.py --dataset adhd200_td --fold 0
+python scripts/compute_integrated_gradients.py --dataset adhd200_adhd --fold 0
+python scripts/compute_integrated_gradients.py --dataset cmihbn_adhd --fold 0
+python scripts/compute_integrated_gradients.py --dataset abide_asd --fold 0
+python scripts/compute_integrated_gradients.py --dataset stanford_asd --fold 0
 
-```bash
-# Brain age prediction with nested CV
-python scripts/brain_age_prediction.py
+# Step 4: Convert existing count data Excel files to CSV format
+# (Uses existing Excel files from results/figures/*/ig_files/)
+python scripts/convert_count_data.py
 
-# Brain-behavior correlation with PCA
-python scripts/comprehensive_brain_behavior_analysis.py
+# Step 5: Generate count data from IG computed from 5 trained CV models (if needed)
+python scripts/generate_count_data.py --dataset nki_rs_td
+python scripts/generate_count_data.py --dataset cmihbn_td
+python scripts/generate_count_data.py --dataset adhd200_td
+python scripts/generate_count_data.py --dataset adhd200_adhd
+python scripts/generate_count_data.py --dataset cmihbn_adhd
+python scripts/generate_count_data.py --dataset abide_asd
+python scripts/generate_count_data.py --dataset stanford_asd
 
-# Network analysis
-python scripts/network_analysis.py
-
-# Feature comparison
-python scripts/feature_comparison.py
-
-# Create region tables
+# Step 6: Create region tables for each dataset and shared regions
 python scripts/create_region_tables.py
+
+# Step 7: Compute cosine similarity between discovery and validation cohorts
+python scripts/cosine_similarity_analysis.py --analysis_type all --data_dir results/count_data/
+
+# Step 8: Generate feature maps and network analysis for each dataset
+python scripts/network_analysis_yeo.py --process_all
+
+# Step 9: Brain behavior analysis for TD, ADHD, ASD
+python scripts/comprehensive_brain_behavior_analysis.py --dataset nki_rs_td
+python scripts/comprehensive_brain_behavior_analysis.py --dataset cmihbn_td
+python scripts/comprehensive_brain_behavior_analysis.py --dataset adhd200_td
+python scripts/comprehensive_brain_behavior_analysis.py --dataset adhd200_adhd
+python scripts/comprehensive_brain_behavior_analysis.py --dataset cmihbn_adhd
+python scripts/comprehensive_brain_behavior_analysis.py --dataset abide_asd
+python scripts/comprehensive_brain_behavior_analysis.py --dataset stanford_asd
+
+# Step 10: Create all plots (separate plotting scripts)
+# Brain age prediction plots
+python scripts/plot_brain_age_correlations.py --results_file results/brain_age_prediction_results.json
+
+# Brain visualization plots (3D brain surface plots)
+python scripts/plot_brain_visualization.py --config config.yaml
+
+# Network analysis plots
+python scripts/plot_network_analysis.py --config config.yaml
+
+# Brain-behavior analysis plots
+python scripts/plot_brain_behavior_analysis.py --results_file results/brain_behavior_results.json
 ```
+
+**🔄 Alternative: Training New Models (Optional)**
+
+If you need to train new models instead of using existing ones:
+
+```bash
+# Train new models on HCP-Dev (5-fold CV)
+python scripts/brain_age_prediction.py \
+  --hcp_dev_dir /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/hcp_dev_age_five_fold \
+  --output_dir results/training
+
+# Then run analysis with newly trained models
+python scripts/brain_age_prediction.py \
+  --config config.yaml \
+  --use_existing_models \
+  --model_dir results/training
+```
+
+### 3. Complete Workflow Example
+
+```bash
+# Step 1: Train models
+python scripts/train_brain_age_model.py
+
+# Step 2: Test on external data
+python scripts/test_external_dataset.py --dataset nki_rs_td
+
+# Step 3: Compute IG scores
+python scripts/compute_integrated_gradients.py --dataset nki_rs_td --fold 0
+
+# Step 4: Brain-behavior analysis
+python scripts/brain_behavior_analysis.py --dataset nki_rs_td
+```
+
+### 4. Available Datasets
+
+For external testing, IG computation, and brain-behavior analysis:
+- `nki_rs_td` - NKI-RS TD cohort
+- `adhd200_adhd` - ADHD-200 ADHD cohort  
+- `cmihbn_adhd` - CMI-HBN ADHD cohort
+- `adhd200_td` - ADHD-200 TD cohort
+- `cmihbn_td` - CMI-HBN TD cohort
+- `abide_asd` - ABIDE ASD cohort
+- `stanford_asd` - Stanford ASD cohort
 
 ## 📊 Analysis Modules
 
-### Network Analysis (`scripts/network_analysis.py`)
+### Region Tables Creation (`scripts/create_region_tables.py`)
+
+Creates comprehensive tables for regions of importance based on count data:
+
+**Table Types:**
+1. **Individual Dataset Tables**: Top regions for each dataset (e.g., `nki_top_regions.csv`)
+2. **Shared TD Regions**: Regions shared across TD cohorts (`shared_td_regions.csv`)
+3. **Shared ADHD Regions**: Regions shared across ADHD cohorts (`shared_adhd_regions.csv`)
+4. **Shared ASD Regions**: Regions shared across ASD cohorts (`shared_asd_regions.csv`)
+5. **Overall Shared Regions**: Regions shared across all datasets (`shared_all_regions.csv`)
+
+**Features:**
+- **Count Data Integration**: Uses CSV count data files from IG analysis
+- **ROI Mapping**: Maps ROI indices to human-readable region names
+- **Top N Selection**: Configurable number of top regions (default: 50)
+- **Shared Region Analysis**: Identifies regions appearing in multiple datasets
+- **Comprehensive Statistics**: Includes counts, ranks, and dataset information
+
+**Usage:**
+```bash
+# Create all region tables
+python scripts/create_region_tables.py
+
+# With custom parameters
+python scripts/create_region_tables.py --top_n 100 --output_dir results/custom_tables
+```
+
+### Comprehensive Cosine Similarity Analysis (`scripts/cosine_similarity_analysis.py`)
+
+Computes cosine similarity for multiple comparison types using count data:
+
+**Analysis Types:**
+1. **Discovery vs Validation**: HCP-Dev vs NKI-RS TD, CMI-HBN TD, ADHD-200 TD
+2. **Within-Condition**: ADHD200 ADHD vs CMI-HBN ADHD, ABIDE ASD vs Stanford ASD
+3. **Pooled Condition**: Pooled ADHD vs Pooled ASD
+4. **Cross-Condition**: TD vs ADHD, TD vs ASD
+
+**Features:**
+- **Count Data**: Uses attribution count data from IG scores
+- **Region Alignment**: Automatically aligns common regions between cohorts
+- **Pooled Data**: Creates pooled datasets by averaging across cohorts
+- **Statistical Summary**: Computes mean, std, min, max, and range of similarities
+- **Structured Analysis**: Organized by comparison type
+
+**Usage:**
+```bash
+# Option 1: Run all analyses (requires data_dir with all count data files)
+python scripts/cosine_similarity_analysis.py --analysis_type all --data_dir results/count_data/
+
+# Option 2: Run specific analysis types
+python scripts/cosine_similarity_analysis.py --analysis_type discovery_validation --discovery_csv hcp_dev_count_data.csv --nki_csv nki_rs_td_count_data.csv --cmihbn_csv cmihbn_td_count_data.csv --adhd200_csv adhd200_td_count_data.csv
+
+python scripts/cosine_similarity_analysis.py --analysis_type within_condition --data_dir results/count_data/
+python scripts/cosine_similarity_analysis.py --analysis_type pooled_condition --data_dir results/count_data/
+python scripts/cosine_similarity_analysis.py --analysis_type cross_condition --data_dir results/count_data/
+```
+
+**Expected Count Data Files:**
+- `hcp_dev_count_data.csv` (discovery)
+- `nki_rs_td_count_data.csv`, `cmihbn_td_count_data.csv`, `adhd200_td_count_data.csv` (TD cohorts)
+- `adhd200_adhd_count_data.csv`, `cmihbn_adhd_count_data.csv` (ADHD cohorts)
+- `abide_asd_count_data.csv`, `stanford_asd_count_data.csv` (ASD cohorts)
+
+**Output:**
+- Individual cosine similarities for each comparison
+- Summary statistics (mean, std, min, max, range) for each analysis type
+- Pooled data files for cross-condition comparisons
+- Comprehensive JSON file with all results organized by analysis type
+
+### Separate Plotting Scripts
+
+The pipeline now includes dedicated plotting scripts for different analysis types:
+
+#### Brain Age Correlation Plots (`scripts/plot_brain_age_correlations.py`)
+- **Scatter Plots**: True vs predicted age with correlation metrics
+- **Brain Age Gap Distributions**: Histograms of BAG values
+- **Group Comparisons**: Box plots comparing BAG between groups
+- **Statistical Testing**: T-tests and effect sizes for group differences
+
+#### Brain Visualization Plots (`scripts/plot_brain_visualization.py`)
+- **3D Brain Surface Plots**: NIfTI-based brain feature maps
+- **Top Features Visualization**: Brain maps for top N important regions
+- **Atlas Integration**: Uses BN_Atlas_246_2mm.nii for visualization
+
+#### Network Analysis Plots (`scripts/plot_network_analysis.py`)
+- **Polar Bar Plots**: Network-level feature importance (similar to R ggplot2)
+- **Network Comparisons**: Grouped bar plots comparing networks across datasets
+- **Heatmaps**: Network analysis results across all datasets
+- **Yeo Atlas Integration**: Groups regions by Yeo 17-network atlas
+
+#### Brain-Behavior Analysis Plots (`scripts/plot_brain_behavior_analysis.py`)
+- **Correlation Matrices**: Heatmaps of brain-behavior correlations
+- **PCA Variance Plots**: Explained variance and cumulative variance
+- **FDR Correction Plots**: Before/after FDR correction comparisons
+- **Behavioral Distributions**: Histograms of behavioral measures
+
+**Usage:**
+```bash
+# Brain age prediction plots
+python scripts/plot_brain_age_correlations.py --results_file results/brain_age_prediction_results.json
+
+# Brain visualization plots
+python scripts/plot_brain_visualization.py --config config.yaml
+
+# Network analysis plots
+python scripts/plot_network_analysis.py --config config.yaml
+
+# Brain-behavior analysis plots
+python scripts/plot_brain_behavior_analysis.py --results_file results/brain_behavior_results.json
+```
+
+### Network Analysis with Yeo Atlas (`scripts/network_analysis_yeo.py`)
+
+Network-level analysis using Yeo 17-network atlas to group ROIs by brain networks:
+
+- **Yeo Atlas Integration**: Groups ROIs by Yeo 17-network atlas
+- **Network Aggregation**: Aggregates attribution scores by brain networks
+- **Network-Level Plots**: Creates polar and bar plots for network-level data
+- **Statistical Analysis**: Computes mean, std, and count statistics per network
+- **Comprehensive Output**: Saves network data and analysis results
+
+**Usage:**
+```bash
+# Step 1: Generate count data from IG scores
+python scripts/generate_count_data.py --ig_csv results/integrated_gradients/nki_rs_td/nki_rs_td_features_IG_convnet_regressor_trained_on_hcp_dev_fold_0.csv --output yeao_attrib_collapsed_mean_nki_rs_td_top50.csv
+
+# Step 2: Run Yeo network analysis
+python scripts/network_analysis_yeo.py --count_csv yeao_attrib_collapsed_mean_nki_rs_td_top50.csv --yeo_atlas /path/to/yeo_atlas.csv
+```
+
+
+### Legacy Network Analysis (`scripts/network_analysis.py`)
 
 Performs network-level analysis using consensus count data and Yeo atlas:
 
@@ -177,9 +575,9 @@ Analyzes correlations between **individual IG scores** and behavioral measures a
 **Supported Datasets**:
 - **NKI-RS TD**: CAARS_36 (IN), CAARS_37 (HY)
 - **ADHD-200 ADHD**: HY, IN (by site)
-- **CMI-HBN ADHD**: C3SR, C3SR_HY_T
+- **CMI-HBN ADHD**: C3SR_HY_T, C3SR_IN_T
 - **ADHD-200 TD**: HY, IN (by site)
-- **CMI-HBN TD**: C3SR, C3SR_HY_T
+- **CMI-HBN TD**: C3SR_HY_T, C3SR_IN_T
 - **ABIDE ASD**: ADOS Total, Social, Comm
 - **Stanford ASD**: SRS Total
 

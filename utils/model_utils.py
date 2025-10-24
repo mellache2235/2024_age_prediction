@@ -9,11 +9,88 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
+import pytorch_lightning as pl
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+from pytorch_lightning.loggers import TensorBoardLogger
 import math
 from typing import Dict, List, Tuple, Optional, Any
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error, r2_score
 import scipy.stats as stats
+import os
+import pickle
+
+
+class AgeScaler:
+    """Age scaling utility for brain age prediction models."""
+    
+    def __init__(self):
+        """Initialize age scaler."""
+        self.scaler = StandardScaler()
+        self.is_fitted = False
+        
+    def fit(self, ages: np.ndarray) -> None:
+        """
+        Fit scaler on training ages.
+        
+        Args:
+            ages (np.ndarray): Training ages to fit scaler on
+        """
+        self.scaler.fit(ages.reshape(-1, 1))
+        self.is_fitted = True
+        
+    def transform(self, ages: np.ndarray) -> np.ndarray:
+        """
+        Transform ages using fitted scaler.
+        
+        Args:
+            ages (np.ndarray): Ages to transform
+            
+        Returns:
+            np.ndarray: Scaled ages
+        """
+        if not self.is_fitted:
+            raise ValueError("Scaler must be fitted before transform")
+        return self.scaler.transform(ages.reshape(-1, 1)).flatten()
+        
+    def inverse_transform(self, scaled_ages: np.ndarray) -> np.ndarray:
+        """
+        Inverse transform scaled ages back to original scale.
+        
+        Args:
+            scaled_ages (np.ndarray): Scaled ages to inverse transform
+            
+        Returns:
+            np.ndarray: Unscaled ages
+        """
+        if not self.is_fitted:
+            raise ValueError("Scaler must be fitted before inverse_transform")
+        return self.scaler.inverse_transform(scaled_ages.reshape(-1, 1)).flatten()
+        
+    def save(self, filepath: str) -> None:
+        """
+        Save scaler to file.
+        
+        Args:
+            filepath (str): Path to save scaler
+        """
+        with open(filepath, 'wb') as f:
+            pickle.dump(self, f)
+            
+    @classmethod
+    def load(cls, filepath: str) -> 'AgeScaler':
+        """
+        Load scaler from file.
+        
+        Args:
+            filepath (str): Path to load scaler from
+            
+        Returns:
+            AgeScaler: Loaded scaler instance
+        """
+        with open(filepath, 'rb') as f:
+            return pickle.load(f)
 
 
 class RMSELoss(nn.Module):
@@ -43,6 +120,83 @@ class RMSELoss(nn.Module):
         """
         loss = torch.sqrt(self.mse(yhat, y) + self.eps)
         return loss
+
+
+class ConvNetLightning(pl.LightningModule):
+    """PyTorch Lightning version of ConvNet for brain age prediction."""
+    
+    def __init__(self, input_channels=246, dropout_rate=0.6, learning_rate=0.001):
+        super().__init__()
+        self.save_hyperparameters()
+        
+        # Use the same architecture as ConvNet
+        self.conv1 = nn.Conv1d(input_channels, 64, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv1d(64, 128, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv1d(128, 256, kernel_size=3, padding=1)
+        
+        self.pool = nn.MaxPool1d(2)
+        self.dropout = nn.Dropout(dropout_rate)
+        
+        # Calculate the size after convolutions and pooling
+        # Assuming input sequence length of 200 (adjust if different)
+        self.fc_input_size = 256 * 25  # 256 channels * 25 time points (200/2/2/2)
+        
+        self.fc1 = nn.Linear(self.fc_input_size, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, 1)
+        
+        self.loss_fn = RMSELoss()
+        self.learning_rate = learning_rate
+        
+    def forward(self, x):
+        # x shape: (batch_size, channels, sequence_length)
+        x = F.relu(self.conv1(x))
+        x = self.pool(x)
+        x = self.dropout(x)
+        
+        x = F.relu(self.conv2(x))
+        x = self.pool(x)
+        x = self.dropout(x)
+        
+        x = F.relu(self.conv3(x))
+        x = self.pool(x)
+        x = self.dropout(x)
+        
+        # Flatten for fully connected layers
+        x = x.view(x.size(0), -1)
+        
+        x = F.relu(self.fc1(x))
+        x = self.dropout(x)
+        x = F.relu(self.fc2(x))
+        x = self.dropout(x)
+        x = self.fc3(x)
+        
+        return x.squeeze()
+    
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        loss = self.loss_fn(y_hat, y)
+        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True)
+        return loss
+    
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        loss = self.loss_fn(y_hat, y)
+        self.log('val_loss', loss, on_step=False, on_epoch=True, prog_bar=True)
+        return loss
+    
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        loss = self.loss_fn(y_hat, y)
+        self.log('test_loss', loss, on_step=False, on_epoch=True)
+        return loss
+    
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        return optimizer
 
 
 class Conv1dSame(nn.Module):
@@ -409,7 +563,7 @@ def test_model(x_valid: np.ndarray, y_valid: np.ndarray,
 
 def evaluate_model_performance(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
     """
-    Evaluate model performance with multiple metrics.
+    Evaluate model performance with multiple metrics including brain age gap.
 
     Args:
         y_true (np.ndarray): True values
@@ -418,12 +572,23 @@ def evaluate_model_performance(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[s
     Returns:
         Dict[str, float]: Dictionary containing performance metrics
     """
-    # Calculate metrics
+    # Calculate basic metrics
     mse = mean_squared_error(y_true, y_pred)
     rmse = np.sqrt(mse)
     mae = np.mean(np.abs(y_true - y_pred))
     r2 = r2_score(y_true, y_pred)
     corr, p_value = stats.pearsonr(y_true, y_pred)
+    
+    # Calculate brain age gap (BAG) metrics
+    bag = y_pred - y_true  # Brain Age Gap = Predicted - True
+    mean_bag = np.mean(bag)
+    std_bag = np.std(bag)
+    median_bag = np.median(bag)
+    
+    # Calculate additional metrics
+    mean_absolute_bag = np.mean(np.abs(bag))
+    max_bag = np.max(bag)
+    min_bag = np.min(bag)
     
     return {
         'mse': mse,
@@ -431,5 +596,287 @@ def evaluate_model_performance(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[s
         'mae': mae,
         'r2': r2,
         'correlation': corr,
-        'p_value': p_value
+        'p_value': p_value,
+        'mean_bag': mean_bag,
+        'std_bag': std_bag,
+        'median_bag': median_bag,
+        'mean_absolute_bag': mean_absolute_bag,
+        'max_bag': max_bag,
+        'min_bag': min_bag
     }
+
+
+def compare_brain_age_gaps(group1_bag: np.ndarray, group2_bag: np.ndarray, 
+                          group1_name: str = "Group 1", group2_name: str = "Group 2") -> Dict[str, Any]:
+    """
+    Compare brain age gaps between two groups using statistical tests.
+    
+    Args:
+        group1_bag (np.ndarray): Brain age gaps for group 1
+        group2_bag (np.ndarray): Brain age gaps for group 2
+        group1_name (str): Name of group 1
+        group2_name (str): Name of group 2
+        
+    Returns:
+        Dict[str, Any]: Statistical comparison results
+    """
+    # Basic statistics
+    group1_stats = {
+        'mean': np.mean(group1_bag),
+        'std': np.std(group1_bag),
+        'median': np.median(group1_bag),
+        'n': len(group1_bag)
+    }
+    
+    group2_stats = {
+        'mean': np.mean(group2_bag),
+        'std': np.std(group2_bag),
+        'median': np.median(group2_bag),
+        'n': len(group2_bag)
+    }
+    
+    # Statistical tests
+    # T-test for difference in means
+    t_stat, t_p = stats.ttest_ind(group1_bag, group2_bag)
+    
+    # Mann-Whitney U test (non-parametric)
+    u_stat, u_p = stats.mannwhitneyu(group1_bag, group2_bag, alternative='two-sided')
+    
+    # Effect size (Cohen's d)
+    pooled_std = np.sqrt(((len(group1_bag) - 1) * np.var(group1_bag, ddof=1) + 
+                         (len(group2_bag) - 1) * np.var(group2_bag, ddof=1)) / 
+                        (len(group1_bag) + len(group2_bag) - 2))
+    cohens_d = (group1_stats['mean'] - group2_stats['mean']) / pooled_std
+    
+    return {
+        'group1_name': group1_name,
+        'group2_name': group2_name,
+        'group1_stats': group1_stats,
+        'group2_stats': group2_stats,
+        'difference_in_means': group1_stats['mean'] - group2_stats['mean'],
+        't_test': {
+            'statistic': t_stat,
+            'p_value': t_p,
+            'significant': t_p < 0.05
+        },
+        'mann_whitney_u': {
+            'statistic': u_stat,
+            'p_value': u_p,
+            'significant': u_p < 0.05
+        },
+        'effect_size': {
+            'cohens_d': cohens_d,
+            'interpretation': 'small' if abs(cohens_d) < 0.5 else 'medium' if abs(cohens_d) < 0.8 else 'large'
+        }
+    }
+
+
+def comprehensive_brain_age_analysis(results_dict: Dict[str, Dict]) -> Dict[str, Any]:
+    """
+    Perform comprehensive brain age analysis across all datasets.
+    
+    Args:
+        results_dict (Dict[str, Dict]): Dictionary with dataset names as keys and 
+                                       results containing 'true_ages' and 'predictions' as values
+        
+    Returns:
+        Dict[str, Any]: Comprehensive analysis results
+    """
+    analysis_results = {
+        'individual_metrics': {},
+        'group_comparisons': {},
+        'summary': {}
+    }
+    
+    # Calculate metrics for each dataset
+    for dataset_name, results in results_dict.items():
+        if 'true_ages' in results and 'predictions' in results:
+            y_true = np.array(results['true_ages'])
+            y_pred = np.array(results['predictions'])
+            
+            # Calculate brain age gaps
+            bag = y_pred - y_true
+            
+            # Store individual metrics
+            analysis_results['individual_metrics'][dataset_name] = {
+                'performance': evaluate_model_performance(y_true, y_pred),
+                'bag_stats': {
+                    'mean': np.mean(bag),
+                    'std': np.std(bag),
+                    'median': np.median(bag),
+                    'n': len(bag)
+                }
+            }
+    
+    # Perform group comparisons
+    datasets = list(results_dict.keys())
+    
+    # Define group types
+    adhd_datasets = [d for d in datasets if 'adhd' in d.lower() and 'td' not in d.lower()]
+    adhd_td_datasets = [d for d in datasets if 'adhd' in d.lower() and 'td' in d.lower()]
+    asd_datasets = [d for d in datasets if 'asd' in d.lower() and 'td' not in d.lower()]
+    asd_td_datasets = [d for d in datasets if 'asd' in d.lower() and 'td' in d.lower()]
+    external_td_datasets = [d for d in datasets if 'td' in d.lower() and 'external' in d.lower()]
+    
+    # ADHD vs ADHD-TD comparison
+    if adhd_datasets and adhd_td_datasets:
+        adhd_bags = []
+        adhd_td_bags = []
+        
+        for dataset in adhd_datasets:
+            if dataset in analysis_results['individual_metrics']:
+                bag = np.array(results_dict[dataset]['predictions']) - np.array(results_dict[dataset]['true_ages'])
+                adhd_bags.extend(bag)
+        
+        for dataset in adhd_td_datasets:
+            if dataset in analysis_results['individual_metrics']:
+                bag = np.array(results_dict[dataset]['predictions']) - np.array(results_dict[dataset]['true_ages'])
+                adhd_td_bags.extend(bag)
+        
+        if adhd_bags and adhd_td_bags:
+            analysis_results['group_comparisons']['adhd_vs_adhd_td'] = compare_brain_age_gaps(
+                np.array(adhd_bags), np.array(adhd_td_bags), "ADHD", "ADHD-TD"
+            )
+    
+    # ASD vs ASD-TD comparison
+    if asd_datasets and asd_td_datasets:
+        asd_bags = []
+        asd_td_bags = []
+        
+        for dataset in asd_datasets:
+            if dataset in analysis_results['individual_metrics']:
+                bag = np.array(results_dict[dataset]['predictions']) - np.array(results_dict[dataset]['true_ages'])
+                asd_bags.extend(bag)
+        
+        for dataset in asd_td_datasets:
+            if dataset in analysis_results['individual_metrics']:
+                bag = np.array(results_dict[dataset]['predictions']) - np.array(results_dict[dataset]['true_ages'])
+                asd_td_bags.extend(bag)
+        
+        if asd_bags and asd_td_bags:
+            analysis_results['group_comparisons']['asd_vs_asd_td'] = compare_brain_age_gaps(
+                np.array(asd_bags), np.array(asd_td_bags), "ASD", "ASD-TD"
+            )
+    
+    # TD vs External TD comparison
+    if external_td_datasets:
+        td_bags = []
+        external_td_bags = []
+        
+        # Get TD datasets (non-external)
+        td_datasets = [d for d in datasets if 'td' in d.lower() and 'external' not in d.lower()]
+        
+        for dataset in td_datasets:
+            if dataset in analysis_results['individual_metrics']:
+                bag = np.array(results_dict[dataset]['predictions']) - np.array(results_dict[dataset]['true_ages'])
+                td_bags.extend(bag)
+        
+        for dataset in external_td_datasets:
+            if dataset in analysis_results['individual_metrics']:
+                bag = np.array(results_dict[dataset]['predictions']) - np.array(results_dict[dataset]['true_ages'])
+                external_td_bags.extend(bag)
+        
+        if td_bags and external_td_bags:
+            analysis_results['group_comparisons']['td_vs_external_td'] = compare_brain_age_gaps(
+                np.array(td_bags), np.array(external_td_bags), "TD", "External-TD"
+            )
+    
+    # Summary statistics
+    all_bags = []
+    for dataset_name, results in results_dict.items():
+        if 'true_ages' in results and 'predictions' in results:
+            bag = np.array(results['predictions']) - np.array(results['true_ages'])
+            all_bags.extend(bag)
+    
+    if all_bags:
+        analysis_results['summary'] = {
+            'overall_mean_bag': np.mean(all_bags),
+            'overall_std_bag': np.std(all_bags),
+            'overall_median_bag': np.median(all_bags),
+            'total_n': len(all_bags)
+        }
+    
+    return analysis_results
+
+
+def train_lightning_model(model: ConvNetLightning, 
+                         train_loader: DataLoader, 
+                         val_loader: DataLoader,
+                         output_dir: str,
+                         max_epochs: int = 100,
+                         patience: int = 10) -> str:
+    """
+    Train PyTorch Lightning model with best validation loss checkpointing.
+    
+    Args:
+        model (ConvNetLightning): PyTorch Lightning model
+        train_loader (DataLoader): Training data loader
+        val_loader (DataLoader): Validation data loader
+        output_dir (str): Output directory for checkpoints
+        max_epochs (int): Maximum number of epochs
+        patience (int): Early stopping patience
+        
+    Returns:
+        str: Path to best model checkpoint
+    """
+    # Create output directory
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Setup callbacks
+    checkpoint_callback = ModelCheckpoint(
+        dirpath=output_dir,
+        filename='best_model-{epoch:02d}-{val_loss:.2f}',
+        monitor='val_loss',
+        mode='min',
+        save_top_k=1,
+        save_last=True,
+        verbose=True
+    )
+    
+    early_stopping = EarlyStopping(
+        monitor='val_loss',
+        mode='min',
+        patience=patience,
+        verbose=True
+    )
+    
+    # Setup trainer
+    trainer = pl.Trainer(
+        max_epochs=max_epochs,
+        callbacks=[checkpoint_callback, early_stopping],
+        default_root_dir=output_dir,
+        enable_progress_bar=True,
+        enable_model_summary=True,
+        accelerator='auto',
+        devices='auto'
+    )
+    
+    # Train model
+    trainer.fit(model, train_loader, val_loader)
+    
+    # Return path to best checkpoint
+    return checkpoint_callback.best_model_path
+
+
+def load_lightning_model_from_checkpoint(checkpoint_path: str, 
+                                        input_channels: int = 246,
+                                        dropout_rate: float = 0.6,
+                                        learning_rate: float = 0.001) -> ConvNetLightning:
+    """
+    Load PyTorch Lightning model from checkpoint.
+    
+    Args:
+        checkpoint_path (str): Path to model checkpoint
+        input_channels (int): Number of input channels
+        dropout_rate (float): Dropout rate
+        learning_rate (float): Learning rate
+        
+    Returns:
+        ConvNetLightning: Loaded model
+    """
+    return ConvNetLightning.load_from_checkpoint(
+        checkpoint_path,
+        input_channels=input_channels,
+        dropout_rate=dropout_rate,
+        learning_rate=learning_rate
+    )
