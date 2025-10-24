@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def convert_excel_to_csv(excel_path: str, csv_path: str, 
                         sheet_name: Optional[str] = None) -> None:
     """
-    Convert Excel file to CSV format.
+    Convert Excel file to CSV format, preserving all original columns.
     
     Args:
         excel_path (str): Path to the Excel file
@@ -31,9 +31,10 @@ def convert_excel_to_csv(excel_path: str, csv_path: str,
         else:
             df = pd.read_excel(excel_path)
         
-        # Save as CSV
+        # Save as CSV with all original columns
         df.to_csv(csv_path, index=False)
         logger.info(f"Converted {excel_path} to {csv_path}")
+        logger.info(f"CSV contains {len(df)} rows and {len(df.columns)} columns: {list(df.columns)}")
         
     except Exception as e:
         logger.error(f"Error converting {excel_path} to CSV: {e}")
@@ -61,8 +62,8 @@ def load_count_data(excel_path: str,
         else:
             df = pd.read_excel(excel_path)
         
-        # Expected columns: Region, Gyrus, Description, Region Alias, (ID) Region Label, Count
-        expected_columns = ['Region', 'Gyrus', 'Description', 'Region Alias', '(ID) Region Label', 'Count']
+        # Expected columns: Region ID, Gyrus, Description, Region Alias, (ID) Region Label, Count
+        expected_columns = ['Region ID', 'Gyrus', 'Description', 'Region Alias', '(ID) Region Label', 'Count']
         
         # Check if all expected columns exist
         missing_columns = [col for col in expected_columns if col not in df.columns]
@@ -82,7 +83,9 @@ def load_count_data(excel_path: str,
             else:
                 raise ValueError(f"No count column found in {excel_path}")
         
-        if 'Region' in df.columns:
+        if 'Region ID' in df.columns:
+            region_col = 'Region ID'
+        elif 'Region' in df.columns:
             region_col = 'Region'
         elif '(ID) Region Label' in df.columns:
             region_col = '(ID) Region Label'
@@ -139,18 +142,22 @@ def process_all_count_data(config: Dict, output_dir: str = "results/count_data")
     
     for dataset_name, excel_path in count_data_config.items():
         try:
-            # Convert Excel to CSV
+            logger.info(f"Converting {dataset_name} from {excel_path}")
+            
+            # Convert Excel to CSV (preserving all columns)
             csv_path = Path(output_dir) / f"{dataset_name}_count_data.csv"
+            logger.info(f"Saving CSV to: {csv_path}")
             convert_excel_to_csv(excel_path, str(csv_path))
             
-            # Load and process count data
-            df = load_count_data(excel_path)
+            # Load the converted CSV to verify and return
+            df = pd.read_csv(csv_path)
             count_data[dataset_name] = df
             
-            logger.info(f"Processed count data for {dataset_name}: {len(df)} regions")
+            logger.info(f"✅ Converted count data for {dataset_name}: {len(df)} regions, {len(df.columns)} columns")
+            logger.info(f"✅ CSV saved to: {csv_path}")
             
         except Exception as e:
-            logger.error(f"Failed to process count data for {dataset_name}: {e}")
+            logger.error(f"❌ Failed to convert count data for {dataset_name}: {e}")
             continue
     
     return count_data

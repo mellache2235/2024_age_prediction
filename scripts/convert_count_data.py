@@ -28,7 +28,12 @@ def main():
     logging.info("Starting count data conversion...")
     
     # Load configuration
-    with open('/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml', 'r') as f:
+    config_path = Path(__file__).parent.parent / 'config.yaml'
+    if not config_path.exists():
+        logging.error(f"Configuration file not found: {config_path}")
+        sys.exit(1)
+    
+    with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
     
     # Process all count data files

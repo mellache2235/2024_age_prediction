@@ -340,11 +340,14 @@ def process_single_dataset(count_csv_path: str, yeo_atlas_path: str,
     logging.info(f"Network data saved to: {network_csv}")
     
     # Create visualizations
-    polar_plot = output_dir / "network_polar_plot.png"
-    create_network_polar_plot(network_data, str(polar_plot), f"{args.title} - Polar Plot")
+    from plot_network_analysis import create_polar_bar_plot, create_network_comparison_plot
     
+    polar_plot = output_dir / "network_polar_plot.png"
+    create_polar_bar_plot(network_data, str(polar_plot), f"{title} - Polar Plot")
+    
+    # Also create a simple bar plot using the same function with different styling
     bar_plot = output_dir / "network_bar_plot.png"
-    create_network_bar_plot(network_data, str(bar_plot), f"{args.title} - Bar Plot")
+    create_polar_bar_plot(network_data, str(bar_plot), f"{title} - Bar Plot", show_values=False)
     
     # Analyze patterns
     analysis_results = analyze_network_patterns(network_data)
