@@ -182,8 +182,8 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
             
             # Check if we have the expected columns
             if 'region' not in count_data.columns:
-                # Try alternative column names
-                possible_region_cols = ['Region', 'ROI', 'roi', 'Region Label', 'Region_Label']
+                # Try alternative column names (including the actual column names from your files)
+                possible_region_cols = ['Region ID', 'Region', 'ROI', 'roi', 'Region Label', 'Region_Label', '(ID) Region Label']
                 region_col = None
                 for col in possible_region_cols:
                     if col in count_data.columns:
@@ -270,14 +270,20 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
             'Max_Count': np.max(data['counts'])
         })
     
-    # Sort by total count
-    shared_table = pd.DataFrame(table_data)
-    shared_table = shared_table.sort_values('Total_Count', ascending=False)
-    shared_table['Rank'] = range(1, len(shared_table) + 1)
-    
-    # Save table
-    shared_table.to_csv(output_path, index=False)
-    logging.info(f"Created shared region table: {len(shared_table)} regions shared across datasets, saved to {output_path}")
+    # Create and sort table
+    if table_data:
+        shared_table = pd.DataFrame(table_data)
+        shared_table = shared_table.sort_values('Total_Count', ascending=False)
+        shared_table['Rank'] = range(1, len(shared_table) + 1)
+        
+        # Save table
+        shared_table.to_csv(output_path, index=False)
+        logging.info(f"Created shared region table: {len(shared_table)} regions shared across datasets, saved to {output_path}")
+    else:
+        # Create empty table with proper columns
+        shared_table = pd.DataFrame(columns=['ROI_Index', 'Region_Name', 'N_Datasets', 'Datasets', 'Total_Count', 'Mean_Count', 'Max_Count', 'Rank'])
+        shared_table.to_csv(output_path, index=False)
+        logging.warning(f"No shared regions found. Created empty table at {output_path}")
     
     return shared_table
 
@@ -364,14 +370,20 @@ def create_shared_region_table(dataset_csv_paths: List[str],
             'Max_Count': np.max(data['counts'])
         })
     
-    # Sort by total count
-    shared_table = pd.DataFrame(table_data)
-    shared_table = shared_table.sort_values('Total_Count', ascending=False)
-    shared_table['Rank'] = range(1, len(shared_table) + 1)
-    
-    # Save table
-    shared_table.to_csv(output_path, index=False)
-    logging.info(f"Created shared region table: {len(shared_table)} regions shared across datasets, saved to {output_path}")
+    # Create and sort table
+    if table_data:
+        shared_table = pd.DataFrame(table_data)
+        shared_table = shared_table.sort_values('Total_Count', ascending=False)
+        shared_table['Rank'] = range(1, len(shared_table) + 1)
+        
+        # Save table
+        shared_table.to_csv(output_path, index=False)
+        logging.info(f"Created shared region table: {len(shared_table)} regions shared across datasets, saved to {output_path}")
+    else:
+        # Create empty table with proper columns
+        shared_table = pd.DataFrame(columns=['ROI_Index', 'Region_Name', 'N_Datasets', 'Datasets', 'Total_Count', 'Mean_Count', 'Max_Count', 'Rank'])
+        shared_table.to_csv(output_path, index=False)
+        logging.warning(f"No shared regions found. Created empty table at {output_path}")
     
     return shared_table
 
@@ -423,8 +435,8 @@ def create_all_region_tables(config: Dict, output_dir: str = "results/region_tab
                 
                 # Check if we have the expected columns
                 if 'region' not in count_data.columns:
-                    # Try alternative column names
-                    possible_region_cols = ['Region', 'ROI', 'roi', 'Region Label', 'Region_Label']
+                    # Try alternative column names (including the actual column names from your files)
+                    possible_region_cols = ['Region ID', 'Region', 'ROI', 'roi', 'Region Label', 'Region_Label', '(ID) Region Label']
                     region_col = None
                     for col in possible_region_cols:
                         if col in count_data.columns:
