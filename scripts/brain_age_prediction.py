@@ -293,6 +293,119 @@ class BrainAgePredictor:
         logging.info(f"Loaded {len(results['model_paths'])} existing models")
         return results
     
+    def retrain_models(self, config: Dict, model_dir: str, num_folds: int = 5) -> Dict:
+        """
+        Retrain models with consistent architecture.
+        
+        Args:
+            config (Dict): Configuration dictionary
+            model_dir (str): Directory to save retrained models
+            num_folds (int): Number of cross-validation folds
+            
+        Returns:
+            Dict: Training results
+        """
+        logging.info("Retraining models with consistent architecture...")
+        
+        # Get HCP-Dev data directory
+        hcp_dev_data_dir = config.get('data_paths', {}).get('hcp_dev', {}).get('training_data_dir')
+        if not hcp_dev_data_dir:
+            hcp_dev_data_dir = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/hcp_dev_age_five_fold"
+        
+        results = {
+            'fold_results': [],
+            'model_paths': [],
+            'age_scalers': [],
+            'training_metrics': {}
+        }
+        
+        for fold in range(num_folds):
+            logging.info(f"Training fold {fold}...")
+            
+            # Load fold data
+            fold_data_path = os.path.join(hcp_dev_data_dir, f"fold_{fold}.bin")
+            if not os.path.exists(fold_data_path):
+                logging.warning(f"Fold data not found: {fold_data_path}")
+                continue
+            
+            X_train, X_test, Y_train, Y_test = load_finetune_dataset(fold_data_path)
+            X_train = reshape_data(X_train)
+            X_test = reshape_data(X_test)
+            
+            # Create and fit age scaler
+            age_scaler = AgeScaler()
+            age_scaler.fit(Y_train)
+            
+            # Scale ages
+            Y_train_scaled = age_scaler.transform(Y_train)
+            Y_test_scaled = age_scaler.transform(Y_test)
+            
+            # Create data loaders
+            train_dataset = TensorDataset(
+                torch.FloatTensor(X_train), 
+                torch.FloatTensor(Y_train_scaled)
+            )
+            val_dataset = TensorDataset(
+                torch.FloatTensor(X_test), 
+                torch.FloatTensor(Y_test_scaled)
+            )
+            
+            train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+            val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+            
+            # Initialize model
+            model = ConvNetLightning(
+                input_channels=X_train.shape[1],
+                dropout_rate=0.6,
+                learning_rate=0.001
+            )
+            
+            # Train model
+            trainer = pl.Trainer(
+                max_epochs=50,  # Reduced epochs for faster training
+                accelerator='auto',
+                devices='auto',
+                enable_progress_bar=True,
+                enable_model_summary=False
+            )
+            
+            trainer.fit(model, train_loader, val_loader)
+            
+            # Save model and scaler
+            model_path = os.path.join(model_dir, f"retrained_fold_{fold}_model.ckpt")
+            scaler_path = os.path.join(model_dir, f"age_scaler_fold_{fold}.pkl")
+            
+            trainer.save_checkpoint(model_path)
+            age_scaler.save(scaler_path)
+            
+            # Evaluate model
+            model.eval()
+            with torch.no_grad():
+                X_test_tensor = torch.FloatTensor(X_test)
+                if torch.cuda.is_available():
+                    X_test_tensor = X_test_tensor.cuda()
+                    model = model.cuda()
+                
+                predictions_scaled = model(X_test_tensor).cpu().numpy().flatten()
+                predictions = age_scaler.inverse_transform(predictions_scaled)
+                
+                metrics = evaluate_model_performance(Y_test, predictions)
+            
+            results['fold_results'].append({
+                'fold': fold,
+                'model_path': model_path,
+                'scaler_path': scaler_path,
+                'model_type': 'lightning',
+                'train_metrics': metrics
+            })
+            results['model_paths'].append(model_path)
+            results['age_scalers'].append(scaler_path)
+            
+            logging.info(f"Fold {fold} completed - MAE: {metrics['mae']:.3f}, R²: {metrics['r2']:.3f}")
+        
+        logging.info(f"Retrained {len(results['model_paths'])} models")
+        return results
+    
     def _create_scaler_from_training_data(self, fold: int, model_dir: str) -> Optional[AgeScaler]:
         """
         Create age scaler from training data for a specific fold.
@@ -492,8 +605,8 @@ class BrainAgePredictor:
                     )
                 else:
                     # Load legacy PyTorch model
-                    from model_utils import ConvNet_v2
-                    model = ConvNet_v2()
+                    from model_utils import ConvNet
+                    model = ConvNet(dropout_rate=0.6)
                     model.load_state_dict(torch.load(model_path, map_location=torch.device('cuda' if torch.cuda.is_available() else 'cpu')))
                 
                 # Move model to device
@@ -686,6 +799,132 @@ def run_brain_age_prediction_analysis(config: Dict, output_dir: str) -> Dict:
     return results
 
 
+def run_brain_age_prediction_analysis_with_retraining(config: Dict, model_dir: str, output_dir: str) -> Dict:
+    """
+    Run brain age prediction analysis with model retraining.
+    
+    Args:
+        config (Dict): Configuration dictionary
+        model_dir (str): Directory to save retrained models
+        output_dir (str): Output directory for results
+        
+    Returns:
+        Dict: Analysis results
+    """
+    logging.info("Running brain age prediction analysis with model retraining...")
+    
+    # Initialize predictor
+    model_config = config.get('model_config', {})
+    predictor = BrainAgePredictor(model_config)
+    
+    # Retrain models
+    num_folds = config.get('num_folds', 5)
+    training_results = predictor.retrain_models(config, model_dir, num_folds)
+    
+    if not training_results['model_paths']:
+        raise ValueError("No models were successfully retrained")
+    
+    # Store models in predictor for testing
+    predictor.models = training_results
+    
+    # Create results structure
+    results = {
+        'analysis_type': 'retrained_models',
+        'model_directory': model_dir,
+        'training_info': training_results,
+        'external_testing': {},
+        'comprehensive_analysis': {}
+    }
+    
+    # Continue with the same testing pipeline as existing models
+    return _run_external_testing_pipeline(predictor, config, results, output_dir)
+
+
+def _run_external_testing_pipeline(predictor, config: Dict, results: Dict, output_dir: str) -> Dict:
+    """
+    Run the external testing pipeline (common for both existing and retrained models).
+    
+    Args:
+        predictor: BrainAgePredictor instance
+        config (Dict): Configuration dictionary
+        results (Dict): Results dictionary to update
+        output_dir (str): Output directory for results
+        
+    Returns:
+        Dict: Updated results
+    """
+    # Step 1: Fit bias correction using external TD cohorts
+    td_data_paths = {}
+    for dataset_name, data_path in config.get('data_paths', {}).get('external_datasets', {}).items():
+        if 'td' in dataset_name.lower() and os.path.exists(data_path):
+            td_data_paths[dataset_name] = data_path
+    
+    if td_data_paths:
+        logging.info("Fitting bias correction using external TD cohorts...")
+        
+        # Combine TD data for bias correction
+        all_ages = []
+        all_predictions = []
+        
+        for cohort_name, data_path in td_data_paths.items():
+            if os.path.exists(data_path):
+                try:
+                    # Test on TD cohort to get predictions
+                    td_results = predictor.test_on_external_data(
+                        data_path, cohort_name, apply_bias_correction=False
+                    )
+                    if td_results and 'true_ages' in td_results and 'raw_predictions' in td_results:
+                        all_ages.extend(td_results['true_ages'])
+                        all_predictions.extend(td_results['raw_predictions'])
+                        logging.info(f"Successfully processed {cohort_name}: {len(td_results['true_ages'])} subjects")
+                    else:
+                        logging.warning(f"No valid results from {cohort_name}")
+                except Exception as e:
+                    logging.error(f"Error processing {cohort_name}: {str(e)}")
+                    continue
+        
+        if all_ages and all_predictions:
+            logging.info(f"Fitting bias correction with {len(all_ages)} subjects from TD cohorts")
+            td_bias_params = predictor.fit_bias_correction({
+                'ages': np.array(all_ages),
+                'predictions': np.array(all_predictions)
+            }, dataset_type="external_td")
+            results['td_bias_correction'] = td_bias_params
+        else:
+            logging.warning("No TD data available for bias correction fitting")
+    
+    # Step 2: Test on external datasets
+    external_datasets = config.get('data_paths', {}).get('external_datasets', {})
+    test_results = {}
+    
+    for dataset_name, data_path in external_datasets.items():
+        if os.path.exists(data_path):
+            logging.info(f"Testing on {dataset_name}...")
+            test_result = predictor.test_on_external_data(
+                data_path, dataset_name, apply_bias_correction=True
+            )
+            if test_result:
+                test_results[dataset_name] = test_result
+                
+    results['external_testing'] = test_results
+    
+    # Step 3: Comprehensive analysis
+    if test_results:
+        comprehensive_results = comprehensive_brain_age_analysis(test_results)
+        results['comprehensive_analysis'] = comprehensive_results
+    
+    # Step 4: Save results
+    os.makedirs(output_dir, exist_ok=True)
+    timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+    results_file = os.path.join(output_dir, f"brain_age_prediction_results_{timestamp}.json")
+    
+    with open(results_file, 'w') as f:
+        json.dump(results, f, indent=2, default=str)
+    
+    logging.info(f"Brain age prediction analysis completed. Results saved to: {results_file}")
+    return results
+
+
 def run_brain_age_prediction_analysis_with_existing_models(config: Dict, model_dir: str, output_dir: str) -> Dict:
     """
     Run brain age prediction analysis using existing trained models.
@@ -723,7 +962,8 @@ def run_brain_age_prediction_analysis_with_existing_models(config: Dict, model_d
         'comprehensive_analysis': {}
     }
     
-    # Step 1: Fit bias correction using external TD cohorts
+    # Use common testing pipeline
+    return _run_external_testing_pipeline(predictor, config, results, output_dir)
     td_data_paths = {}
     for dataset_name, data_path in config.get('data_paths', {}).get('external_datasets', {}).items():
         if 'td' in dataset_name.lower() and os.path.exists(data_path):
@@ -838,8 +1078,10 @@ Examples:
                        help="Number of cross-validation folds")
     parser.add_argument("--use_existing_models", action="store_true",
                        help="Use existing trained models instead of training new ones")
+    parser.add_argument("--retrain_models", action="store_true",
+                       help="Retrain models with consistent architecture (32 channels)")
     parser.add_argument("--model_dir", type=str,
-                       help="Directory containing existing trained models (required if --use_existing_models)")
+                       help="Directory containing existing trained models (required if --use_existing_models or --retrain_models)")
     
     args = parser.parse_args()
     
@@ -855,7 +1097,12 @@ Examples:
         with open(args.config, 'r') as f:
             config = yaml.safe_load(f)
         
-        if args.use_existing_models:
+        if args.retrain_models:
+            if not args.model_dir:
+                print("Error: --model_dir is required when using --retrain_models")
+                sys.exit(1)
+            results = run_brain_age_prediction_analysis_with_retraining(config, args.model_dir, args.output_dir)
+        elif args.use_existing_models:
             if not args.model_dir:
                 print("Error: --model_dir is required when using --use_existing_models")
                 sys.exit(1)

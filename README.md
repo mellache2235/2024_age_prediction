@@ -58,7 +58,14 @@ The pipeline is configured to use the following existing data files:
 > **Note**: All commands below assume you are running from the `scripts/` directory. The `config.yaml` file is located in the parent directory, and results will be saved to `../results/`.
 
 ```bash
-# 1. Test pre-trained models on all external datasets
+# Option 1: Retrain models with consistent architecture (recommended)
+python brain_age_prediction.py \
+  --config ../config.yaml \
+  --retrain_models \
+  --model_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/train_regression_models/dev \
+  --output_dir ../results/brain_age_prediction
+
+# Option 2: Use existing pre-trained models (may have architecture issues)
 python brain_age_prediction.py \
   --config ../config.yaml \
   --use_existing_models \
@@ -293,10 +300,10 @@ Follow this 8-step workflow using existing trained models and data:
 > **Note**: Run all commands from the `scripts/` directory. Use `../config.yaml` for config file and `../results/` for output paths.
 
 ```bash
-# Step 1: Test pre-trained models on external TD, ADHD, ASD datasets
+# Step 1: Retrain models with consistent architecture and test on external datasets
 python brain_age_prediction.py \
   --config ../config.yaml \
-  --use_existing_models \
+  --retrain_models \
   --model_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/train_regression_models/dev
 
 # Step 2: Generate brain age prediction plots

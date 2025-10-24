@@ -248,18 +248,18 @@ class ConvNet(nn.Module):
         """
         super(ConvNet, self).__init__()
         self.layer1 = nn.Sequential(
-            nn.Conv1d(246, 128, kernel_size=5, stride=1, bias=False),
-            nn.BatchNorm1d(128),
-            nn.PReLU(128),
+            nn.Conv1d(246, 32, kernel_size=5, stride=1, bias=False),
+            nn.BatchNorm1d(32),
+            nn.PReLU(32),
             nn.MaxPool1d(kernel_size=2, stride=2))
         self.layer2 = nn.Sequential(
-            nn.Conv1d(128, 128, kernel_size=7, stride=1, bias=False),
-            nn.BatchNorm1d(128),
-            nn.PReLU(128),
+            nn.Conv1d(32, 32, kernel_size=7, stride=1, bias=False),
+            nn.BatchNorm1d(32),
+            nn.PReLU(32),
             nn.MaxPool1d(kernel_size=2, stride=2))
 
         self.drop_out = nn.Dropout(p=dropout_rate)
-        self.regressor = nn.Linear(128, 1)
+        self.regressor = nn.Linear(32, 1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
