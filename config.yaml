@@ -1,0 +1,57 @@
+# Age Prediction Analysis Configuration
+# This file contains all configuration parameters for the analysis pipeline
+
+# Network Analysis Configuration
+network_analysis:
+  ig_dir: "/path/to/integrated_gradients"
+  model_prefix: "dev_age_model"
+  num_models: 5
+  yeo_atlas_path: "/path/to/yeo_atlas.csv"
+  atlas_nifti_path: "/path/to/atlas.nii.gz"
+  percentile: 95.0
+
+# Brain-Behavior Correlation Analysis Configuration
+brain_behavior:
+  data_dir: "/path/to/behavioral_data"
+  analyze_cmihbn_td: true
+  analyze_adhd200_td: true
+  correction_method: "fdr_bh"  # Options: fdr_bh, bonferroni, holm
+  alpha: 0.05
+
+# Feature Attribution Configuration
+feature_attribution:
+  enabled: true
+  percentile: 95.0
+  consensus_threshold: 0.5
+
+# Data Paths
+data_paths:
+  cmihbn_td:
+    brain_features: "/path/to/cmihbn_td_brain_features.npz"
+    behavioral_data: "/path/to/cmihbn_td_behavioral.csv"
+  adhd200_td:
+    brain_features: "/path/to/adhd200_td_brain_features.npz"
+    behavioral_data: "/path/to/adhd200_td_behavioral.csv"
+    site_info: "/path/to/adhd200_site_info.csv"
+
+# Model Configuration
+model:
+  architecture: "ConvNet"
+  learning_rate: 0.001
+  batch_size: 32
+  num_epochs: 100
+  dropout_rate: 0.6
+
+# Plotting Configuration
+plotting:
+  figure_format: "png"  # Options: png, pdf, svg
+  dpi: 300
+  style: "white"
+  color_palette: "default"
+
+# Output Configuration
+output:
+  save_figures: true
+  save_tables: true
+  save_models: true
+  create_summary_report: true
