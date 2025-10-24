@@ -579,6 +579,7 @@ def run_comprehensive_brain_behavior_analysis(config: Dict, output_dir: str) -> 
     # Create visualizations
     if results:
         # Note: Visualizations are now created using separate plotting scripts
+        pass
     
     # Save results
     import json

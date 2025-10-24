@@ -292,7 +292,7 @@ def create_all_network_plots(config: Dict, output_dir: str = "/oak/stanford/grou
     
     # Create individual polar bar plots
     for dataset_name, network_data in network_data_dict.items():
-        polar_path = os.path.join(output_dir, f"{dataset_name}_network_polar.png")
+        polar_path = os.path.join(output_dir, f"{dataset_name}_network_polar")
         create_polar_bar_plot(network_data, polar_path, f"Network Analysis - {dataset_name}")
     
     # Create comparison plots
@@ -304,21 +304,21 @@ def create_all_network_plots(config: Dict, output_dir: str = "/oak/stanford/grou
         
         # TD comparison
         if len(td_datasets) > 1:
-            td_path = os.path.join(output_dir, "td_networks_comparison.png")
+            td_path = os.path.join(output_dir, "td_networks_comparison")
             create_network_comparison_plot(td_datasets, td_path, "TD Networks Comparison")
         
         # ADHD comparison
         if len(adhd_datasets) > 1:
-            adhd_path = os.path.join(output_dir, "adhd_networks_comparison.png")
+            adhd_path = os.path.join(output_dir, "adhd_networks_comparison")
             create_network_comparison_plot(adhd_datasets, adhd_path, "ADHD Networks Comparison")
         
         # ASD comparison
         if len(asd_datasets) > 1:
-            asd_path = os.path.join(output_dir, "asd_networks_comparison.png")
+            asd_path = os.path.join(output_dir, "asd_networks_comparison")
             create_network_comparison_plot(asd_datasets, asd_path, "ASD Networks Comparison")
         
         # Overall heatmap
-        heatmap_path = os.path.join(output_dir, "network_analysis_heatmap.png")
+        heatmap_path = os.path.join(output_dir, "network_analysis_heatmap")
         create_network_heatmap(network_data_dict, heatmap_path, "Network Analysis Heatmap")
     
     logging.info(f"Created network analysis plots in {output_dir}")

@@ -22,10 +22,30 @@ try:
 except ImportError:
     logging.warning("openpyxl not found. Install with: pip install openpyxl")
 
-# Add utils to path
-sys.path.append(str(Path(__file__).parent.parent))
-
-from utils.count_data_utils import load_count_data, create_region_mapping
+# Define the create_region_mapping function directly to avoid import issues
+def create_region_mapping(roi_labels_path: str) -> Dict[int, str]:
+    """
+    Create mapping from ROI index to region name.
+    
+    Args:
+        roi_labels_path (str): Path to ROI labels text file
+    
+    Returns:
+        Dict[int, str]: Mapping from ROI index to region name
+    """
+    try:
+        with open(roi_labels_path, 'r') as f:
+            roi_labels = [line.strip() for line in f.readlines()]
+        
+        # Create mapping (assuming 1-based indexing)
+        roi_mapping = {i+1: label for i, label in enumerate(roi_labels)}
+        
+        logging.info(f"Created ROI mapping: {len(roi_mapping)} regions")
+        return roi_mapping
+        
+    except Exception as e:
+        logging.error(f"Error creating ROI mapping: {e}")
+        return {}
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -388,7 +408,7 @@ def create_shared_region_table(dataset_csv_paths: List[str],
     return shared_table
 
 
-def create_all_region_tables(config: Dict, output_dir: str = "results/region_tables") -> Dict[str, pd.DataFrame]:
+def create_all_region_tables(config: Dict, output_dir: str = "results/region_tables", config_path: str = None) -> Dict[str, pd.DataFrame]:
     """
     Create all region tables for different dataset groups.
     
@@ -412,13 +432,14 @@ def create_all_region_tables(config: Dict, output_dir: str = "results/region_tab
     tables = {}
     
     # Load Excel file paths from config
-    config_path = Path(args.config)
-    if not config_path.exists():
-        # Try relative path as fallback
+    if config_path is None:
         config_path = Path(__file__).parent.parent / 'config.yaml'
-        if not config_path.exists():
-            logging.error(f"Configuration file not found: {args.config} or {config_path}")
-            sys.exit(1)
+    else:
+        config_path = Path(config_path)
+    
+    if not config_path.exists():
+        logging.error(f"Configuration file not found: {config_path}")
+        return {}
     
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
@@ -555,7 +576,7 @@ def main():
         config = yaml.safe_load(f)
     
     # Create all region tables
-    tables = create_all_region_tables(config, args.output_dir)
+    tables = create_all_region_tables(config, args.output_dir, args.config)
     
     # Print summary
     logging.info("=== REGION TABLES SUMMARY ===")
