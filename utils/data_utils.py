@@ -86,6 +86,29 @@ def remove_nans(data: np.ndarray, labels: np.ndarray) -> Tuple[np.ndarray, np.nd
     return data_clean, labels_clean
 
 
+def standardize_timeseries_data(data: np.ndarray) -> np.ndarray:
+    """
+    Standardize timeseries data across subjects and timepoints for each ROI.
+    
+    Args:
+        data (np.ndarray): Input data with shape (n_subjects, n_channels, n_timepoints)
+        
+    Returns:
+        np.ndarray: Standardized data with same shape
+    """
+    data_standardized = np.zeros_like(data)
+    for i in range(data.shape[1]):  # For each ROI
+        roi_data = data[:, i, :]  # Shape: (subjects, timepoints)
+        # Standardize across subjects and timepoints
+        mean_val = np.mean(roi_data)
+        std_val = np.std(roi_data)
+        if std_val > 0:
+            data_standardized[:, i, :] = (roi_data - mean_val) / std_val
+        else:
+            data_standardized[:, i, :] = roi_data
+    return data_standardized
+
+
 def reshape_data(data: np.ndarray) -> np.ndarray:
     """
     Reshape data from (subjects, timepoints, channels) to (subjects, channels, timepoints).

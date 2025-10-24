@@ -15,6 +15,9 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+import pytorch_lightning as pl
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+from torch.utils.data import DataLoader, TensorDataset
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import argparse
@@ -41,7 +44,7 @@ set_seed(42)
 # Add utils to path
 sys.path.append(str(Path(__file__).parent.parent / 'utils'))
 
-from data_utils import load_finetune_dataset, load_finetune_dataset_w_ids, reshape_data
+from data_utils import load_finetune_dataset, load_finetune_dataset_w_ids, reshape_data, standardize_timeseries_data
 from model_utils import (
     ConvNetLightning, 
     train_lightning_model, 
@@ -353,29 +356,48 @@ class BrainAgePredictor:
             train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
             val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
             
-            # Initialize model
+            # Initialize model with optimized parameters
             model = ConvNetLightning(
                 input_channels=X_train.shape[1],
-                dropout_rate=0.6,
-                learning_rate=0.001
+                dropout_rate=0.5,  # Reduced dropout for better performance
+                learning_rate=0.001  # Increased learning rate for faster convergence
+            )
+            
+            # Setup callbacks for best model saving
+            checkpoint_callback = ModelCheckpoint(
+                dirpath=model_dir,
+                filename=f"retrained_fold_{fold}_model",
+                monitor='val_loss',
+                mode='min',
+                save_top_k=1,
+                save_last=False,
+                verbose=True
+            )
+            
+            early_stopping_callback = EarlyStopping(
+                monitor='val_loss',
+                mode='min',
+                patience=10,
+                verbose=True
             )
             
             # Train model
             trainer = pl.Trainer(
-                max_epochs=50,  # Reduced epochs for faster training
+                max_epochs=200,  # Increased epochs with early stopping
                 accelerator='auto',
                 devices='auto',
                 enable_progress_bar=True,
-                enable_model_summary=False
+                enable_model_summary=False,
+                callbacks=[checkpoint_callback, early_stopping_callback]
             )
             
             trainer.fit(model, train_loader, val_loader)
             
-            # Save model and scaler
-            model_path = os.path.join(model_dir, f"retrained_fold_{fold}_model.ckpt")
+            # Get the best model path from checkpoint callback
+            best_model_path = checkpoint_callback.best_model_path
             scaler_path = os.path.join(model_dir, f"age_scaler_fold_{fold}.pkl")
             
-            trainer.save_checkpoint(model_path)
+            # Save age scaler
             age_scaler.save(scaler_path)
             
             # Evaluate model
@@ -393,12 +415,12 @@ class BrainAgePredictor:
             
             results['fold_results'].append({
                 'fold': fold,
-                'model_path': model_path,
+                'model_path': best_model_path,
                 'scaler_path': scaler_path,
                 'model_type': 'lightning',
                 'train_metrics': metrics
             })
-            results['model_paths'].append(model_path)
+            results['model_paths'].append(best_model_path)
             results['age_scalers'].append(scaler_path)
             
             logging.info(f"Fold {fold} completed - MAE: {metrics['mae']:.3f}, R²: {metrics['r2']:.3f}")
@@ -514,7 +536,7 @@ class BrainAgePredictor:
     
     def apply_bias_correction(self, ages: np.ndarray, predictions: np.ndarray) -> np.ndarray:
         """
-        Apply bias correction to predictions.
+        Apply bias correction to predictions using the exact approach from previous implementation.
         
         Args:
             ages (np.ndarray): True ages
@@ -527,11 +549,10 @@ class BrainAgePredictor:
             logging.warning("No bias correction parameters found. Returning raw predictions.")
             return predictions
         
-        # Compute predicted BAG
-        predicted_bag = self.bias_params['alpha'] + self.bias_params['beta'] * ages
-        
-        # Apply correction
-        corrected_predictions = predictions - predicted_bag
+        # Use the exact approach: Offset = coef * ages + intercept
+        # Then: predicted_ages = ensemble_predictions - Offset
+        offset = self.bias_params['beta'] * ages + self.bias_params['alpha']
+        corrected_predictions = predictions - offset
         
         return corrected_predictions
     
@@ -571,6 +592,12 @@ class BrainAgePredictor:
                 id_test = np.arange(len(Y_test))
             
             X_test = reshape_data(X_test)
+            
+            # Apply standardization for Stanford ASD data
+            if 'stanford' in dataset_name.lower():
+                logging.info(f"Applying standardization for {dataset_name}")
+                X_test = standardize_timeseries_data(X_test)
+                logging.info(f"Standardization applied to {dataset_name}")
             
             # Make predictions using ensemble of models
             all_predictions = []
@@ -638,24 +665,34 @@ class BrainAgePredictor:
             # Ensemble predictions
             ensemble_predictions = np.mean(all_predictions, axis=0)
             
-            # Apply bias correction if requested
-            if apply_bias_correction and self.bias_params:
-                ensemble_predictions = self.apply_bias_correction(Y_test, ensemble_predictions)
+            # Compute metrics BEFORE bias correction
+            metrics_before = evaluate_model_performance(Y_test, ensemble_predictions)
             
-            # Compute metrics
-            metrics = evaluate_model_performance(Y_test, ensemble_predictions)
+            # Apply bias correction if requested
+            corrected_predictions = ensemble_predictions
+            if apply_bias_correction and self.bias_params:
+                corrected_predictions = self.apply_bias_correction(Y_test, ensemble_predictions)
+                # Compute metrics AFTER bias correction
+                metrics_after = evaluate_model_performance(Y_test, corrected_predictions)
+            else:
+                metrics_after = metrics_before
             
             # Create results
             results = {
                 'dataset_name': dataset_name,
                 'n_subjects': len(Y_test),
                 'raw_predictions': ensemble_predictions,
+                'corrected_predictions': corrected_predictions,
                 'true_ages': Y_test,
-                'metrics': metrics,
+                'metrics_before_correction': metrics_before,
+                'metrics_after_correction': metrics_after,
                 'bias_correction_applied': apply_bias_correction
             }
             
-            logging.info(f"{dataset_name} testing completed - MAE: {metrics['mae']:.3f}, R²: {metrics['r2']:.3f}")
+            logging.info(f"{dataset_name} testing completed:")
+            logging.info(f"  BEFORE correction - MAE: {metrics_before['mae']:.3f}, R²: {metrics_before['r2']:.3f}")
+            if apply_bias_correction and self.bias_params:
+                logging.info(f"  AFTER correction  - MAE: {metrics_after['mae']:.3f}, R²: {metrics_after['r2']:.3f}")
             
             return results
             
