@@ -194,10 +194,10 @@ Examples:
                        help="Dataset to compute IG for (see available options below)")
     parser.add_argument("--fold", type=int, default=0, 
                        help="HCP-Dev model fold to use (0-4, default: 0)")
-    parser.add_argument("--model_dir", type=str, default="results/brain_age_models",
+    parser.add_argument("--model_dir", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_models",
                        help="Directory containing trained models")
     parser.add_argument("--roi_labels", type=str, 
-                       default="/oak/stanford/groups/menon/projects/cdla/2021_hcp_earlypsychosis/scripts/restfmri/classify/CNN1dPyTorch/brainnetome_roi_labels.txt",
+                       default="data/roi_labels.txt",
                        help="Path to ROI labels file")
     parser.add_argument("--percentile", type=float, default=50,
                        help="Percentile threshold for top features (default: 50, range: 0-100)")
@@ -205,11 +205,12 @@ Examples:
     args = parser.parse_args()
     
     # Load configuration
-    with open('/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml', 'r') as f:
+    config_path = Path(__file__).parent.parent / 'config.yaml'
+    with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
     
     # Create output directory
-    output_dir = f"results/integrated_gradients/{args.dataset}"
+    output_dir = f"/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/{args.dataset}"
     os.makedirs(output_dir, exist_ok=True)
     
     # Load trained model from config (use legacy PyTorch model for now)

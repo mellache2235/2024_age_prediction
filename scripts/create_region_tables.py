@@ -413,14 +413,14 @@ def create_all_region_tables(config: Dict, output_dir: str = "results/region_tab
     
     # Define the actual Excel file paths as specified by user
     excel_file_paths = {
-        'dev': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/dev/ig_files/top_50_consensus_features_hcp_dev_aging.xlsx',
-        'nki': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/nki/ig_files/top_50_consensus_features_nki_cog_dev_aging.xlsx',
-        'adhd200_adhd': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files/top_50_consensus_features_adhd200_adhd_aging.xlsx',
-        'adhd200_td': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files_td/top_50_consensus_features_adhd200_td_aging.xlsx',
-        'cmihbn_adhd': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files/top_50_consensus_features_cmihbn_adhd_aging.xlsx',
-        'cmihbn_td': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files_td/top_50_consensus_features_cmihbn_td_aging.xlsx',
-        'abide_asd': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/abide/ig_files/top_50_consensus_features_abide_asd_aging.xlsx',
-        'stanford_asd': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/stanford/ig_files/top_50_consensus_features_stanford_asd_aging.xlsx'
+        'dev': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/dev/ig_files/top_50_consensus_features_hcp_dev_aging.xlsx',
+        'nki': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/nki/ig_files/top_50_consensus_features_nki_cog_dev_aging.xlsx',
+        'adhd200_adhd': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/adhd200/ig_files/top_50_consensus_features_adhd200_adhd_aging.xlsx',
+        'adhd200_td': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/adhd200/ig_files_td/top_50_consensus_features_adhd200_td_aging.xlsx',
+        'cmihbn_adhd': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/cmihbn/ig_files/top_50_consensus_features_cmihbn_adhd_aging.xlsx',
+        'cmihbn_td': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/cmihbn/ig_files_td/top_50_consensus_features_cmihbn_td_aging.xlsx',
+        'abide_asd': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/abide/ig_files/top_50_consensus_features_abide_asd_aging.xlsx',
+        'stanford_asd': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/stanford/ig_files/top_50_consensus_features_stanford_asd_aging.xlsx'
     }
     
     # Create individual dataset tables
@@ -526,9 +526,9 @@ def create_all_region_tables(config: Dict, output_dir: str = "results/region_tab
 def main():
     """Main function to create region tables."""
     parser = argparse.ArgumentParser(description="Create region tables from count data")
-    parser.add_argument("--config", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml",
+    parser.add_argument("--config", type=str, default="config.yaml",
                        help="Path to configuration file")
-    parser.add_argument("--output_dir", type=str, default="results/region_tables",
+    parser.add_argument("--output_dir", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/region_tables",
                        help="Output directory for tables")
     parser.add_argument("--top_n", type=int, default=50,
                        help="Number of top regions to include")

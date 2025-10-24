@@ -18,8 +18,8 @@ import sys
 import pandas as pd
 import numpy as np
 import argparse
-import logging
 import yaml
+import logging
 from pathlib import Path
 from typing import List, Dict, Tuple
 from sklearn.metrics.pairwise import cosine_similarity
@@ -27,7 +27,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def load_config(config_path: str = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml") -> Dict:
+def load_config(config_path: str = None) -> Dict:
     """Load configuration from YAML file."""
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
@@ -511,20 +511,24 @@ def main():
     parser.add_argument("--analysis_type", type=str, 
                        choices=['all', 'discovery_validation', 'within_condition', 'pooled_condition', 'cross_condition'],
                        default='all', help="Type of analysis to run")
-    parser.add_argument("--config", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml",
+    parser.add_argument("--config", type=str, default="config.yaml",
                        help="Path to configuration file")
     parser.add_argument("--data_dir", type=str, help="Directory containing count data CSV files (deprecated, use config)")
     parser.add_argument("--discovery_csv", type=str, help="Path to discovery cohort count data CSV")
     parser.add_argument("--nki_csv", type=str, help="Path to NKI-RS TD count data CSV")
     parser.add_argument("--cmihbn_csv", type=str, help="Path to CMI-HBN TD count data CSV")
     parser.add_argument("--adhd200_csv", type=str, help="Path to ADHD-200 TD count data CSV")
-    parser.add_argument("--output_dir", type=str, default="results/cosine_similarity",
+    parser.add_argument("--output_dir", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/cosine_similarity",
                        help="Output directory for results")
     
     args = parser.parse_args()
     
     # Load configuration
-    config = load_config(args.config)
+    config_path = Path(args.config)
+    if not config_path.exists():
+        config_path = Path(__file__).parent.parent / 'config.yaml'
+    
+    config = load_config(str(config_path))
     
     # Create output directory
     output_dir = Path(args.output_dir)

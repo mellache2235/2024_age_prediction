@@ -113,14 +113,14 @@ def main():
 Examples:
   # Generate count data from IG scores
   python generate_count_data.py \\
-    --ig_csv results/integrated_gradients/nki_rs_td/nki_rs_td_features_IG_convnet_regressor_trained_on_hcp_dev_fold_0.csv \\
-    --output results/count_data/nki_rs_td_count_data.csv \\
+    --ig_csv /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/nki_rs_td/nki_rs_td_features_IG_convnet_regressor_trained_on_hcp_dev_fold_0.csv \\
+    --output /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/nki_rs_td_count_data.csv \\
     --percentile 50
   
   # Generate count data with Yeo atlas region names
   python generate_count_data.py \\
-    --ig_csv results/integrated_gradients/adhd200_adhd/adhd200_adhd_features_IG_convnet_regressor_trained_on_hcp_dev_fold_0.csv \\
-    --output results/count_data/adhd200_adhd_count_data.csv \\
+    --ig_csv /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/adhd200_adhd/adhd200_adhd_features_IG_convnet_regressor_trained_on_hcp_dev_fold_0.csv \\
+    --output /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/adhd200_adhd_count_data.csv \\
     --atlas_file /path/to/yeo_atlas.csv \\
     --percentile 80
         """

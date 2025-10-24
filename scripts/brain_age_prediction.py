@@ -233,7 +233,8 @@ class BrainAgePredictor:
                     # Use the legacy model path from config for all folds
                     import yaml
                     try:
-                        with open('/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml', 'r') as f:
+                        config_path = Path(__file__).parent.parent / 'config.yaml'
+                        with open(config_path, 'r') as f:
                             config = yaml.safe_load(f)
                         legacy_model_path = config.get('existing_models', {}).get('legacy_model_path')
                         if legacy_model_path and os.path.exists(legacy_model_path):
@@ -313,7 +314,7 @@ class BrainAgePredictor:
         # Get HCP-Dev data directory
         hcp_dev_data_dir = config.get('data_paths', {}).get('hcp_dev', {}).get('training_data_dir')
         if not hcp_dev_data_dir:
-            hcp_dev_data_dir = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/hcp_dev_age_five_fold"
+            hcp_dev_data_dir = "data/hcp_dev_age_five_fold"
         
         results = {
             'fold_results': [],
@@ -444,7 +445,7 @@ class BrainAgePredictor:
         try:
             # Load config to get HCP-Dev data directory
             import yaml
-            config_path = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml'
+            config_path = Path(__file__).parent.parent / 'config.yaml'
             
             with open(config_path, 'r') as f:
                 config = yaml.safe_load(f)
@@ -453,7 +454,7 @@ class BrainAgePredictor:
             hcp_dev_data_dir = config.get('data_paths', {}).get('hcp_dev', {}).get('training_data_dir')
             if not hcp_dev_data_dir:
                 # Fallback to hardcoded path
-                hcp_dev_data_dir = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/hcp_dev_age_five_fold"
+                hcp_dev_data_dir = "data/hcp_dev_age_five_fold"
             
             fold_data_path = os.path.join(hcp_dev_data_dir, f"fold_{fold}.bin")
             
@@ -1095,13 +1096,13 @@ def main():
 Examples:
   # Run complete brain age prediction analysis
   python brain_age_prediction.py \\
-    --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml \\
-    --output_dir results/brain_age_prediction
+    --config config.yaml \\
+    --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_prediction
 
   # Train models only
   python brain_age_prediction.py \\
     --hcp_dev_dir /path/to/hcp_dev_data \\
-    --output_dir results/training
+    --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/training
         """
     )
     
@@ -1109,7 +1110,7 @@ Examples:
                        help="Path to configuration file")
     parser.add_argument("--hcp_dev_dir", type=str,
                        help="Directory containing HCP-Dev training data")
-    parser.add_argument("--output_dir", type=str, default="results/brain_age_prediction",
+    parser.add_argument("--output_dir", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_prediction",
                        help="Output directory for results")
     parser.add_argument("--num_folds", type=int, default=5,
                        help="Number of cross-validation folds")

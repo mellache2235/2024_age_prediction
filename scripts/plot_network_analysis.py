@@ -46,9 +46,18 @@ def create_polar_bar_plot(network_data: pd.DataFrame,
     # Create figure
     fig, ax = plt.subplots(figsize=(12, 12), subplot_kw=dict(projection='polar'))
     
-    # Prepare data
-    networks = network_data['Network'].values
-    counts = network_data['Count'].values
+    # Prepare data - handle different column name formats
+    if 'Network' in network_data.columns and 'Count' in network_data.columns:
+        networks = network_data['Network'].values
+        counts = network_data['Count'].values
+    elif 'network' in network_data.columns and 'mean_attribution' in network_data.columns:
+        networks = network_data['network'].values
+        counts = network_data['mean_attribution'].values
+    elif 'network' in network_data.columns and 'total_attribution' in network_data.columns:
+        networks = network_data['network'].values
+        counts = network_data['total_attribution'].values
+    else:
+        raise ValueError(f"Expected columns 'Network'/'network' and 'Count'/'mean_attribution'/'total_attribution' not found. Available columns: {list(network_data.columns)}")
     
     # Set up angles
     angles = np.linspace(0, 2 * np.pi, len(networks), endpoint=False)
@@ -100,10 +109,15 @@ def create_network_comparison_plot(network_data_dict: Dict[str, pd.DataFrame],
     """
     setup_fonts()
     
-    # Prepare data for comparison
+    # Prepare data for comparison - handle different column name formats
     all_networks = set()
     for data in network_data_dict.values():
-        all_networks.update(data['Network'].values)
+        if 'Network' in data.columns:
+            all_networks.update(data['Network'].values)
+        elif 'network' in data.columns:
+            all_networks.update(data['network'].values)
+        else:
+            raise ValueError(f"Expected 'Network' or 'network' column not found. Available columns: {list(data.columns)}")
     
     all_networks = sorted(list(all_networks))
     
@@ -111,7 +125,16 @@ def create_network_comparison_plot(network_data_dict: Dict[str, pd.DataFrame],
     comparison_data = []
     for dataset_name, data in network_data_dict.items():
         for network in all_networks:
-            count = data[data['Network'] == network]['Count'].values
+            # Handle different column name formats
+            if 'Network' in data.columns and 'Count' in data.columns:
+                count = data[data['Network'] == network]['Count'].values
+            elif 'network' in data.columns and 'mean_attribution' in data.columns:
+                count = data[data['network'] == network]['mean_attribution'].values
+            elif 'network' in data.columns and 'total_attribution' in data.columns:
+                count = data[data['network'] == network]['total_attribution'].values
+            else:
+                count = [0]  # Default to 0 if no matching data
+            
             count = count[0] if len(count) > 0 else 0
             comparison_data.append({
                 'Dataset': dataset_name,
@@ -163,10 +186,15 @@ def create_network_heatmap(network_data_dict: Dict[str, pd.DataFrame],
     """
     setup_fonts()
     
-    # Prepare data for heatmap
+    # Prepare data for heatmap - handle different column name formats
     all_networks = set()
     for data in network_data_dict.values():
-        all_networks.update(data['Network'].values)
+        if 'Network' in data.columns:
+            all_networks.update(data['Network'].values)
+        elif 'network' in data.columns:
+            all_networks.update(data['network'].values)
+        else:
+            raise ValueError(f"Expected 'Network' or 'network' column not found. Available columns: {list(data.columns)}")
     
     all_networks = sorted(list(all_networks))
     
@@ -175,7 +203,16 @@ def create_network_heatmap(network_data_dict: Dict[str, pd.DataFrame],
     for dataset_name, data in network_data_dict.items():
         row = []
         for network in all_networks:
-            count = data[data['Network'] == network]['Count'].values
+            # Handle different column name formats
+            if 'Network' in data.columns and 'Count' in data.columns:
+                count = data[data['Network'] == network]['Count'].values
+            elif 'network' in data.columns and 'mean_attribution' in data.columns:
+                count = data[data['network'] == network]['mean_attribution'].values
+            elif 'network' in data.columns and 'total_attribution' in data.columns:
+                count = data[data['network'] == network]['total_attribution'].values
+            else:
+                count = [0]  # Default to 0 if no matching data
+            
             count = count[0] if len(count) > 0 else 0
             row.append(count)
         matrix_data.append(row)
@@ -203,7 +240,7 @@ def create_network_heatmap(network_data_dict: Dict[str, pd.DataFrame],
     plt.close()
 
 
-def create_all_network_plots(config: Dict, output_dir: str = "results/figures/network_analysis") -> None:
+def create_all_network_plots(config: Dict, output_dir: str = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/network_analysis") -> None:
     """
     Create all network analysis plots.
     
@@ -215,7 +252,7 @@ def create_all_network_plots(config: Dict, output_dir: str = "results/figures/ne
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     
     # Get network analysis results (assuming they exist from network_analysis_yeo.py)
-    network_results_dir = "results/network_analysis"
+    network_results_dir = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis"
     
     if not os.path.exists(network_results_dir):
         logging.warning(f"Network analysis results directory not found: {network_results_dir}")
@@ -280,18 +317,18 @@ def main():
         epilog="""
 Examples:
   # Create network analysis plots for all datasets
-  python plot_network_analysis.py --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml
+  python plot_network_analysis.py --config config.yaml
   
   # Create plots in custom directory
   python plot_network_analysis.py \\
-    --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml \\
+    --config config.yaml \\
     --output_dir custom_network_plots/
         """
     )
     
-    parser.add_argument("--config", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml",
+    parser.add_argument("--config", type=str, default="config.yaml",
                        help="Path to configuration file (default: config.yaml)")
-    parser.add_argument("--output_dir", type=str, default="results/figures/network_analysis",
+    parser.add_argument("--output_dir", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/network_analysis",
                        help="Output directory for plots (default: results/figures/network_analysis)")
     
     args = parser.parse_args()

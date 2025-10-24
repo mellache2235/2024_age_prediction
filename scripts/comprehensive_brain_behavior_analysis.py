@@ -119,7 +119,7 @@ class ComprehensiveBrainBehaviorAnalyzer:
         from os.path import isfile, join
         
         # Load C3SR behavioral data
-        c3sr = pd.read_csv('/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/adhd/C3SR.csv')
+        c3sr = pd.read_csv('data/C3SR.csv')
         c3sr['Identifiers'] = c3sr['Identifiers'].apply(lambda x: x[0:12]).astype('str')
         
         # Load imaging data (run1 files only)
@@ -607,15 +607,15 @@ Available Datasets:
 Examples:
   # Run comprehensive analysis for all datasets
   python comprehensive_brain_behavior_analysis.py \\
-    --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml \\
-    --output_dir results/brain_behavior
+    --config config.yaml \\
+    --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior
 
   # Analyze specific dataset
   python comprehensive_brain_behavior_analysis.py \\
     --dataset nki_rs_td \\
-    --ig_dir results/integrated_gradients/nki_rs_td \\
+    --ig_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/nki_rs_td \\
     --behavioral_data /path/to/nki_behavioral_data.csv \\
-    --output_dir results/nki_rs_td_behavior
+    --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/nki_rs_td_behavior
         """
     )
     
@@ -628,7 +628,7 @@ Examples:
                        help="Directory containing IG scores CSV files")
     parser.add_argument("--behavioral_data", type=str,
                        help="Path to behavioral data file")
-    parser.add_argument("--output_dir", type=str, default="results/brain_behavior",
+    parser.add_argument("--output_dir", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior",
                        help="Output directory for results (default: results/brain_behavior)")
     
     args = parser.parse_args()

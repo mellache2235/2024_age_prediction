@@ -139,7 +139,7 @@ def create_top_features_brain_map(count_data_path: str,
                            output_path, f"Top {top_n} Features - {dataset_name}")
 
 
-def create_all_brain_visualizations(config: Dict, output_dir: str = "results/figures/brain_visualization") -> None:
+def create_all_brain_visualizations(config: Dict, output_dir: str = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/brain_visualization") -> None:
     """
     Create brain visualizations for all datasets.
     
@@ -161,7 +161,7 @@ def create_all_brain_visualizations(config: Dict, output_dir: str = "results/fig
     
     # Create brain maps for each dataset
     for dataset_name, excel_path in count_data_config.items():
-        csv_path = f"results/count_data/{dataset_name}_count_data.csv"
+        csv_path = f"/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/{dataset_name}_count_data.csv"
         if os.path.exists(csv_path):
             logging.info(f"Creating brain visualization for {dataset_name}...")
             create_top_features_brain_map(csv_path, roi_labels_path, atlas_nifti_path,
@@ -180,19 +180,19 @@ def main():
         epilog="""
 Examples:
   # Create brain visualizations for all datasets
-  python plot_brain_visualization.py --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml
+  python plot_brain_visualization.py --config config.yaml
   
   # Create visualizations with custom parameters
   python plot_brain_visualization.py \\
-    --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml \\
+    --config config.yaml \\
     --output_dir custom_brain_plots/ \\
     --top_n 100
         """
     )
     
-    parser.add_argument("--config", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml",
+    parser.add_argument("--config", type=str, default="config.yaml",
                        help="Path to configuration file (default: config.yaml)")
-    parser.add_argument("--output_dir", type=str, default="results/figures/brain_visualization",
+    parser.add_argument("--output_dir", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures/brain_visualization",
                        help="Output directory for plots (default: results/figures/brain_visualization)")
     parser.add_argument("--top_n", type=int, default=50,
                        help="Number of top features to visualize (default: 50)")
