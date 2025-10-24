@@ -258,21 +258,87 @@ class BrainAgePredictor:
                 results['age_scalers'].append(scaler_path)
                 logging.info(f"Loaded fold {fold}: {model_path}")
             else:
-                # For legacy models, we might not have age scalers
+                # For legacy models, create age scaler from training data
                 logging.warning(f"Age scaler not found for fold {fold}: {scaler_path}")
-                # Still add the model but without scaler
-                results['fold_results'].append({
-                    'fold': fold,
-                    'model_path': model_path,
-                    'scaler_path': None,
-                    'model_type': 'lightning' if model_path.endswith('.ckpt') else 'legacy'
-                })
-                results['model_paths'].append(model_path)
-                results['age_scalers'].append(None)
-                logging.info(f"Loaded fold {fold} (no scaler): {model_path}")
+                
+                # Try to create scaler from training data
+                age_scaler = self._create_scaler_from_training_data(fold, model_dir)
+                
+                if age_scaler is not None:
+                    # Save the created scaler
+                    age_scaler.save(scaler_path)
+                    logging.info(f"Created and saved age scaler for fold {fold}: {scaler_path}")
+                    
+                    results['fold_results'].append({
+                        'fold': fold,
+                        'model_path': model_path,
+                        'scaler_path': scaler_path,
+                        'model_type': 'lightning' if model_path.endswith('.ckpt') else 'legacy'
+                    })
+                    results['model_paths'].append(model_path)
+                    results['age_scalers'].append(scaler_path)
+                    logging.info(f"Loaded fold {fold} (created scaler): {model_path}")
+                else:
+                    # Still add the model but without scaler
+                    results['fold_results'].append({
+                        'fold': fold,
+                        'model_path': model_path,
+                        'scaler_path': None,
+                        'model_type': 'lightning' if model_path.endswith('.ckpt') else 'legacy'
+                    })
+                    results['model_paths'].append(model_path)
+                    results['age_scalers'].append(None)
+                    logging.info(f"Loaded fold {fold} (no scaler): {model_path}")
         
         logging.info(f"Loaded {len(results['model_paths'])} existing models")
         return results
+    
+    def _create_scaler_from_training_data(self, fold: int, model_dir: str) -> Optional[AgeScaler]:
+        """
+        Create age scaler from training data for a specific fold.
+        
+        Args:
+            fold (int): Fold number
+            model_dir (str): Model directory path
+            
+        Returns:
+            Optional[AgeScaler]: Created age scaler or None if failed
+        """
+        try:
+            # Load config to get HCP-Dev data directory
+            import yaml
+            config_path = os.path.join(os.path.dirname(model_dir), '..', 'config.yaml')
+            if not os.path.exists(config_path):
+                config_path = 'config.yaml'  # Fallback to current directory
+            
+            with open(config_path, 'r') as f:
+                config = yaml.safe_load(f)
+            
+            # Get HCP-Dev training data directory from config
+            hcp_dev_data_dir = config.get('data_paths', {}).get('hcp_dev', {}).get('training_data_dir')
+            if not hcp_dev_data_dir:
+                # Fallback to hardcoded path
+                hcp_dev_data_dir = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/hcp_dev_age_five_fold"
+            
+            fold_data_path = os.path.join(hcp_dev_data_dir, f"fold_{fold}.bin")
+            
+            if not os.path.exists(fold_data_path):
+                logging.warning(f"Training data not found for fold {fold}: {fold_data_path}")
+                return None
+            
+            # Load training data
+            X_train, X_test, Y_train, Y_test = load_finetune_dataset(fold_data_path)
+            
+            # Create and fit age scaler on training ages
+            age_scaler = AgeScaler()
+            age_scaler.fit(Y_train)
+            
+            logging.info(f"Created age scaler for fold {fold} using {len(Y_train)} training samples from {fold_data_path}")
+            return age_scaler
+            
+        except Exception as e:
+            logging.error(f"Failed to create age scaler for fold {fold}: {e}")
+            return None
     
     def _get_default_hyperparameters(self) -> Dict:
         """Get default hyperparameters (no optimization)."""
@@ -426,8 +492,8 @@ class BrainAgePredictor:
                     )
                 else:
                     # Load legacy PyTorch model
-                    from model_utils import ConvNet
-                    model = ConvNet(dropout_rate=0.6)
+                    from model_utils import ConvNet_v2
+                    model = ConvNet_v2()
                     model.load_state_dict(torch.load(model_path, map_location=torch.device('cuda' if torch.cuda.is_available() else 'cpu')))
                 
                 # Move model to device

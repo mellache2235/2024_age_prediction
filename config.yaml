@@ -12,7 +12,7 @@ network_analysis:
   percentile: 95.0
   roi_labels_path: "/oak/stanford/groups/menon/projects/cdla/2021_hcp_earlypsychosis/scripts/restfmri/classify/CNN1dPyTorch/brainnetome_roi_labels.txt"
   arial_font_path: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/clustering_analysis/arial.ttf"
-  hcp_dev_model_path: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/train_regression_models/dev/best_outer_fold_0_hcp_dev_model_2_27_24.pt"
+  legacy_model_path: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/train_regression_models/dev/best_outer_fold_0_hcp_dev_model_2_27_24.pt"
   
   # Count Data Paths (Excel files to be converted to CSV)
   count_data:
