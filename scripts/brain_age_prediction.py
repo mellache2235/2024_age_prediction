@@ -70,6 +70,13 @@ class BrainAgePredictor:
         self.models = {}
         self.bias_params = {}
         
+        # Log GPU availability
+        if torch.cuda.is_available():
+            logging.info(f"GPU available: {torch.cuda.get_device_name(0)}")
+            logging.info(f"CUDA version: {torch.version.cuda}")
+        else:
+            logging.info("GPU not available, using CPU")
+        
     def train_models(self, data_dir: str, num_folds: int = 5) -> Dict:
         """
         Train brain age prediction models using PyTorch Lightning with age scaling.
@@ -357,11 +364,17 @@ class BrainAgePredictor:
                     dropout_rate=self.model_config.get('dropout_rate', 0.6),
                     learning_rate=self.model_config.get('learning_rate', 0.001)
                 )
+                
+                # Move model to device
+                if torch.cuda.is_available():
+                    model = model.cuda()
                 model.eval()
                 
                 # Make predictions
                 with torch.no_grad():
                     X_tensor = torch.FloatTensor(X_test)
+                    if torch.cuda.is_available():
+                        X_tensor = X_tensor.cuda()
                     predictions_scaled = model(X_tensor).cpu().numpy().flatten()
                     
                     # Inverse transform predictions back to original age scale
