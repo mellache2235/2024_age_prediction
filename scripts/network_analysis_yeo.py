@@ -308,8 +308,22 @@ def process_single_dataset(count_csv_path: str, yeo_atlas_path: str,
         logging.error(f"Count data file not found: {count_csv_path}")
         return
     
-    count_data = pd.read_csv(count_csv_path)
+    # Read file based on extension
+    if count_csv_path.endswith('.xlsx') or count_csv_path.endswith('.xls'):
+        count_data = pd.read_excel(count_csv_path)
+    else:
+        count_data = pd.read_csv(count_csv_path)
+    
     logging.info(f"Loaded count data with {len(count_data)} regions")
+    logging.info(f"Columns in count data: {list(count_data.columns)}")
+    
+    # Standardize column names
+    if 'Region ID' in count_data.columns and 'Count' in count_data.columns:
+        count_data = count_data.rename(columns={'Region ID': 'region', 'Count': 'attribution'})
+        logging.info("Renamed 'Region ID' to 'region' and 'Count' to 'attribution'")
+    elif 'region' not in count_data.columns:
+        logging.error(f"Expected 'region' or 'Region ID' column not found. Available columns: {list(count_data.columns)}")
+        return
     
     # Load Yeo atlas with network names
     yeo_atlas = load_yeo_atlas(yeo_atlas_path, network_names)

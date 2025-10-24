@@ -63,20 +63,30 @@ def load_count_data(file_path: str) -> Tuple[np.ndarray, List[str]]:
         # Use the actual column names from your Excel files
         attributions = df['Count'].values
         regions = df['Region ID'].astype(str).tolist()
+        logging.info(f"Using 'Count' and 'Region ID' columns")
     elif 'attribution' in df.columns and 'region' in df.columns:
         # Standard format
         attributions = df['attribution'].values
         regions = df['region'].tolist()
+        logging.info(f"Using 'attribution' and 'region' columns")
     else:
         # Try to rename columns if they're in different order
         if len(df.columns) >= 2:
             df.columns = ['attribution', 'region'] + list(df.columns[2:])
             attributions = df['attribution'].values
             regions = df['region'].tolist()
+            logging.info(f"Renamed columns to 'attribution' and 'region'")
         else:
             raise ValueError(f"File must have 'Count'/'attribution' and 'Region ID'/'region' columns. Found: {df.columns.tolist()}")
     
+    # Add detailed debugging
     logging.info(f"Loaded {len(attributions)} regions from {file_path}")
+    logging.info(f"Attribution stats: min={attributions.min():.4f}, max={attributions.max():.4f}, mean={attributions.mean():.4f}, std={attributions.std():.4f}")
+    logging.info(f"Non-zero attributions: {(attributions > 0).sum()}/{len(attributions)}")
+    logging.info(f"Sample attributions: {attributions[:10].tolist()}")
+    logging.info(f"Sample regions: {regions[:10]}")
+    logging.info(f"Region types: {[type(r) for r in regions[:5]]}")
+    
     return attributions, regions
 
 def align_region_data(discovery_data: Tuple[np.ndarray, List[str]], 
@@ -94,11 +104,28 @@ def align_region_data(discovery_data: Tuple[np.ndarray, List[str]],
     disc_attr, disc_regions = discovery_data
     val_attr, val_regions = validation_data
     
+    # Add detailed debugging
+    logging.info(f"Discovery regions: {len(disc_regions)} total, sample: {disc_regions[:5]}")
+    logging.info(f"Validation regions: {len(val_regions)} total, sample: {val_regions[:5]}")
+    logging.info(f"Discovery attr stats: min={disc_attr.min():.4f}, max={disc_attr.max():.4f}, mean={disc_attr.mean():.4f}")
+    logging.info(f"Validation attr stats: min={val_attr.min():.4f}, max={val_attr.max():.4f}, mean={val_attr.mean():.4f}")
+    
     # Find common regions
-    common_regions = set(disc_regions) & set(val_regions)
+    disc_regions_set = set(disc_regions)
+    val_regions_set = set(val_regions)
+    common_regions = disc_regions_set & val_regions_set
+    
+    logging.info(f"Discovery unique regions: {len(disc_regions_set)}")
+    logging.info(f"Validation unique regions: {len(val_regions_set)}")
     logging.info(f"Found {len(common_regions)} common regions between cohorts")
     
     if len(common_regions) == 0:
+        # Try to find the issue
+        logging.error("No common regions found! This suggests a region ID mismatch.")
+        logging.error(f"Discovery region types: {[type(r) for r in disc_regions[:5]]}")
+        logging.error(f"Validation region types: {[type(r) for r in val_regions[:5]]}")
+        logging.error(f"Sample discovery regions: {disc_regions[:10]}")
+        logging.error(f"Sample validation regions: {val_regions[:10]}")
         raise ValueError("No common regions found between discovery and validation cohorts")
     
     # Create aligned arrays
@@ -111,27 +138,74 @@ def align_region_data(discovery_data: Tuple[np.ndarray, List[str]],
         disc_aligned.append(disc_attr[disc_idx])
         val_aligned.append(val_attr[val_idx])
     
-    return np.array(disc_aligned), np.array(val_aligned)
+    disc_aligned = np.array(disc_aligned)
+    val_aligned = np.array(val_aligned)
+    
+    logging.info(f"Aligned data stats - Discovery: min={disc_aligned.min():.4f}, max={disc_aligned.max():.4f}, mean={disc_aligned.mean():.4f}")
+    logging.info(f"Aligned data stats - Validation: min={val_aligned.min():.4f}, max={val_aligned.max():.4f}, mean={val_aligned.mean():.4f}")
+    logging.info(f"Aligned non-zero - Discovery: {(disc_aligned > 0).sum()}/{len(disc_aligned)}")
+    logging.info(f"Aligned non-zero - Validation: {(val_aligned > 0).sum()}/{len(val_aligned)}")
+    
+    return disc_aligned, val_aligned
 
-def compute_cosine_similarity(discovery_attr: np.ndarray, validation_attr: np.ndarray) -> float:
+def compute_cosine_similarity(discovery_attr: np.ndarray, validation_attr: np.ndarray) -> Dict:
     """
-    Compute cosine similarity between two attribution vectors.
+    Compute multiple similarity metrics between two attribution vectors.
     
     Args:
         discovery_attr: Discovery cohort attribution vector
         validation_attr: Validation cohort attribution vector
         
     Returns:
-        float: Cosine similarity score
+        Dict: Dictionary containing various similarity metrics
     """
+    # Add debugging information
+    logging.info(f"Discovery attr stats: min={discovery_attr.min():.4f}, max={discovery_attr.max():.4f}, mean={discovery_attr.mean():.4f}, std={discovery_attr.std():.4f}")
+    logging.info(f"Validation attr stats: min={validation_attr.min():.4f}, max={validation_attr.max():.4f}, mean={validation_attr.mean():.4f}, std={validation_attr.std():.4f}")
+    logging.info(f"Discovery non-zero: {(discovery_attr > 0).sum()}/{len(discovery_attr)}")
+    logging.info(f"Validation non-zero: {(validation_attr > 0).sum()}/{len(validation_attr)}")
+    
     # Reshape for sklearn cosine_similarity
     disc_reshaped = discovery_attr.reshape(1, -1)
     val_reshaped = validation_attr.reshape(1, -1)
     
     # Compute cosine similarity
-    similarity = cosine_similarity(disc_reshaped, val_reshaped)[0, 0]
+    cosine_sim = cosine_similarity(disc_reshaped, val_reshaped)[0, 0]
     
-    return similarity
+    # Compute Pearson correlation
+    from scipy.stats import pearsonr
+    pearson_r, pearson_p = pearsonr(discovery_attr, validation_attr)
+    
+    # Compute Spearman correlation
+    from scipy.stats import spearmanr
+    spearman_r, spearman_p = spearmanr(discovery_attr, validation_attr)
+    
+    # Compute Jaccard similarity (for binary vectors - top features)
+    # Convert to binary: top 10% of features
+    top_10_percent = int(len(discovery_attr) * 0.1)
+    disc_top_indices = set(np.argsort(discovery_attr)[-top_10_percent:])
+    val_top_indices = set(np.argsort(validation_attr)[-top_10_percent:])
+    jaccard_sim = len(disc_top_indices & val_top_indices) / len(disc_top_indices | val_top_indices)
+    
+    # Compute overlap of top 50 features
+    top_50 = 50
+    disc_top50_indices = set(np.argsort(discovery_attr)[-top_50:])
+    val_top50_indices = set(np.argsort(validation_attr)[-top_50:])
+    overlap_50 = len(disc_top50_indices & val_top50_indices) / top_50
+    
+    results = {
+        'cosine_similarity': cosine_sim,
+        'pearson_correlation': pearson_r,
+        'pearson_p_value': pearson_p,
+        'spearman_correlation': spearman_r,
+        'spearman_p_value': spearman_p,
+        'jaccard_similarity_top10pct': jaccard_sim,
+        'overlap_top50_features': overlap_50
+    }
+    
+    logging.info(f"Similarity metrics: Cosine={cosine_sim:.4f}, Pearson={pearson_r:.4f}, Spearman={spearman_r:.4f}, Jaccard={jaccard_sim:.4f}, Top50_overlap={overlap_50:.4f}")
+    
+    return results
 
 def analyze_cosine_similarities(discovery_csv: str, validation_csvs: List[str], 
                               validation_names: List[str]) -> Dict:
@@ -162,13 +236,13 @@ def analyze_cosine_similarities(discovery_csv: str, validation_csvs: List[str],
             # Align region data
             disc_aligned, val_aligned = align_region_data(discovery_data, validation_data)
             
-            # Compute cosine similarity
-            similarity = compute_cosine_similarity(disc_aligned, val_aligned)
-            similarities[val_name] = similarity
+            # Compute similarity metrics
+            similarity_metrics = compute_cosine_similarity(disc_aligned, val_aligned)
+            similarities[val_name] = similarity_metrics['cosine_similarity']
             
             # Store detailed results
             detailed_results[val_name] = {
-                'similarity': similarity,
+                'similarity_metrics': similarity_metrics,
                 'n_common_regions': len(disc_aligned),
                 'discovery_mean': np.mean(disc_aligned),
                 'validation_mean': np.mean(val_aligned),
@@ -176,7 +250,7 @@ def analyze_cosine_similarities(discovery_csv: str, validation_csvs: List[str],
                 'validation_std': np.std(val_aligned)
             }
             
-            logging.info(f"Cosine similarity with {val_name}: {similarity:.4f}")
+            logging.info(f"Cosine similarity with {val_name}: {similarity_metrics['cosine_similarity']:.4f}")
             
         except Exception as e:
             logging.error(f"Error processing {val_name}: {e}")
