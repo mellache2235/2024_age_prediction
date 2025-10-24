@@ -356,62 +356,24 @@ class BrainAgePredictor:
             train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
             val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
             
-            # Initialize model with optimized parameters
-            model = ConvNetLightning(
-                input_channels=X_train.shape[1],
-                dropout_rate=0.5,  # Reduced dropout for better performance
-                learning_rate=0.001  # Increased learning rate for faster convergence
+            # Use custom training function that matches your previous approach exactly
+            model, train_loss_list, val_loss_list, outputs_store, targets_store, outputs_store_train, targets_store_train = self._train_model_custom(
+                X_train, Y_train_scaled, X_test, Y_test_scaled, model_dir, fold
             )
-            
-            # Setup callbacks for best model saving
-            checkpoint_callback = ModelCheckpoint(
-                dirpath=model_dir,
-                filename=f"retrained_fold_{fold}_model",
-                monitor='val_loss',
-                mode='min',
-                save_top_k=1,
-                save_last=False,
-                verbose=True
-            )
-            
-            early_stopping_callback = EarlyStopping(
-                monitor='val_loss',
-                mode='min',
-                patience=10,
-                verbose=True
-            )
-            
-            # Train model
-            trainer = pl.Trainer(
-                max_epochs=200,  # Increased epochs with early stopping
-                accelerator='auto',
-                devices='auto',
-                enable_progress_bar=True,
-                enable_model_summary=False,
-                callbacks=[checkpoint_callback, early_stopping_callback]
-            )
-            
-            trainer.fit(model, train_loader, val_loader)
-            
-            # Get the best model path from checkpoint callback
-            best_model_path = checkpoint_callback.best_model_path
-            scaler_path = os.path.join(model_dir, f"age_scaler_fold_{fold}.pkl")
             
             # Save age scaler
+            scaler_path = os.path.join(model_dir, f"age_scaler_fold_{fold}.pkl")
             age_scaler.save(scaler_path)
             
+            # Get the best model path (saved during training)
+            best_model_path = os.path.join(model_dir, f"retrained_fold_{fold}_model.pt")
+            
+            # Use predictions from custom training (already in scaled form)
+            predictions_scaled = outputs_store  # From custom training
+            predictions = age_scaler.inverse_transform(predictions_scaled)
+            
             # Evaluate model
-            model.eval()
-            with torch.no_grad():
-                X_test_tensor = torch.FloatTensor(X_test)
-                if torch.cuda.is_available():
-                    X_test_tensor = X_test_tensor.cuda()
-                    model = model.cuda()
-                
-                predictions_scaled = model(X_test_tensor).cpu().numpy().flatten()
-                predictions = age_scaler.inverse_transform(predictions_scaled)
-                
-                metrics = evaluate_model_performance(Y_test, predictions)
+            metrics = evaluate_model_performance(Y_test, predictions)
             
             results['fold_results'].append({
                 'fold': fold,
@@ -427,6 +389,131 @@ class BrainAgePredictor:
         
         logging.info(f"Retrained {len(results['model_paths'])} models")
         return results
+    
+    def _train_model_custom(self, X_train, Y_train, X_test, Y_test, model_dir, fold):
+        """
+        Custom training function that exactly matches the previous PyTorch approach.
+        """
+        from model_utils import ConvNet
+        
+        # Create data loaders
+        train_dataset = TensorDataset(torch.FloatTensor(X_train), torch.FloatTensor(Y_train))
+        val_dataset = TensorDataset(torch.FloatTensor(X_test), torch.FloatTensor(Y_test))
+        
+        train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+        
+        # Initialize model exactly like your previous approach
+        model = ConvNet(dropout_rate=0.6)
+        
+        # Use CUDA if available
+        USE_CUDA = torch.cuda.is_available()
+        if USE_CUDA:
+            model = model.cuda()
+        
+        # Setup training exactly like your previous approach
+        criterion = nn.MSELoss()
+        optimizer = torch.optim.Adam(model.parameters(), lr=0.0006, weight_decay=0.0001)
+        
+        total_step = len(train_loader)
+        train_loss_list = []
+        val_loss_list = []
+        val_loss_temp = 100000000.0
+        num_epochs = 100
+        
+        # Model save path
+        fname_model = os.path.join(model_dir, f"retrained_fold_{fold}_model.pt")
+        
+        # Training loop exactly like your previous approach
+        for epoch in range(num_epochs):
+            # Put the model into the training mode
+            model.train()
+            for i, (data_ts, labels) in enumerate(train_loader):
+                if USE_CUDA:
+                    data_ts = data_ts.cuda()
+                    labels = labels.cuda()
+                
+                # Run the forward pass
+                outputs = model(data_ts)
+                loss = torch.sqrt(criterion(outputs, labels))  # RMSE loss like your approach
+                
+                # Track the Training Loss
+                train_loss_list.append(loss.item())
+                train_loss = loss.item()
+                
+                # Backprop and perform Adam optimisation
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+                
+                # Validation Loss and Accuracy (every batch like your approach)
+                model.eval()
+                with torch.no_grad():
+                    total_valid_loss = 0.0
+                    cnt = 0
+                    for images, labels in val_loader:
+                        if USE_CUDA:
+                            images = images.cuda()
+                            labels = labels.cuda()
+                        outputs = model(images)
+                        loss = criterion(outputs, labels).item()
+                        total_valid_loss += loss
+                        cnt += 1
+                    total_valid_loss = total_valid_loss / cnt
+                    val_loss_list.append(total_valid_loss)
+                    
+                    # Save model on best validation loss (like your approach)
+                    if val_loss_temp > total_valid_loss:
+                        val_loss_temp = total_valid_loss
+                        logging.info('**Saving Model on Drive**')
+                        torch.save(model.state_dict(), fname_model)
+                        logging.info('Epoch [{}/{}], Step [{}/{}], Train Loss: {:.4f}, Valid Loss: {:.4f}'
+                                   .format(epoch + 1, num_epochs, i + 1, total_step, train_loss, total_valid_loss))
+                
+                if (i + 1) % 10 == 0:
+                    logging.info('Epoch [{}/{}], Step [{}/{}], Train Loss: {:.4f}, Valid Loss: {:.4f}'
+                               .format(epoch + 1, num_epochs, i + 1, total_step, train_loss, total_valid_loss))
+        
+        # Load the best model for evaluation
+        if USE_CUDA:
+            model.load_state_dict(torch.load(fname_model))
+            model.cuda()
+        else:
+            model.load_state_dict(torch.load(fname_model, map_location=torch.device('cpu')))
+        
+        model.eval()
+        
+        # Apply on the Test Data (like your approach)
+        targets_store = []
+        outputs_store = []
+        with torch.no_grad():
+            for images, labels in val_loader:
+                if USE_CUDA:
+                    images = images.cuda()
+                    labels = labels.cuda()
+                outputs = model(images)
+                outputs_store.append(outputs.cpu().detach().numpy())
+                targets_store.append(labels.cpu().detach().numpy())
+        
+        outputs_store = np.concatenate(outputs_store)
+        targets_store = np.concatenate(targets_store)
+        
+        # Apply on the Train Data (like your approach)
+        targets_store_train = []
+        outputs_store_train = []
+        with torch.no_grad():
+            for images, labels in train_loader:
+                if USE_CUDA:
+                    images = images.cuda()
+                    labels = labels.cuda()
+                outputs = model(images)
+                outputs_store_train.append(outputs.cpu().detach().numpy())
+                targets_store_train.append(labels.cpu().detach().numpy())
+        
+        targets_store_train = np.concatenate(targets_store_train)
+        outputs_store_train = np.concatenate(outputs_store_train)
+        
+        return model, train_loss_list, val_loss_list, outputs_store, targets_store, outputs_store_train, targets_store_train
     
     def _create_scaler_from_training_data(self, fold: int, model_dir: str) -> Optional[AgeScaler]:
         """
