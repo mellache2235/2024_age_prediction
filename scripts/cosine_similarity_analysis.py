@@ -19,6 +19,7 @@ import pandas as pd
 import numpy as np
 import argparse
 import logging
+import yaml
 from pathlib import Path
 from typing import List, Dict, Tuple
 from sklearn.metrics.pairwise import cosine_similarity
@@ -26,33 +27,56 @@ from sklearn.metrics.pairwise import cosine_similarity
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def load_count_data(csv_file: str) -> Tuple[np.ndarray, List[str]]:
+def load_config(config_path: str = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml") -> Dict:
+    """Load configuration from YAML file."""
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+    return config
+
+def get_count_data_paths(config: Dict) -> Dict[str, str]:
+    """Get count data file paths from config."""
+    return config.get('network_analysis', {}).get('count_data', {})
+
+def load_count_data(file_path: str) -> Tuple[np.ndarray, List[str]]:
     """
-    Load count data from CSV file.
+    Load count data from CSV or Excel file.
     
     Args:
-        csv_file (str): Path to count data CSV file
+        file_path (str): Path to count data file (CSV or Excel)
         
     Returns:
         Tuple[np.ndarray, List[str]]: Attribution values and region names
     """
-    if not os.path.exists(csv_file):
-        raise FileNotFoundError(f"Count data file not found: {csv_file}")
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Count data file not found: {file_path}")
     
-    df = pd.read_csv(csv_file)
+    # Read file based on extension
+    if file_path.endswith('.xlsx') or file_path.endswith('.xls'):
+        df = pd.read_excel(file_path)
+    else:
+        df = pd.read_csv(file_path)
     
-    # Ensure we have the expected columns
-    if 'attribution' not in df.columns or 'region' not in df.columns:
+    logging.info(f"Columns in {file_path}: {list(df.columns)}")
+    
+    # Handle different column name formats
+    if 'Count' in df.columns and 'Region ID' in df.columns:
+        # Use the actual column names from your Excel files
+        attributions = df['Count'].values
+        regions = df['Region ID'].astype(str).tolist()
+    elif 'attribution' in df.columns and 'region' in df.columns:
+        # Standard format
+        attributions = df['attribution'].values
+        regions = df['region'].tolist()
+    else:
         # Try to rename columns if they're in different order
         if len(df.columns) >= 2:
             df.columns = ['attribution', 'region'] + list(df.columns[2:])
+            attributions = df['attribution'].values
+            regions = df['region'].tolist()
         else:
-            raise ValueError(f"CSV file must have 'attribution' and 'region' columns. Found: {df.columns.tolist()}")
+            raise ValueError(f"File must have 'Count'/'attribution' and 'Region ID'/'region' columns. Found: {df.columns.tolist()}")
     
-    attributions = df['attribution'].values
-    regions = df['region'].tolist()
-    
-    logging.info(f"Loaded {len(attributions)} regions from {csv_file}")
+    logging.info(f"Loaded {len(attributions)} regions from {file_path}")
     return attributions, regions
 
 def align_region_data(discovery_data: Tuple[np.ndarray, List[str]], 
@@ -190,17 +214,20 @@ def run_discovery_validation_analysis(discovery_csv: str, validation_csvs: List[
     logging.info("Running discovery vs validation analysis...")
     return analyze_cosine_similarities(discovery_csv, validation_csvs, validation_names)
 
-def run_within_condition_analysis(data_dir: str) -> Dict:
+def run_within_condition_analysis(config: Dict) -> Dict:
     """Run within-condition comparisons."""
     logging.info("Running within-condition analysis...")
     
+    # Get count data paths from config
+    count_data_paths = get_count_data_paths(config)
+    
     # ADHD comparisons
-    adhd200_adhd_csv = os.path.join(data_dir, "adhd200_adhd_count_data.csv")
-    cmihbn_adhd_csv = os.path.join(data_dir, "cmihbn_adhd_count_data.csv")
+    adhd200_adhd_csv = count_data_paths.get('adhd200_adhd')
+    cmihbn_adhd_csv = count_data_paths.get('cmihbn_adhd')
     
     # ASD comparisons
-    abide_asd_csv = os.path.join(data_dir, "abide_asd_count_data.csv")
-    stanford_asd_csv = os.path.join(data_dir, "stanford_asd_count_data.csv")
+    abide_asd_csv = count_data_paths.get('abide_asd')
+    stanford_asd_csv = count_data_paths.get('stanford_asd')
     
     results = {}
     
@@ -226,17 +253,20 @@ def run_within_condition_analysis(data_dir: str) -> Dict:
     
     return results
 
-def run_pooled_condition_analysis(data_dir: str) -> Dict:
+def run_pooled_condition_analysis(config: Dict) -> Dict:
     """Run pooled condition comparisons."""
     logging.info("Running pooled condition analysis...")
     
+    # Get count data paths from config
+    count_data_paths = get_count_data_paths(config)
+    
     # Pooled ADHD (average of ADHD200 ADHD and CMI-HBN ADHD)
-    adhd200_adhd_csv = os.path.join(data_dir, "adhd200_adhd_count_data.csv")
-    cmihbn_adhd_csv = os.path.join(data_dir, "cmihbn_adhd_count_data.csv")
+    adhd200_adhd_csv = count_data_paths.get('adhd200_adhd')
+    cmihbn_adhd_csv = count_data_paths.get('cmihbn_adhd')
     
     # Pooled ASD (average of ABIDE ASD and Stanford ASD)
-    abide_asd_csv = os.path.join(data_dir, "abide_asd_count_data.csv")
-    stanford_asd_csv = os.path.join(data_dir, "stanford_asd_count_data.csv")
+    abide_asd_csv = count_data_paths.get('abide_asd')
+    stanford_asd_csv = count_data_paths.get('stanford_asd')
     
     results = {}
     
@@ -267,22 +297,25 @@ def run_pooled_condition_analysis(data_dir: str) -> Dict:
     
     return results
 
-def run_cross_condition_analysis(data_dir: str) -> Dict:
+def run_cross_condition_analysis(config: Dict) -> Dict:
     """Run cross-condition comparisons (TD vs ADHD, TD vs ASD)."""
     logging.info("Running cross-condition analysis...")
     
+    # Get count data paths from config
+    count_data_paths = get_count_data_paths(config)
+    
     # TD cohorts
-    nki_td_csv = os.path.join(data_dir, "nki_rs_td_count_data.csv")
-    cmihbn_td_csv = os.path.join(data_dir, "cmihbn_td_count_data.csv")
-    adhd200_td_csv = os.path.join(data_dir, "adhd200_td_count_data.csv")
+    nki_td_csv = count_data_paths.get('nki')
+    cmihbn_td_csv = count_data_paths.get('cmihbn_td')
+    adhd200_td_csv = count_data_paths.get('adhd200_td')
     
     # ADHD cohorts
-    adhd200_adhd_csv = os.path.join(data_dir, "adhd200_adhd_count_data.csv")
-    cmihbn_adhd_csv = os.path.join(data_dir, "cmihbn_adhd_count_data.csv")
+    adhd200_adhd_csv = count_data_paths.get('adhd200_adhd')
+    cmihbn_adhd_csv = count_data_paths.get('cmihbn_adhd')
     
     # ASD cohorts
-    abide_asd_csv = os.path.join(data_dir, "abide_asd_count_data.csv")
-    stanford_asd_csv = os.path.join(data_dir, "stanford_asd_count_data.csv")
+    abide_asd_csv = count_data_paths.get('abide_asd')
+    stanford_asd_csv = count_data_paths.get('stanford_asd')
     
     results = {}
     
@@ -378,7 +411,9 @@ def main():
     parser.add_argument("--analysis_type", type=str, 
                        choices=['all', 'discovery_validation', 'within_condition', 'pooled_condition', 'cross_condition'],
                        default='all', help="Type of analysis to run")
-    parser.add_argument("--data_dir", type=str, help="Directory containing count data CSV files")
+    parser.add_argument("--config", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml",
+                       help="Path to configuration file")
+    parser.add_argument("--data_dir", type=str, help="Directory containing count data CSV files (deprecated, use config)")
     parser.add_argument("--discovery_csv", type=str, help="Path to discovery cohort count data CSV")
     parser.add_argument("--nki_csv", type=str, help="Path to NKI-RS TD count data CSV")
     parser.add_argument("--cmihbn_csv", type=str, help="Path to CMI-HBN TD count data CSV")
@@ -388,6 +423,9 @@ def main():
     
     args = parser.parse_args()
     
+    # Load configuration
+    config = load_config(args.config)
+    
     # Create output directory
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -396,32 +434,32 @@ def main():
     
     # Run analyses based on type
     if args.analysis_type in ['all', 'discovery_validation']:
-        if args.discovery_csv and args.nki_csv and args.cmihbn_csv and args.adhd200_csv:
-            validation_csvs = [args.nki_csv, args.cmihbn_csv, args.adhd200_csv]
+        # Get count data paths from config
+        count_data_paths = get_count_data_paths(config)
+        
+        # Use config paths or command line arguments
+        discovery_csv = args.discovery_csv or count_data_paths.get('dev')
+        nki_csv = args.nki_csv or count_data_paths.get('nki')
+        cmihbn_csv = args.cmihbn_csv or count_data_paths.get('cmihbn_td')
+        adhd200_csv = args.adhd200_csv or count_data_paths.get('adhd200_td')
+        
+        if discovery_csv and nki_csv and cmihbn_csv and adhd200_csv and all(os.path.exists(f) for f in [discovery_csv, nki_csv, cmihbn_csv, adhd200_csv]):
+            validation_csvs = [nki_csv, cmihbn_csv, adhd200_csv]
             validation_names = ['NKI-RS_TD', 'CMI-HBN_TD', 'ADHD-200_TD']
             all_results['discovery_validation'] = run_discovery_validation_analysis(
-                args.discovery_csv, validation_csvs, validation_names
+                discovery_csv, validation_csvs, validation_names
             )
         else:
-            logging.warning("Discovery validation analysis skipped - missing required CSV files")
+            logging.warning("Discovery validation analysis skipped - missing required files")
     
     if args.analysis_type in ['all', 'within_condition']:
-        if args.data_dir:
-            all_results['within_condition'] = run_within_condition_analysis(args.data_dir)
-        else:
-            logging.warning("Within condition analysis skipped - data_dir not provided")
+        all_results['within_condition'] = run_within_condition_analysis(config)
     
     if args.analysis_type in ['all', 'pooled_condition']:
-        if args.data_dir:
-            all_results['pooled_condition'] = run_pooled_condition_analysis(args.data_dir)
-        else:
-            logging.warning("Pooled condition analysis skipped - data_dir not provided")
+        all_results['pooled_condition'] = run_pooled_condition_analysis(config)
     
     if args.analysis_type in ['all', 'cross_condition']:
-        if args.data_dir:
-            all_results['cross_condition'] = run_cross_condition_analysis(args.data_dir)
-        else:
-            logging.warning("Cross condition analysis skipped - data_dir not provided")
+        all_results['cross_condition'] = run_cross_condition_analysis(config)
     
     # Save results
     import json
