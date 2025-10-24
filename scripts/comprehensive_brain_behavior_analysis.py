@@ -34,14 +34,68 @@ def set_seed(seed=42):
 set_seed(42)
 
 # Add utils to path
-sys.path.append(str(Path(__file__).parent.parent / 'utils'))
+script_dir = Path(__file__).resolve().parent
+# Get the actual project root (parent of scripts directory)
+project_root = script_dir.parent
+utils_path = str(project_root / 'utils')
+if utils_path not in sys.path:
+    sys.path.append(utils_path)
 
-from data_utils import load_finetune_dataset_w_ids, reshape_data
-from statistical_utils import (
-    multiple_correlation_analysis,
-    apply_multiple_comparison_correction,
-    benjamini_hochberg_correction
-)
+# Import data_utils functions
+import importlib.util
+data_utils_path = project_root / 'utils' / 'data_utils.py'
+spec = importlib.util.spec_from_file_location("data_utils", data_utils_path)
+data_utils = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(data_utils)
+load_finetune_dataset_w_ids = data_utils.load_finetune_dataset_w_ids
+reshape_data = data_utils.reshape_data
+
+# Define benjamini_hochberg_correction function directly to avoid statsmodels dependency
+def benjamini_hochberg_correction(p_values, alpha=0.05):
+    """
+    Apply Benjamini-Hochberg FDR correction to p-values.
+    Simple implementation without statsmodels dependency.
+    
+    Args:
+        p_values: Array of p-values
+        alpha: Significance level (default: 0.05)
+        
+    Returns:
+        Tuple: (corrected_p_values, rejected_hypotheses, p_value_corrected, alpha_sidak)
+    """
+    try:
+        # Try to use statsmodels if available
+        from statsmodels.stats.multitest import multipletests
+        return multipletests(p_values, alpha=alpha, method='fdr_bh')
+    except ImportError:
+        # Fallback: simple BH correction implementation
+        p_values = np.array(p_values)
+        n = len(p_values)
+        sorted_indices = np.argsort(p_values)
+        sorted_p_values = p_values[sorted_indices]
+        
+        # Calculate BH critical values
+        bh_critical = (np.arange(1, n + 1) / n) * alpha
+        
+        # Find largest k such that p(k) <= (k/n) * alpha
+        rejected_indices = []
+        for i in range(n):
+            if sorted_p_values[i] <= bh_critical[i]:
+                rejected_indices.append(i)
+            else:
+                break
+        
+        # Create results arrays
+        rejected = np.zeros(n, dtype=bool)
+        corrected_p = np.ones(n)
+        
+        if rejected_indices:
+            rejected[sorted_indices[rejected_indices]] = True
+            # Simple correction: multiply by n/k for rejected hypotheses
+            for i in rejected_indices:
+                corrected_p[sorted_indices[i]] = min(1.0, sorted_p_values[i] * n / (i + 1))
+        
+        return corrected_p, rejected, corrected_p, alpha
 
 
 class ComprehensiveBrainBehaviorAnalyzer:

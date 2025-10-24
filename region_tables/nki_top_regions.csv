@@ -1,0 +1,51 @@
+ROI_Index,Region_Name,Count,Rank
+5,"A9l, lateral area 9,Left",496,1
+112,"A35/36c, caudal area 35/36,Right",495,2
+32,"IFS, inferior frontal sulcus,Right",494,3
+241,"Otha, occipital thalamus,Left",494,4
+149,"A5m, medial area 5(PEm),Left",493,5
+6,"A9l, lateral area 9,Right",492,6
+17,"IFJ, inferior frontal junction,Left",492,7
+24,"A8vl, ventrolateral area 8,Right",491,8
+111,"A35/36c, caudal area 35/36,Left",490,9
+115,"A28/34, area 28/34 (EC, entorhinal cortex),Left",489,10
+242,"Otha, occipital thalamus,Right",488,11
+12,"A9m,medial area 9,Right",486,12
+92,"A37elv, extreme lateroventral area37,Right",484,13
+54,"A4hf, area 4(head and face region),Right",482,14
+45,"A11l, lateral area 11,Left",480,15
+230,"dlPu, dorsolateral putamen,Right",479,16
+227,"dCa, dorsal caudate,Left",472,17
+116,"A28/34, area 28/34 (EC, entorhinal cortex),Right",468,18
+138,"A39rd, rostrodorsal area 39(Hip3),Right",467,19
+238,"rTtha, rostral temporal thalamus,Right",463,20
+11,"A9m,medial area 9,Left",462,21
+109,"A35/36r, rostral area 35/36,Left",460,22
+211,"mAmyg, medial amygdala,Left",460,23
+135,"A39c, caudal area 39(PGp),Left",459,24
+94,"A20r, rostral area 20,Right",458,25
+13,"A10m, medial area 10,Left",457,26
+240,"PPtha, posterior parietal thalamus,Right",457,27
+182,"A23v, ventral area 23,Right",451,28
+229,"dlPu, dorsolateral putamen,Left",447,29
+222,"GP, globus pallidus,Right",445,30
+226,"vmPu, ventromedial putamen,Right",445,31
+60,"A4t, area 4(trunk region),Right",441,32
+181,"A23v, ventral area 23,Left",439,33
+126,"A7r, rostral area 7,Right",434,34
+212,"mAmyg, medial amygdala,Right",434,35
+108,"A37lv, lateroventral area37,Right",431,36
+233,"mPMtha, pre-motor thalamus,Left",430,37
+8,"A6dl, dorsolateral area 6,Right",423,38
+59,"A4t, area 4(trunk region),Left",422,39
+246,"lPFtha, lateral pre-frontal thalamus,Right",420,40
+19,"A46, area 46,Left",413,41
+161,"A1/2/3tru, area1/2/3(trunk region),Left",413,42
+7,"A6dl, dorsolateral area 6,Left",412,43
+228,"dCa, dorsal caudate,Right",411,44
+34,"A45c, caudal area 45,Right",410,45
+57,"A4ul, area 4(upper limb region),Left",410,46
+78,"A38l, lateral area 38,Right",406,47
+96,"A20il, intermediate lateral area 20,Right",405,48
+30,"A44d,dorsal area 44,Right",400,49
+139,"A40rd, rostrodorsal area 40(PFt),Left",400,50

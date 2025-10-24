@@ -390,6 +390,116 @@ def process_single_dataset(count_csv_path: str, yeo_atlas_path: str,
     logging.info(f"Top 3 networks: {[net['network'] for net in analysis_results['top_3_networks']]}")
 
 
+def create_shared_network_analysis(dataset_excel_paths: List[str], 
+                                  yeo_atlas_path: str,
+                                  output_dir: str,
+                                  title: str,
+                                  network_names: List[str] = None,
+                                  min_datasets: int = 2) -> None:
+    """
+    Create network analysis for shared regions across multiple datasets.
+    Uses minimum count approach for shared regions.
+    
+    Args:
+        dataset_excel_paths (List[str]): List of paths to count data Excel files
+        yeo_atlas_path (str): Path to Yeo atlas CSV file
+        output_dir (str): Output directory for results
+        title (str): Title for plots
+        network_names (List[str], optional): List of network names
+        min_datasets (int): Minimum number of datasets a region must appear in
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Load Yeo atlas
+    yeo_atlas = load_yeo_atlas(yeo_atlas_path, network_names)
+    
+    # Collect shared regions using minimum count approach
+    all_regions = {}
+    
+    for excel_path in dataset_excel_paths:
+        if not os.path.exists(excel_path):
+            logging.warning(f"Count data file not found: {excel_path}")
+            continue
+            
+        dataset_name = Path(excel_path).stem.replace('_count_data', '').replace('top_50_consensus_features_', '').replace('_aging', '')
+        
+        try:
+            count_data = pd.read_excel(excel_path)
+        except Exception as e:
+            logging.error(f"Error reading Excel file {excel_path}: {e}")
+            continue
+        
+        # Check for required columns
+        if 'Count' not in count_data.columns:
+            logging.error(f"No Count column found in {excel_path}. Available columns: {list(count_data.columns)}")
+            continue
+        
+        # Get top 50 regions
+        top_regions = count_data.nlargest(50, 'Count')
+        
+        for _, row in top_regions.iterrows():
+            # Use Region ID as the key for matching across datasets
+            region_id = row.get('Region ID', row.get('(ID) Region Label', 'Unknown'))
+            
+            if region_id not in all_regions:
+                all_regions[region_id] = {
+                    'counts': [],
+                    'datasets': []
+                }
+            
+            all_regions[region_id]['counts'].append(row['Count'])
+            all_regions[region_id]['datasets'].append(dataset_name)
+    
+    # Filter regions that appear in at least min_datasets
+    shared_regions = {region_id: data for region_id, data in all_regions.items() 
+                     if len(data['datasets']) >= min_datasets}
+    
+    if not shared_regions:
+        logging.warning(f"No shared regions found across {min_datasets} datasets")
+        return
+    
+    # Create shared count data using minimum count approach
+    shared_count_data = []
+    for region_id, data in shared_regions.items():
+        min_count = np.min(data['counts'])
+        shared_count_data.append({
+            'region': region_id,
+            'Count': int(min_count)
+        })
+    
+    # Convert to DataFrame
+    shared_df = pd.DataFrame(shared_count_data)
+    
+    # Map ROIs to networks
+    network_data = map_rois_to_networks(shared_df, yeo_atlas)
+    
+    # Aggregate by networks
+    aggregated_data = aggregate_by_networks(network_data)
+    
+    # Save network analysis results
+    output_file = os.path.join(output_dir, f"shared_network_analysis.csv")
+    aggregated_data.to_csv(output_file, index=False)
+    logging.info(f"Shared network analysis saved to: {output_file}")
+    
+    # Create plots
+    from plot_network_analysis import create_polar_bar_plot
+    
+    # Polar bar plot
+    polar_plot_path = os.path.join(output_dir, f"shared_network_polar")
+    create_polar_bar_plot(aggregated_data, polar_plot_path, title, show_values=True)
+    
+    # Analyze network patterns
+    network_patterns = analyze_network_patterns(aggregated_data)
+    
+    # Save analysis results
+    import json
+    results_file = os.path.join(output_dir, f"shared_network_analysis_results.json")
+    with open(results_file, 'w') as f:
+        json.dump(network_patterns, f, indent=2, default=str)
+    
+    logging.info(f"Shared network analysis completed for {len(shared_regions)} shared regions")
+
+
 def main():
     """Main function to process all datasets from config."""
     parser = argparse.ArgumentParser(description="Network analysis using Yeo atlas")
@@ -403,6 +513,8 @@ def main():
                        help="Title for plots")
     parser.add_argument("--process_all", action="store_true",
                        help="Process all datasets from config")
+    parser.add_argument("--process_shared", action="store_true",
+                       help="Process shared network analysis across cohorts")
     
     args = parser.parse_args()
     
@@ -437,6 +549,52 @@ def main():
             process_single_dataset(csv_path, yeo_atlas_path, output_dir, title, network_names, dataset_name)
         
         logging.info("All datasets processed!")
+    
+    elif args.process_shared:
+        # Process shared network analysis across cohorts
+        count_data_config = config.get('network_analysis', {}).get('count_data', {})
+        yeo_atlas_path = config.get('network_analysis', {}).get('yeo_atlas_path', '/path/to/yeo_atlas.csv')
+        network_names = config.get('network_analysis', {}).get('network_names', None)
+        
+        # Shared among TD cohorts
+        td_datasets = ['dev', 'nki', 'adhd200_td', 'cmihbn_td']
+        td_paths = [count_data_config.get(d) for d in td_datasets if count_data_config.get(d) and os.path.exists(count_data_config.get(d))]
+        
+        if len(td_paths) >= 2:
+            output_dir = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_TD"
+            title = "Shared Network Analysis - TD Cohorts"
+            logging.info("Processing shared TD network analysis...")
+            create_shared_network_analysis(td_paths, yeo_atlas_path, output_dir, title, network_names, min_datasets=2)
+        
+        # Shared among ADHD cohorts
+        adhd_datasets = ['adhd200_adhd', 'cmihbn_adhd']
+        adhd_paths = [count_data_config.get(d) for d in adhd_datasets if count_data_config.get(d) and os.path.exists(count_data_config.get(d))]
+        
+        if len(adhd_paths) >= 2:
+            output_dir = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_ADHD"
+            title = "Shared Network Analysis - ADHD Cohorts"
+            logging.info("Processing shared ADHD network analysis...")
+            create_shared_network_analysis(adhd_paths, yeo_atlas_path, output_dir, title, network_names, min_datasets=2)
+        
+        # Shared among ASD cohorts
+        asd_datasets = ['abide_asd', 'stanford_asd']
+        asd_paths = [count_data_config.get(d) for d in asd_datasets if count_data_config.get(d) and os.path.exists(count_data_config.get(d))]
+        
+        if len(asd_paths) >= 2:
+            output_dir = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_ASD"
+            title = "Shared Network Analysis - ASD Cohorts"
+            logging.info("Processing shared ASD network analysis...")
+            create_shared_network_analysis(asd_paths, yeo_atlas_path, output_dir, title, network_names, min_datasets=2)
+        
+        # Shared among all cohorts
+        all_paths = [path for path in count_data_config.values() if path and os.path.exists(path)]
+        if len(all_paths) >= 3:
+            output_dir = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_all"
+            title = "Shared Network Analysis - All Cohorts"
+            logging.info("Processing shared all cohorts network analysis...")
+            create_shared_network_analysis(all_paths, yeo_atlas_path, output_dir, title, network_names, min_datasets=3)
+        
+        logging.info("All shared network analyses completed!")
         
     else:
         # Process single dataset

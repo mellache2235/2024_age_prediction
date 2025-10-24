@@ -112,7 +112,8 @@ def create_dataset_region_table(count_csv_path: str,
                                output_path: str,
                                top_n: int = 50) -> pd.DataFrame:
     """
-    Create a region table for a single dataset.
+    Create a region table for a single dataset in the format:
+    Brain Regions, Subdivision, (ID) Region Label, Count
     
     Args:
         count_csv_path (str): Path to count data CSV file
@@ -126,37 +127,15 @@ def create_dataset_region_table(count_csv_path: str,
     # Load count data
     count_data = pd.read_csv(count_csv_path)
     
-    # Load ROI labels
-    roi_mapping = create_region_mapping(roi_labels_path)
-    
-    # Extract ROI index from region names
-    def extract_roi_index(region_name):
-        try:
-            if isinstance(region_name, str):
-                import re
-                numbers = re.findall(r'\d+', region_name)
-                if numbers:
-                    return int(numbers[0])
-            elif isinstance(region_name, (int, float)):
-                return int(region_name)
-        except:
-            pass
-        return None
-    
-    count_data['roi_index'] = count_data['region'].apply(extract_roi_index)
-    
-    # Map ROI indices to region names
-    count_data['region_name'] = count_data['roi_index'].map(roi_mapping)
-    
     # Sort by count and get top N
     top_regions = count_data.nlargest(top_n, 'Count')
     
-    # Create final table
+    # Create final table in the desired format
     region_table = pd.DataFrame({
-        'ROI_Index': top_regions['roi_index'],
-        'Region_Name': top_regions['region_name'],
-        'Count': top_regions['Count'],
-        'Rank': range(1, len(top_regions) + 1)
+        'Brain Regions': top_regions.get('Gyrus', top_regions.get('Description', 'Unknown')),
+        'Subdivision': top_regions.get('Region Alias', 'Unknown'),
+        '(ID) Region Label': top_regions.get('(ID) Region Label', top_regions.get('region', 'Unknown')),
+        'Count': top_regions['Count']
     })
     
     # Save table
@@ -267,11 +246,9 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
                         'region_name': roi_mapping.get(roi_idx, f'ROI_{roi_idx}'),
                         'datasets': [],
                         'counts': [],
-                        'total_count': 0
                     }
                 all_regions[roi_idx]['datasets'].append(dataset_name)
                 all_regions[roi_idx]['counts'].append(row['Count'])
-                all_regions[roi_idx]['total_count'] += row['Count']
     
     # Filter regions that appear in at least min_datasets
     shared_regions = {roi_idx: data for roi_idx, data in all_regions.items() 
@@ -285,15 +262,16 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
             'Region_Name': data['region_name'],
             'N_Datasets': len(data['datasets']),
             'Datasets': ', '.join(data['datasets']),
-            'Total_Count': data['total_count'],
             'Mean_Count': np.mean(data['counts']),
-            'Max_Count': np.max(data['counts'])
+            'Max_Count': np.max(data['counts']),
+            'Min_Count': np.min(data['counts']),
+            'Std_Count': np.std(data['counts'])
         })
     
     # Create and sort table
     if table_data:
         shared_table = pd.DataFrame(table_data)
-        shared_table = shared_table.sort_values('Total_Count', ascending=False)
+        shared_table = shared_table.sort_values('Mean_Count', ascending=False)
         shared_table['Rank'] = range(1, len(shared_table) + 1)
         
         # Save table
@@ -301,7 +279,7 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
         logging.info(f"Created shared region table: {len(shared_table)} regions shared across datasets, saved to {output_path}")
     else:
         # Create empty table with proper columns
-        shared_table = pd.DataFrame(columns=['ROI_Index', 'Region_Name', 'N_Datasets', 'Datasets', 'Total_Count', 'Mean_Count', 'Max_Count', 'Rank'])
+        shared_table = pd.DataFrame(columns=['ROI_Index', 'Region_Name', 'N_Datasets', 'Datasets', 'Mean_Count', 'Max_Count', 'Min_Count', 'Std_Count', 'Rank'])
         shared_table.to_csv(output_path, index=False)
         logging.warning(f"No shared regions found. Created empty table at {output_path}")
     
@@ -367,11 +345,9 @@ def create_shared_region_table(dataset_csv_paths: List[str],
                         'region_name': roi_mapping.get(roi_idx, f'ROI_{roi_idx}'),
                         'datasets': [],
                         'counts': [],
-                        'total_count': 0
                     }
                 all_regions[roi_idx]['datasets'].append(dataset_name)
                 all_regions[roi_idx]['counts'].append(row['Count'])
-                all_regions[roi_idx]['total_count'] += row['Count']
     
     # Filter regions that appear in at least min_datasets
     shared_regions = {roi_idx: data for roi_idx, data in all_regions.items() 
@@ -385,15 +361,16 @@ def create_shared_region_table(dataset_csv_paths: List[str],
             'Region_Name': data['region_name'],
             'N_Datasets': len(data['datasets']),
             'Datasets': ', '.join(data['datasets']),
-            'Total_Count': data['total_count'],
             'Mean_Count': np.mean(data['counts']),
-            'Max_Count': np.max(data['counts'])
+            'Max_Count': np.max(data['counts']),
+            'Min_Count': np.min(data['counts']),
+            'Std_Count': np.std(data['counts'])
         })
     
     # Create and sort table
     if table_data:
         shared_table = pd.DataFrame(table_data)
-        shared_table = shared_table.sort_values('Total_Count', ascending=False)
+        shared_table = shared_table.sort_values('Mean_Count', ascending=False)
         shared_table['Rank'] = range(1, len(shared_table) + 1)
         
         # Save table
@@ -401,7 +378,7 @@ def create_shared_region_table(dataset_csv_paths: List[str],
         logging.info(f"Created shared region table: {len(shared_table)} regions shared across datasets, saved to {output_path}")
     else:
         # Create empty table with proper columns
-        shared_table = pd.DataFrame(columns=['ROI_Index', 'Region_Name', 'N_Datasets', 'Datasets', 'Total_Count', 'Mean_Count', 'Max_Count', 'Rank'])
+        shared_table = pd.DataFrame(columns=['ROI_Index', 'Region_Name', 'N_Datasets', 'Datasets', 'Mean_Count', 'Max_Count', 'Min_Count', 'Std_Count', 'Rank'])
         shared_table.to_csv(output_path, index=False)
         logging.warning(f"No shared regions found. Created empty table at {output_path}")
     
