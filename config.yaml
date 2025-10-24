@@ -26,13 +26,51 @@ feature_attribution:
 
 # Data Paths
 data_paths:
-  cmihbn_td:
-    brain_features: "/path/to/cmihbn_td_brain_features.npz"
-    behavioral_data: "/path/to/cmihbn_td_behavioral.csv"
+  # HCP-Dev (Discovery Cohort)
+  hcp_dev:
+    training_data_dir: "/path/to/hcp_dev_training_data"
+    behavioral_data: "/path/to/hcp_dev_behavioral.csv"
+  
+  # TD Cohorts for Bias Correction
+  td_cohorts:
+    nki_rs_td: "/path/to/nki_rs_td_data.bin"
+    adhd200_td: "/path/to/adhd200_td_data.bin"
+    cmihbn_td: "/path/to/cmihbn_td_data.bin"
+  
+  # External Datasets for Testing
+  external_datasets:
+  nki_rs_td: "/path/to/nki_rs_td_fold_0.bin"
+  adhd200_adhd: "/path/to/adhd200_adhd_fold_0.bin"
+  cmihbn_adhd: "/path/to/cmihbn_adhd_fold_0.bin"
+  adhd200_td: "/path/to/adhd200_td_fold_0.bin"
+  cmihbn_td: "/path/to/cmihbn_td_fold_0.bin"
+  abide_asd: "/path/to/abide_asd_fold_0.bin"
+  stanford_asd: "/path/to/stanford_asd_fold_0.bin"
+  
+  # Comprehensive Brain-Behavior Analysis Datasets
+  nki_rs_td:
+    ig_csv: "/path/to/nki_cog_dev_features_IG_convnet_regressor_single_model_fold_0.csv"
+    behavioral_data: "/path/to/8100_CAARS-S-S_20191009.csv"
+  adhd200_adhd:
+    ig_csv: "/path/to/adhd200_adhd_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv"
+    behavioral_data: "/oak/stanford/groups/menon/deriveddata/public/adhd200/restfmri/timeseries/group_level/brainnetome/normz/adhd200_run-rest_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs_nn.pklz"
+  cmihbn_adhd:
+    ig_csv: "/path/to/cmihbn_adhd_weidong_cutoffs_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv"
+    behavioral_data: "/oak/stanford/groups/menon/projects/wdcai/2019_ADHD_NN/data/imaging/timeseries/CMIHBN/restfmri/timeseries/group_level/brainnetome/normz/"
+    c3sr_data: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/adhd/C3SR.csv"
   adhd200_td:
-    brain_features: "/path/to/adhd200_td_brain_features.npz"
-    behavioral_data: "/path/to/adhd200_td_behavioral.csv"
-    site_info: "/path/to/adhd200_site_info.csv"
+    ig_csv: "/path/to/adhd200_td_features_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS.csv"
+    behavioral_data: "/oak/stanford/groups/menon/deriveddata/public/adhd200/restfmri/timeseries/group_level/brainnetome/normz/adhd200_run-rest_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs_nn.pklz"
+  cmihbn_td:
+    ig_csv: "/path/to/cmihbn_td_features_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS.csv"
+    behavioral_data: "/oak/stanford/groups/menon/projects/wdcai/2019_ADHD_NN/data/imaging/timeseries/CMIHBN/restfmri/timeseries/group_level/brainnetome/normz/"
+    c3sr_data: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/adhd/C3SR.csv"
+  abide_asd:
+    ig_csv: "/path/to/abide_asd_features_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS.csv"
+    behavioral_data: "/oak/stanford/groups/menon/deriveddata/public/abide/restfmri/timeseries/group_level/brainnetome/normz/"
+  stanford_asd:
+    ig_csv: "/path/to/stanford_asd_features_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS.csv"
+    behavioral_data: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/stanford_autism/"
 
 # Model Configuration
 model:

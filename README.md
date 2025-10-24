@@ -101,14 +101,8 @@ brain_behavior:
 ### 2. Run Complete Pipeline
 
 ```bash
-# Run all analyses in correct order
-python main.py --config config.yaml
-
-# Run specific analyses
-python main.py --config config.yaml --analyses brain_age_prediction feature_attribution brain_visualization network_analysis brain_behavior
-
-# Custom output directory
-python main.py --config config.yaml --output_dir /path/to/results
+# Run all analyses in correct order (simplified - no command line arguments needed)
+python main.py
 ```
 
 **Analysis Order:**
@@ -121,24 +115,20 @@ python main.py --config config.yaml --output_dir /path/to/results
 ### 3. Individual Scripts
 
 ```bash
-# Network analysis
-python scripts/network_analysis.py \
-  --ig_dir /path/to/ig_data \
-  --model_prefix dev_age_model \
-  --num_models 5 \
-  --yeo_atlas /path/to/yeo_atlas.csv
+# Brain age prediction with nested CV
+python scripts/brain_age_prediction.py
 
-# Brain-behavior correlations
-python scripts/brain_behavior_correlation.py \
-  --data_dir /path/to/data \
-  --cohort both \
-  --output_dir results/brain_behavior
+# Brain-behavior correlation with PCA
+python scripts/comprehensive_brain_behavior_analysis.py
+
+# Network analysis
+python scripts/network_analysis.py
 
 # Feature comparison
-python scripts/feature_comparison.py \
-  --file_a cohort1.csv \
-  --file_b cohort2.csv \
-  --output_dir results/comparison
+python scripts/feature_comparison.py
+
+# Create region tables
+python scripts/create_region_tables.py
 ```
 
 ## 📊 Analysis Modules
@@ -157,9 +147,26 @@ Performs network-level analysis using consensus count data and Yeo atlas:
 - `map_features_to_networks()`: Maps features to brain networks
 - `compute_network_level_scores()`: Aggregates scores by network
 
-### Brain-Behavior Correlation (`scripts/brain_behavior_correlation.py`)
+### Brain Age Prediction (`scripts/brain_age_prediction.py`)
 
-Analyzes correlations between **individual IG scores** and behavioral measures:
+Complete brain age prediction pipeline with bias correction:
+
+- **Nested Cross-Validation**: 5-fold outer CV with inner CV for hyperparameter optimization
+- **Weights & Biases Integration**: Hyperparameter optimization with W&B logging
+- **Hyperparameter Search**: Learning rate, dropout, weight decay, batch size, epochs
+- **Bias Correction**: Linear regression-based correction using TD cohorts
+- **External Testing**: Testing on multiple external datasets
+- **Performance Metrics**: R², MAE, correlation analysis with statistical significance
+- **Visualization**: Brain age prediction scatter plots
+
+**Supported Datasets**:
+- HCP-Dev (discovery cohort)
+- NKI-RS TD, ADHD-200 TD, CMI-HBN TD (for bias correction)
+- All external datasets for testing
+
+### Comprehensive Brain-Behavior Analysis (`scripts/comprehensive_brain_behavior_analysis.py`)
+
+Analyzes correlations between **individual IG scores** and behavioral measures across all datasets:
 
 - **IG-Based Analysis**: Uses Integrated Gradient scores for each individual subject
 - **Multiple Comparison Correction**: FDR (Benjamini-Hochberg) correction
@@ -167,14 +174,29 @@ Analyzes correlations between **individual IG scores** and behavioral measures:
 - **Statistical Testing**: Comprehensive correlation analysis
 - **Visualization**: Correlation matrices and summary plots
 
-**Supported Cohorts**:
-- CMIHBN TD cohort
-- ADHD200 TD cohort (with site-specific analysis)
+**Supported Datasets**:
+- **NKI-RS TD**: CAARS_36 (IN), CAARS_37 (HY)
+- **ADHD-200 ADHD**: HY, IN (by site)
+- **CMI-HBN ADHD**: C3SR, C3SR_HY_T
+- **ADHD-200 TD**: HY, IN (by site)
+- **CMI-HBN TD**: C3SR, C3SR_HY_T
+- **ABIDE ASD**: ADOS Total, Social, Comm
+- **Stanford ASD**: SRS Total
 
 **Key Features**:
-- Individual-level IG scores (246 ROIs × time points per subject)
-- Correlation between IG feature importance and behavioral measures
-- FDR correction for multiple behavioral metrics
+- **PCA on IG Scores**: Reduces 246 ROIs to 10 principal components before correlation analysis
+- **Individual-level IG scores**: 246 ROIs per subject, median across timepoints
+- **Correlation Analysis**: Between PCA components and behavioral measures
+- **FDR Correction**: Benjamini-Hochberg correction for multiple behavioral metrics
+- **Site-specific Analysis**: For multi-site datasets (ADHD-200)
+- **Dataset-specific Loading**: ADHD-200 .pklz, CMI-HBN directory, ABIDE filtered sites, Stanford CSV
+- **Proper NaN Handling**: Removes subjects with missing behavioral data
+
+**Data Sources**:
+- **ADHD-200**: `.pklz` files with NaN handling
+- **CMI-HBN**: Directory with `run1` files, motion filtering (mean_fd < 0.5)
+- **ABIDE**: Filtered sites (NYU, SDSU, STANFORD, etc.) with `acompcor` preprocessing
+- **Stanford**: CSV files with SRS data and duplicate handling
 
 ### Feature Comparison (`scripts/feature_comparison.py`)
 
