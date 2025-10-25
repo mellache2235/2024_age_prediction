@@ -1,0 +1,32 @@
+Brain Regions,Subdivision,(ID) Region Label,Count
+"A8m, medial area 8,Right","IFS, inferior frontal sulcus","(32), IFG_R_6_2",496
+"A9l, lateral area 9,Left","A8vl, ventrolateral area 8","(24), MFG_R_7_5",496
+"A8m, medial area 8,Right","A5m, medial area 5(PEm)","(149), Pcun_L_4_2",490
+"A8dl, dorsolateral area 8,Left","dmPOS, dorsomeidal parietooccipital  sulcus(PEr) ","(151), Pcun_L_4_3",489
+"A8m, medial area 8,Right","A39rd, rostrodorsal area 39(Hip3)","(138), IPL_R_6_2",485
+"A8dl, dorsolateral area 8,Left","A9l, lateral area 9","(6), SFG_R_7_3",483
+"A9l, lateral area 9,Left","dCa, dorsal caudate","(227), Str_L_6_5",482
+"A8dl, dorsolateral area 8,Left","A9l, lateral area 9","(5), SFG_L_7_3",480
+"A8m, medial area 8,Right","IFJ, inferior frontal junction","(17), MFG_L_7_2",479
+"A8m, medial area 8,Right","A35/36c, caudal area 35/36","(111), PhG_L_6_2",478
+"A8m, medial area 8,Left","A39c, caudal area 39(PGp)","(135), IPL_L_6_1",475
+"A8m, medial area 8,Right","A35/36c, caudal area 35/36","(112), PhG_R_6_2",468
+"A8dl, dorsolateral area 8,Right","A28/34, area 28/34 (EC, entorhinal cortex)","(116), PhG_R_6_4",467
+"A9l, lateral area 9,Right","A9m,medial area 9","(12), SFG_R_7_6",454
+"A8dl, dorsolateral area 8,Left","dmPOS, dorsomeidal parietooccipital  sulcus(PEr) ","(152), Pcun_R_4_3",451
+"A8m, medial area 8,Right","A37vm, ventromedial area37","(92), ITG_R_7_2",448
+"A9l, lateral area 9,Right","A9m,medial area 9","(11), SFG_L_7_6",440
+"A9l, lateral area 9,Right","Otha, occipital thalamus","(242), Tha_R_8_6",437
+"A8m, medial area 8,Right","IFJ, inferior frontal junction","(18), MFG_R_7_2",436
+"A8m, medial area 8,Left","A7m, medial area 7(PEp)","(147), Pcun_L_4_1",434
+"A9l, lateral area 9,Right","dlPu, dorsolateral putamen","(230), Str_R_6_6",427
+"A8m, medial area 8,Left","A7ip, intraparietal area 7(hIP3)","(126), SPL_R_5_1",425
+"A8m, medial area 8,Left","A35/36r, rostral area 35/36","(109), PhG_L_6_1",423
+"A8dl, dorsolateral area 8,Left","A11l, lateral area 11","(45), OrG_L_6_3",416
+"A9l, lateral area 9,Left","dCa, dorsal caudate","(228), Str_R_6_5",412
+"A9l, lateral area 9,Right","Otha, occipital thalamus","(241), Tha_L_8_6",410
+"A8dl, dorsolateral area 8,Left","A45c, caudal area 45","(34), IFG_R_6_3",406
+"A8m, medial area 8,Right","A5m, medial area 5(PEm)","(150), Pcun_R_4_2",404
+"A9l, lateral area 9,Left","A38l, lateral area 38","(78), STG_R_6_5",403
+"A8m, medial area 8,Right","A21r, rostral area 21","(84), MTG_R_4_2",400
+"A8m, medial area 8,Left","cLinG, caudal lingual gyrus","(190), Cun_R_5_1",398

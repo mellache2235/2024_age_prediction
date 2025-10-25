@@ -1,0 +1,51 @@
+Brain Regions,Subdivision,(ID) Region Label,Count
+"A9l, lateral area 9,Left","A8vl, ventrolateral area 8","(24), MFG_R_7_5",497
+"A9l, lateral area 9,Right","Otha, occipital thalamus","(241), Tha_L_8_6",496
+"A8m, medial area 8,Right","IFS, inferior frontal sulcus","(32), IFG_R_6_2",495
+"A8dl, dorsolateral area 8,Left","A9l, lateral area 9","(6), SFG_R_7_3",493
+"A8m, medial area 8,Right","A5m, medial area 5(PEm)","(149), Pcun_L_4_2",493
+"A8m, medial area 8,Right","A35/36c, caudal area 35/36","(112), PhG_R_6_2",490
+"A9l, lateral area 9,Right","A9m,medial area 9","(12), SFG_R_7_6",487
+"A8dl, dorsolateral area 8,Left","A20r, rostral area 20","(94), ITG_R_7_3",487
+"A8m, medial area 8,Right","A35/36c, caudal area 35/36","(111), PhG_L_6_2",487
+"A8m, medial area 8,Right","IFJ, inferior frontal junction","(17), MFG_L_7_2",486
+"A8dl, dorsolateral area 8,Left","A9l, lateral area 9","(5), SFG_L_7_3",480
+"A8m, medial area 8,Left","A4hf, area 4(head and face region)","(54), PrG_R_6_1",480
+"A8m, medial area 8,Right","A37vm, ventromedial area37","(92), ITG_R_7_2",480
+"A9l, lateral area 9,Right","Otha, occipital thalamus","(242), Tha_R_8_6",479
+"A8dl, dorsolateral area 8,Right","A28/34, area 28/34 (EC, entorhinal cortex)","(115), PhG_L_6_4",477
+"A8dl, dorsolateral area 8,Left","A11l, lateral area 11","(45), OrG_L_6_3",474
+"A9l, lateral area 9,Left","dCa, dorsal caudate","(227), Str_L_6_5",474
+"A9l, lateral area 9,Right","dlPu, dorsolateral putamen","(230), Str_R_6_6",472
+"A8m, medial area 8,Left","mAmyg, medial amyg","(212), Amyg_R_2_1",470
+"A8dl, dorsolateral area 8,Right","A4t, area 4(trunk region)","(60), PrG_R_6_4",464
+"A8m, medial area 8,Left","A7ip, intraparietal area 7(hIP3)","(126), SPL_R_5_1",458
+"A8m, medial area 8,Right","A39rd, rostrodorsal area 39(Hip3)","(138), IPL_R_6_2",455
+"A8dl, dorsolateral area 8,Right","A6dl, dorsolateral area 6","(8), SFG_R_7_4",450
+"A8dl, dorsolateral area 8,Right","A28/34, area 28/34 (EC, entorhinal cortex)","(116), PhG_R_6_4",450
+"A8m, medial area 8,Left","A39c, caudal area 39(PGp)","(135), IPL_L_6_1",450
+"A8m, medial area 8,Left","A35/36r, rostral area 35/36","(109), PhG_L_6_1",447
+"A8m, medial area 8,Left","mAmyg, medial amyg","(211), Amyg_L_2_1",441
+"A9l, lateral area 9,Left","PPtha, posterior parietal thalamus","(240), Tha_R_8_5",441
+"A8m, medial area 8,Right","A21r, rostral area 21","(84), MTG_R_4_2",434
+"A9l, lateral area 9,Left","A38l, lateral area 38","(78), STG_R_6_5",430
+"A8dl, dorsolateral area 8,Right","rTtha, rostral Temporal thalamus","(238), Tha_R_8_4",427
+"A8dl, dorsolateral area 8,Left","dmPOS, dorsomeidal parietooccipital  sulcus(PEr) ","(151), Pcun_L_4_3",426
+"A8dl, dorsolateral area 8,Right","vmPu, ventromedial putamen","(226), Str_R_6_4",426
+"A8dl, dorsolateral area 8,Left","A7pc, postcentral area 7","(130), SPL_R_5_3",422
+"A8m, medial area 8,Right","A4ll, area 4, (lower limb region)","(67), PCL_L_2_2",420
+"A9l, lateral area 9,Right","dlPu, dorsolateral putamen","(229), Str_L_6_6",419
+"A8m, medial area 8,Right","GP, globus pallidus","(222), Str_R_6_2",416
+"A9l, lateral area 9,Right","A9m,medial area 9","(11), SFG_L_7_6",414
+"A8m, medial area 8,Right","A5m, medial area 5(PEm)","(150), Pcun_R_4_2",413
+"A9l, lateral area 9,Right","A23c, caudal area 24","(185), CG_L_7_6",412
+"A8dl, dorsolateral area 8,Right","A4t, area 4(trunk region)","(59), PrG_L_6_4",411
+"A8dl, dorsolateral area 8,Right","A6dl, dorsolateral area 6","(7), SFG_L_7_4",409
+"A8dl, dorsolateral area 8,Left","A4ul, area 4(upper limb region)","(57), PrG_L_6_3",404
+"A8m, medial area 8,Left","A8m, medial area 8","(2), SFG_R_7_1",402
+"A6dl, dorsolateral area 6,Left","A10m, medial area 10","(13), SFG_L_7_7",401
+"A8dl, dorsolateral area 8,Left","A37vl, ventrolatral area37","(108), FuG_R_3_3",399
+"A8m, medial area 8,Left","vCa, ventral caudate","(219), Str_L_6_1",397
+"A8dl, dorsolateral area 8,Left","A40rd, rostrodorsal area 40(PFt)","(139), IPL_L_6_3",396
+"A8dl, dorsolateral area 8,Right","A1/2/3tru, area1/2/3(trunk region)","(161), PoG_L_4_4",391
+"A8dl, dorsolateral area 8,Left","A45c, caudal area 45","(34), IFG_R_6_3",387

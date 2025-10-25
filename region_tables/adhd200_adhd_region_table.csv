@@ -1,0 +1,51 @@
+Brain Regions,Subdivision,(ID) Region Label,Count
+"A9l, lateral area 9,Right","Otha, occipital thalamus","(242), Tha_R_8_6",497
+"A8m, medial area 8,Right","A35/36c, caudal area 35/36","(112), PhG_R_6_2",494
+"A8dl, dorsolateral area 8,Right","A28/34, area 28/34 (EC, entorhinal cortex)","(115), PhG_L_6_4",492
+"A8m, medial area 8,Right","A5m, medial area 5(PEm)","(149), Pcun_L_4_2",492
+"A8dl, dorsolateral area 8,Left","A11l, lateral area 11","(45), OrG_L_6_3",491
+"A8dl, dorsolateral area 8,Left","A20r, rostral area 20","(94), ITG_R_7_3",491
+"A9l, lateral area 9,Left","dCa, dorsal caudate","(227), Str_L_6_5",491
+"A8m, medial area 8,Right","A35/36c, caudal area 35/36","(111), PhG_L_6_2",487
+"A8m, medial area 8,Left","A35/36r, rostral area 35/36","(109), PhG_L_6_1",485
+"A8m, medial area 8,Right","IFS, inferior frontal sulcus","(32), IFG_R_6_2",483
+"A8m, medial area 8,Left","mAmyg, medial amyg","(211), Amyg_L_2_1",482
+"A8m, medial area 8,Left","A4hf, area 4(head and face region)","(54), PrG_R_6_1",481
+"A9l, lateral area 9,Left","A8vl, ventrolateral area 8","(24), MFG_R_7_5",476
+"A8m, medial area 8,Right","A21r, rostral area 21","(84), MTG_R_4_2",473
+"A9l, lateral area 9,Left","A38l, lateral area 38","(78), STG_R_6_5",472
+"A8dl, dorsolateral area 8,Right","A28/34, area 28/34 (EC, entorhinal cortex)","(116), PhG_R_6_4",470
+"A8m, medial area 8,Right","IFJ, inferior frontal junction","(17), MFG_L_7_2",466
+"A8m, medial area 8,Right","A39rd, rostrodorsal area 39(Hip3)","(138), IPL_R_6_2",462
+"A8dl, dorsolateral area 8,Right","A4t, area 4(trunk region)","(60), PrG_R_6_4",458
+"A9l, lateral area 9,Left","dCa, dorsal caudate","(228), Str_R_6_5",458
+"A8m, medial area 8,Left","cLinG, caudal lingual gyrus","(190), Cun_R_5_1",456
+"A8m, medial area 8,Left","A39c, caudal area 39(PGp)","(135), IPL_L_6_1",453
+"A8dl, dorsolateral area 8,Left","A20r, rostral area 20","(93), ITG_L_7_3",450
+"A9l, lateral area 9,Right","dlPu, dorsolateral putamen","(230), Str_R_6_6",449
+"A8dl, dorsolateral area 8,Left","A4ul, area 4(upper limb region)","(57), PrG_L_6_3",443
+"A8m, medial area 8,Left","mAmyg, medial amyg","(212), Amyg_R_2_1",440
+"A8dl, dorsolateral area 8,Left","dmPOS, dorsomeidal parietooccipital  sulcus(PEr) ","(151), Pcun_L_4_3",436
+"A8m, medial area 8,Right","A37vm, ventromedial area37","(92), ITG_R_7_2",434
+"A8dl, dorsolateral area 8,Right","rTtha, rostral Temporal thalamus","(238), Tha_R_8_4",434
+"A8dl, dorsolateral area 8,Left","A46, area 46","(19), MFG_L_7_3",430
+"A9l, lateral area 9,Right","Otha, occipital thalamus","(241), Tha_L_8_6",428
+"A8m, medial area 8,Left","A7ip, intraparietal area 7(hIP3)","(126), SPL_R_5_1",427
+"A8m, medial area 8,Left","msOccG, medial superior occipital gyrus","(208), sOcG_R_2_1",427
+"A9l, lateral area 9,Right","A6vl, ventrolateral area 6","(25), MFG_L_7_6",412
+"A8m, medial area 8,Right","GP, globus pallidus","(222), Str_R_6_2",408
+"A8dl, dorsolateral area 8,Right","rLinG, rostral lingual gyrus","(195), Cun_L_5_4",407
+"A8dl, dorsolateral area 8,Right","A11m, medial area 11","(48), OrG_R_6_4",406
+"A8dl, dorsolateral area 8,Left","A2, area 2","(159), PoG_L_4_3",405
+"A8dl, dorsolateral area 8,Left","A40rd, rostrodorsal area 40(PFt)","(139), IPL_L_6_3",404
+"A8m, medial area 8,Right","mPMtha, pre-motor thalamus","(233), Tha_L_8_2",402
+"A8dl, dorsolateral area 8,Right","A4t, area 4(trunk region)","(59), PrG_L_6_4",394
+"A8dl, dorsolateral area 8,Left","A7pc, postcentral area 7","(130), SPL_R_5_3",394
+"A8m, medial area 8,Left","A38m, medial area 38","(69), STG_L_6_1",393
+"A8dl, dorsolateral area 8,Left","A2, area 2","(160), PoG_R_4_3",392
+"A8m, medial area 8,Right","A4ll, area 4, (lower limb region)","(67), PCL_L_2_2",391
+"A8m, medial area 8,Left","msOccG, medial superior occipital gyrus","(207), sOcG_L_2_1",389
+"A8m, medial area 8,Left","rHipp, rostral hipp","(216), Hipp_R_2_1",386
+"A8dl, dorsolateral area 8,Left","A9l, lateral area 9","(6), SFG_R_7_3",384
+"A8dl, dorsolateral area 8,Left","A45c, caudal area 45","(34), IFG_R_6_3",384
+"A8m, medial area 8,Left","A38m, medial area 38","(70), STG_R_6_1",384

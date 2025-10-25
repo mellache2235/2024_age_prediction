@@ -47,32 +47,41 @@ def load_roi_labels_mapping(roi_labels_path: str) -> Dict[int, str]:
 
 def get_accurate_brain_region(row: pd.Series, roi_mapping: Dict[int, str]) -> str:
     """
-    Get accurate brain region name using ROI mapping and available columns.
+    Get brain region name from Gyrus column (not ROI mapping).
     
     Args:
         row (pd.Series): Row from count data
-        roi_mapping (Dict[int, str]): ROI index to brain region mapping
+        roi_mapping (Dict[int, str]): ROI index to brain region mapping (not used)
         
     Returns:
-        str: Accurate brain region name
+        str: Brain region name from Gyrus column
     """
-    # Try to get ROI index from various possible column names
-    roi_id = None
-    for col in ['(ID) Region Label', 'Region ID', 'Region']:
-        if col in row and pd.notna(row[col]):
-            try:
-                # Extract numeric part from ROI ID (e.g., "ROI_001" -> 1)
-                roi_id = int(str(row[col]).split('_')[-1])
-                break
-            except (ValueError, IndexError):
-                continue
+    # Use Gyrus column for brain regions (as requested)
+    if 'Gyrus' in row and pd.notna(row['Gyrus']) and str(row['Gyrus']).strip() != 'Unknown':
+        return str(row['Gyrus']).strip()
     
-    # If we have ROI ID, use the mapping
-    if roi_id and roi_id in roi_mapping:
-        return roi_mapping[roi_id]
+    # Fallback to Description if Gyrus is not available
+    if 'Description' in row and pd.notna(row['Description']) and str(row['Description']).strip() != 'Unknown':
+        return str(row['Description']).strip()
     
-    # Fallback to available columns in order of preference
-    for col in ['Gyrus', 'Description', 'Region Alias']:
+    return 'Unknown'
+
+def get_subdivision_name(row: pd.Series) -> str:
+    """
+    Get subdivision name from Region Alias column (contains a9l, a8m, a8dl, etc.).
+    
+    Args:
+        row (pd.Series): Row from count data
+        
+    Returns:
+        str: Subdivision name from Region Alias column
+    """
+    # Use Region Alias column for subdivision (contains a9l, a8m, a8dl, etc.)
+    if 'Region Alias' in row and pd.notna(row['Region Alias']) and str(row['Region Alias']).strip() != 'Unknown':
+        return str(row['Region Alias']).strip()
+    
+    # Fallback to other columns if Region Alias is not available
+    for col in ['Gyrus', 'Description']:
         if col in row and pd.notna(row[col]) and str(row[col]).strip() != 'Unknown':
             return str(row[col]).strip()
     
@@ -119,10 +128,10 @@ def create_dataset_region_table_from_excel(excel_path: str,
     # Sort by count and get top N
     top_regions = count_data.nlargest(top_n, 'Count')
     
-    # Create final table with accurate brain region mapping
+    # Create final table with correct column mapping
     region_table = pd.DataFrame({
         'Brain Regions': top_regions.apply(lambda row: get_accurate_brain_region(row, roi_mapping), axis=1),
-        'Subdivision': top_regions.get('Region Alias', top_regions.get('Gyrus', 'Unknown')),
+        'Subdivision': top_regions.apply(lambda row: get_subdivision_name(row), axis=1),
         '(ID) Region Label': top_regions.get('(ID) Region Label', top_regions.get('Region ID', 'Unknown')),
         'Count': top_regions['Count']
     })
@@ -189,7 +198,7 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
             if region_id not in all_regions:
                 all_regions[region_id] = {
                     'brain_region': get_accurate_brain_region(row, roi_mapping),
-                    'subdivision': row.get('Region Alias', 'Unknown'),
+                    'subdivision': get_subdivision_name(row),
                     'region_label': row.get('(ID) Region Label', region_id),
                     'counts': [],
                     'datasets': []
