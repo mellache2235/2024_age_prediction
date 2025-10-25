@@ -35,7 +35,8 @@ def create_polar_area_plot(network_data: pd.DataFrame,
                           line_color: str = 'darkblue',
                           line_width: float = 2.0,
                           alpha: float = 0.3,
-                          figsize: Tuple[int, int] = (10, 10)) -> None:
+                          figsize: Tuple[int, int] = (10, 10),
+                          use_total: bool = False) -> None:
     """
     Create polar area plot (radar chart) for network analysis results.
     
@@ -46,7 +47,7 @@ def create_polar_area_plot(network_data: pd.DataFrame,
     - Light grid background
     
     Args:
-        network_data (pd.DataFrame): DataFrame with columns ['Network', 'Count'] or ['network', 'mean_attribution']
+        network_data (pd.DataFrame): DataFrame with columns ['Network', 'Count'] or ['network', 'mean_attribution'/'total_attribution']
         output_path (str): Output path for the plot (without extension)
         title (str): Plot title
         max_value (float, optional): Maximum value for y-axis scaling
@@ -55,6 +56,8 @@ def create_polar_area_plot(network_data: pd.DataFrame,
         line_width (float): Width of connecting lines
         alpha (float): Transparency of filled area
         figsize (Tuple[int, int]): Figure size
+        use_total (bool): If True, use total_attribution (sum) instead of mean_attribution.
+                         Better for showing differences when values are similar.
     """
     setup_fonts()
     
@@ -65,14 +68,22 @@ def create_polar_area_plot(network_data: pd.DataFrame,
     if 'Network' in network_data.columns and 'Count' in network_data.columns:
         networks = network_data['Network'].values
         values = network_data['Count'].values
-    elif 'network' in network_data.columns and 'mean_attribution' in network_data.columns:
+    elif 'network' in network_data.columns:
         networks = network_data['network'].values
-        values = network_data['mean_attribution'].values
-    elif 'network' in network_data.columns and 'total_attribution' in network_data.columns:
-        networks = network_data['network'].values
-        values = network_data['total_attribution'].values
+        # Choose between total (sum) or mean based on use_total parameter
+        if use_total and 'total_attribution' in network_data.columns:
+            values = network_data['total_attribution'].values
+            logging.info("Using total_attribution (sum of counts per network)")
+        elif 'mean_attribution' in network_data.columns:
+            values = network_data['mean_attribution'].values
+            logging.info("Using mean_attribution (mean of counts per network)")
+        elif 'total_attribution' in network_data.columns:
+            values = network_data['total_attribution'].values
+            logging.info("Using total_attribution (sum of counts per network)")
+        else:
+            raise ValueError(f"No attribution column found. Available columns: {list(network_data.columns)}")
     else:
-        raise ValueError(f"Expected columns 'Network'/'network' and 'Count'/'mean_attribution'/'total_attribution' not found. Available columns: {list(network_data.columns)}")
+        raise ValueError(f"Expected columns 'Network'/'network' not found. Available columns: {list(network_data.columns)}")
     
     # Check if we have any data
     if len(networks) == 0 or len(values) == 0:
@@ -83,15 +94,32 @@ def create_polar_area_plot(network_data: pd.DataFrame,
     angles = np.linspace(0, 2 * np.pi, len(networks), endpoint=False)
     
     # Calculate max value for scaling
+    # For better visualization, use a scaling approach that shows relative differences
     if max_value is None:
         if len(values) > 0 and np.any(values > 0):
+            # Use max value for normalization
             max_value = values.max()
+            min_value = values.min()
+            
+            # If all values are very similar (within 20% range), use min-max scaling
+            # to better show the relative differences
+            value_range = max_value - min_value
+            if value_range < 0.2 * max_value and min_value > 0:
+                logging.info(f"Values are similar (range: {value_range:.2f}, max: {max_value:.2f}). Using min-max scaling for better visualization.")
+                # Scale from min to max instead of 0 to max
+                normalized_values = (values - min_value) / value_range if value_range > 0 else np.ones_like(values) * 0.5
+                # Rescale to 0.3-1.0 range for better visibility
+                normalized_values = 0.3 + (normalized_values * 0.7)
+            else:
+                # Normal scaling from 0 to max
+                normalized_values = values / max_value
         else:
             max_value = 1.0
+            normalized_values = np.ones_like(values) * 0.5
             logging.warning(f"No positive values found in network data for {title}. Using default max_value=1.0")
-    
-    # Normalize values to 0-1 range for better visualization
-    normalized_values = values / max_value
+    else:
+        # Normalize values to 0-1 range for better visualization
+        normalized_values = values / max_value
     
     # Close the polygon by repeating the first point at the end
     angles_closed = np.concatenate((angles, [angles[0]]))

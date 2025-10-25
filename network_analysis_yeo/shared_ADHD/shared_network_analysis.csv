@@ -1,0 +1,15 @@
+network,mean_attribution,std_attribution,n_regions,total_attribution
+DefaultB,490.5,4.9497,2,981
+SomMotB,481.0,,1,481
+FPC,476.0,,1,476
+FPB,470.3333,11.1505,3,1411
+LimbicB,468.6,15.7258,5,2343
+LimbicA,466.0,,1,466
+Thalamus,443.6667,34.2977,3,1331
+DorsAttnA,443.5,13.435,2,887
+SomMotA,439.75,44.1994,4,1759
+VisCent,434.0,,1,434
+AmyHip,432.0,25.4558,2,864
+Striatum,431.25,30.5109,4,1725
+TempPar,413.6667,51.3842,3,1241
+DorsAttnB,399.0,7.0711,2,798

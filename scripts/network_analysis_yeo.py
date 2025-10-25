@@ -26,6 +26,9 @@ sys.path.append(str(Path(__file__).parent.parent / 'utils'))
 from count_data_utils import load_count_data, create_region_mapping
 from plotting_utils import setup_fonts, save_figure
 from create_polar_network_plots import create_polar_area_plot
+from logging_utils import (print_section_header, print_step, print_success, 
+                           print_warning, print_info, print_file_info, 
+                           print_dataset_info, print_completion)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -493,10 +496,11 @@ def create_shared_network_analysis(dataset_excel_paths: List[str],
     aggregated_data.to_csv(output_file, index=False)
     logging.info(f"Shared network analysis saved to: {output_file}")
     
-    # Create radar chart
+    # Create radar chart using total counts (sum) for better visualization
     polar_plot_path = os.path.join(output_dir, f"shared_network_radar")
     create_polar_area_plot(aggregated_data, polar_plot_path, title, 
-                          fill_color='lightblue', line_color='darkblue', alpha=0.3)
+                          fill_color='lightblue', line_color='darkblue', alpha=0.3,
+                          use_total=True)  # Use sum of counts instead of mean
     
     # Analyze network patterns
     network_patterns = analyze_network_patterns(aggregated_data)
@@ -538,12 +542,18 @@ def main():
         config = yaml.safe_load(f)
     
     if args.process_all:
+        print_section_header("NETWORK ANALYSIS - INDIVIDUAL DATASETS")
+        
         # Process all datasets from config
         count_data_config = config.get('network_analysis', {}).get('count_data', {})
         yeo_atlas_path = config.get('network_analysis', {}).get('yeo_atlas_path', '/path/to/yeo_atlas.csv')
         network_names = config.get('network_analysis', {}).get('network_names', None)
         
-        for dataset_name, excel_path in count_data_config.items():
+        print_info(f"Processing {len(count_data_config)} datasets")
+        print_file_info(yeo_atlas_path, "Yeo Atlas")
+        print()
+        
+        for i, (dataset_name, excel_path) in enumerate(count_data_config.items(), 1):
             # Check if CSV already exists, otherwise convert from Excel
             csv_path = f"/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/{dataset_name}_count_data.csv"
             if not os.path.exists(csv_path):

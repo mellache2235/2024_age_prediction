@@ -1,0 +1,157 @@
+{
+  "total_networks": 17,
+  "total_regions": "60",
+  "mean_attribution_across_networks": 420.91596470588235,
+  "max_attribution": 478.0,
+  "top_3_networks": [
+    {
+      "network": "SomMotB",
+      "mean_attribution": 478.0,
+      "std_attribution": NaN,
+      "n_regions": 1,
+      "total_attribution": 478
+    },
+    {
+      "network": "DefaultB",
+      "mean_attribution": 447.25,
+      "std_attribution": 27.415,
+      "n_regions": 4,
+      "total_attribution": 1789
+    },
+    {
+      "network": "FPB",
+      "mean_attribution": 438.8,
+      "std_attribution": 31.8308,
+      "n_regions": 5,
+      "total_attribution": 2194
+    }
+  ],
+  "network_with_most_regions": {
+    "network": "LimbicB",
+    "mean_attribution": 433.7143,
+    "std_attribution": 28.129,
+    "n_regions": 7,
+    "total_attribution": 3036
+  },
+  "network_summary": [
+    {
+      "network": "SomMotB",
+      "mean_attribution": 478.0,
+      "std_attribution": NaN,
+      "n_regions": 1,
+      "total_attribution": 478
+    },
+    {
+      "network": "DefaultB",
+      "mean_attribution": 447.25,
+      "std_attribution": 27.415,
+      "n_regions": 4,
+      "total_attribution": 1789
+    },
+    {
+      "network": "FPB",
+      "mean_attribution": 438.8,
+      "std_attribution": 31.8308,
+      "n_regions": 5,
+      "total_attribution": 2194
+    },
+    {
+      "network": "LimbicB",
+      "mean_attribution": 433.7143,
+      "std_attribution": 28.129,
+      "n_regions": 7,
+      "total_attribution": 3036
+    },
+    {
+      "network": "FPC",
+      "mean_attribution": 430.75,
+      "std_attribution": 37.571,
+      "n_regions": 4,
+      "total_attribution": 1723
+    },
+    {
+      "network": "VisCent",
+      "mean_attribution": 430.5,
+      "std_attribution": 6.364,
+      "n_regions": 2,
+      "total_attribution": 861
+    },
+    {
+      "network": "DorsAttnA",
+      "mean_attribution": 427.6667,
+      "std_attribution": 26.0832,
+      "n_regions": 3,
+      "total_attribution": 1283
+    },
+    {
+      "network": "FPA",
+      "mean_attribution": 419.0,
+      "std_attribution": NaN,
+      "n_regions": 1,
+      "total_attribution": 419
+    },
+    {
+      "network": "Thalamus",
+      "mean_attribution": 418.0,
+      "std_attribution": 13.4907,
+      "n_regions": 4,
+      "total_attribution": 1672
+    },
+    {
+      "network": "LimbicA",
+      "mean_attribution": 416.0,
+      "std_attribution": NaN,
+      "n_regions": 1,
+      "total_attribution": 416
+    },
+    {
+      "network": "Striatum",
+      "mean_attribution": 414.8571,
+      "std_attribution": 23.4764,
+      "n_regions": 7,
+      "total_attribution": 2904
+    },
+    {
+      "network": "SomMotA",
+      "mean_attribution": 413.8333,
+      "std_attribution": 38.5456,
+      "n_regions": 6,
+      "total_attribution": 2483
+    },
+    {
+      "network": "TempPar",
+      "mean_attribution": 403.8,
+      "std_attribution": 33.7372,
+      "n_regions": 5,
+      "total_attribution": 2019
+    },
+    {
+      "network": "DorsAttnB",
+      "mean_attribution": 401.4,
+      "std_attribution": 6.229,
+      "n_regions": 5,
+      "total_attribution": 2007
+    },
+    {
+      "network": "VisPeri",
+      "mean_attribution": 398.0,
+      "std_attribution": NaN,
+      "n_regions": 1,
+      "total_attribution": 398
+    },
+    {
+      "network": "DefaultC",
+      "mean_attribution": 394.0,
+      "std_attribution": 16.9706,
+      "n_regions": 2,
+      "total_attribution": 788
+    },
+    {
+      "network": "AmyHip",
+      "mean_attribution": 390.0,
+      "std_attribution": 0.0,
+      "n_regions": 2,
+      "total_attribution": 780
+    }
+  ]
+}

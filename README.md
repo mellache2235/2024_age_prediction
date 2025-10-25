@@ -4,11 +4,32 @@ A comprehensive pipeline for brain age prediction analysis using pre-trained mod
 
 ## 🎯 **Quick Start - Complete Workflow**
 
-**Run the complete pipeline with these commands on HPC:**
+### **Option 1: Run Everything at Once (Recommended)**
+
+Use the pipeline runner for beautiful, clear output:
+
+```bash
+cd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/scripts/
+python run_pipeline.py
+```
+
+This will run all steps with:
+- ✅ Clear section headers
+- ✅ Progress indicators
+- ✅ Color-coded success/warning/error messages
+- ✅ Timing information
+- ✅ Summary of output files
+
+### **Option 2: Run Steps Individually**
+
+**Run the complete pipeline step-by-step with these commands on HPC:**
 
 ```bash
 # Navigate to scripts directory
 cd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/scripts/
+
+# Optional: Clean up old PDF files (if you have any from previous runs)
+find /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results -name "*.pdf" -type f -delete
 
 # Step 1: Convert Excel count data to CSV format
 # Converts Excel files from original repository to CSV files in test directory
@@ -29,7 +50,8 @@ python create_region_tables.py \
   --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/region_tables
 
 # Step 5: Generate brain age prediction plots
-# Note: .npz files should be in results/brain_age_predictions/npz_files/
+# Note: .npz files should be uploaded to /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_predictions/npz_files/
+# The scripts will automatically look in this directory
 # TD Cohorts (2x2 layout: HCP-Dev, NKI, CMI-HBN TD, ADHD200 TD)
 python plot_brain_age_td_cohorts.py \
   --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots
@@ -46,6 +68,45 @@ python plot_brain_age_asd_cohorts.py \
 python comprehensive_brain_behavior_analysis.py --dataset nki_rs_td
 python comprehensive_brain_behavior_analysis.py --dataset adhd200_adhd
 python comprehensive_brain_behavior_analysis.py --dataset abide_asd
+
+# Optional: Analyze shared TD regions with high counts
+# (Install tabulate for pretty tables: pip install tabulate)
+python analyze_td_shared_regions.py --threshold 450
+```
+
+## 📥 **Downloading Results**
+
+**All PNG plots are saved to:**
+```
+/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/
+```
+
+**Key folders for PNG files:**
+
+1. **Network Analysis Plots** (Steps 2 & 3):
+   - Individual datasets: `results/network_analysis_yeo/{dataset_name}/{dataset_name}_network_radar_plot.png`
+     - Datasets: dev, nki, adhd200_td, cmihbn_td, adhd200_adhd, cmihbn_adhd, abide_asd, stanford_asd
+   - Shared cohorts: `results/network_analysis_yeo/shared_{TD,ADHD,ASD}/shared_network_radar.png`
+     - 3 files total (one for each cohort type)
+
+2. **Brain Age Plots** (Step 5):
+   - Location: `results/brain_age_plots/`
+   - Files:
+     - `td_cohorts_combined_scatter.png` (2x2 subplot: HCP-Dev, NKI, CMI-HBN TD, ADHD200 TD)
+     - `adhd_cohorts_combined_scatter.png` (1x2 subplot: CMI-HBN ADHD, ADHD200 ADHD)
+     - `asd_cohorts_combined_scatter.png` (1x2 subplot: ABIDE ASD, Stanford ASD)
+
+3. **Brain-Behavior Plots** (Step 6, optional):
+   - Location: `results/brain_behavior_analysis/{dataset_name}/`
+   - Various correlation and scatter plots (if Step 6 is run)
+
+**To download all PNG files from HPC:**
+```bash
+# From your local machine, run:
+scp -r username@login.sherlock.stanford.edu:/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/*.png ./local_folder/
+
+# Or download entire results folder:
+scp -r username@login.sherlock.stanford.edu:/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/ ./local_folder/
 ```
 
 ## 📁 **Output Files**
@@ -154,11 +215,37 @@ network_analysis:
 
 ### **Network Analysis Radar Plots**
 - **Type**: Polar area plots (radar charts)
-- **Styling**: Light blue fill, dark blue lines
+- **Styling**: Light blue fill, dark blue lines, no grid
 - **Network Mapping**: Yeo 17-network atlas
-- **Individual Analysis**: Uses count data for each dataset separately
-- **Shared Analysis**: Uses minimum overlap count across cohorts
+- **Scaling**: Intelligent min-max scaling for shared cohorts when values are similar
+
+### **Brain Age Prediction Plots**
+- **Layout**: Subplots for each dataset (2x2 for TD, 1x2 for ADHD/ASD)
+- **Styling**: 
+  - No identity line (only regression line)
+  - No grid
+  - No top/right spines
+  - Blue dots with blue edges (size: 50)
+- **Statistics**: R², MAE, P-value (< 0.001 format), N
+- **Titles**: Clear dataset names for each subplot
+
+### **Brain-Behavior Correlation Plots**
+- **Styling**:
+  - No identity line
+  - No grid
+  - No top/right spines
+- **Statistics**: Pearson's r, P-value (with FDR correction)
 - **Format**: PNG only
+
+### **General Plotting Conventions**
+All plots follow these conventions for publication-ready figures:
+- ✅ **Clean aesthetics**: No grid, no top/right spines
+- ✅ **Consistent colors**: Blue (#1f77b4) for data points
+- ✅ **Clear labels**: Bold axis labels and titles
+- ✅ **Statistics placement**: Bottom-right corner with white background box
+- ✅ **P-value format**: "< 0.001" for very small p-values
+- ✅ **File format**: PNG only (no PDF or SVG)
+- ✅ **Seaborn styling**: White background, professional appearance
 
 ## 📂 **Repository Structure**
 
