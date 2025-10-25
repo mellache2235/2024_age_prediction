@@ -528,12 +528,18 @@ def main():
         network_names = config.get('network_analysis', {}).get('network_names', None)
         
         for dataset_name, excel_path in count_data_config.items():
-            # Convert Excel to CSV if needed
+            # Check if CSV already exists, otherwise convert from Excel
             csv_path = f"/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/{dataset_name}_count_data.csv"
             if not os.path.exists(csv_path):
-                logging.info(f"Converting {excel_path} to CSV...")
-                from count_data_utils import convert_excel_to_csv
-                convert_excel_to_csv(excel_path, csv_path)
+                if os.path.exists(excel_path):
+                    logging.info(f"Converting {excel_path} to CSV...")
+                    from count_data_utils import convert_excel_to_csv
+                    convert_excel_to_csv(excel_path, csv_path)
+                else:
+                    logging.warning(f"Excel file not found: {excel_path}")
+                    logging.warning(f"CSV file not found: {csv_path}")
+                    logging.warning(f"Skipping {dataset_name} - no data files available")
+                    continue
             
             # Process dataset
             output_dir = f"/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/{dataset_name}"
@@ -552,7 +558,13 @@ def main():
         
         # Shared among TD cohorts (core datasets only)
         td_datasets = ['dev', 'nki', 'adhd200_td', 'cmihbn_td']
-        td_paths = [count_data_config.get(d) for d in td_datasets if count_data_config.get(d) and os.path.exists(count_data_config.get(d))]
+        td_paths = []
+        for d in td_datasets:
+            csv_path = f"/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/{d}_count_data.csv"
+            if os.path.exists(csv_path):
+                td_paths.append(csv_path)
+            else:
+                logging.warning(f"CSV file not found for {d}: {csv_path}")
         
         if len(td_paths) >= 2:
             output_dir = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_TD"
@@ -562,7 +574,13 @@ def main():
         
         # Shared among ADHD cohorts
         adhd_datasets = ['adhd200_adhd', 'cmihbn_adhd']
-        adhd_paths = [count_data_config.get(d) for d in adhd_datasets if count_data_config.get(d) and os.path.exists(count_data_config.get(d))]
+        adhd_paths = []
+        for d in adhd_datasets:
+            csv_path = f"/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/{d}_count_data.csv"
+            if os.path.exists(csv_path):
+                adhd_paths.append(csv_path)
+            else:
+                logging.warning(f"CSV file not found for {d}: {csv_path}")
         
         if len(adhd_paths) >= 2:
             output_dir = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_ADHD"
@@ -572,7 +590,13 @@ def main():
         
         # Shared among ASD cohorts
         asd_datasets = ['abide_asd', 'stanford_asd']
-        asd_paths = [count_data_config.get(d) for d in asd_datasets if count_data_config.get(d) and os.path.exists(count_data_config.get(d))]
+        asd_paths = []
+        for d in asd_datasets:
+            csv_path = f"/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/{d}_count_data.csv"
+            if os.path.exists(csv_path):
+                asd_paths.append(csv_path)
+            else:
+                logging.warning(f"CSV file not found for {d}: {csv_path}")
         
         if len(asd_paths) >= 2:
             output_dir = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_ASD"

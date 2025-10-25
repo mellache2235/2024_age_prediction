@@ -168,11 +168,14 @@ def create_dataset_region_table_from_excel(excel_path: str,
     Returns:
         pd.DataFrame: Region table
     """
-    # Load count data from Excel
+    # Load count data from Excel or CSV
     try:
-        count_data = pd.read_excel(excel_path)
+        if excel_path.endswith('.csv'):
+            count_data = pd.read_csv(excel_path)
+        else:
+            count_data = pd.read_excel(excel_path)
     except Exception as e:
-        logging.error(f"Error reading Excel file {excel_path}: {e}")
+        logging.error(f"Error reading data file {excel_path}: {e}")
         return pd.DataFrame()
     
     # Check for required columns
@@ -330,12 +333,22 @@ def create_all_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.Data
     # Create individual dataset tables
     logging.info("Creating individual dataset region tables...")
     for dataset_name, excel_path in count_data_paths.items():
-        if not os.path.exists(excel_path):
-            logging.warning(f"Count data Excel file not found for {dataset_name}: {excel_path}")
+        # Check if CSV already exists, otherwise use Excel path
+        csv_path = f"/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/{dataset_name}_count_data.csv"
+        if os.path.exists(csv_path):
+            data_path = csv_path
+            logging.info(f"Using existing CSV file for {dataset_name}: {csv_path}")
+        elif os.path.exists(excel_path):
+            data_path = excel_path
+            logging.info(f"Using Excel file for {dataset_name}: {excel_path}")
+        else:
+            logging.warning(f"Neither CSV nor Excel file found for {dataset_name}")
+            logging.warning(f"CSV path: {csv_path}")
+            logging.warning(f"Excel path: {excel_path}")
             continue
         
         output_path = os.path.join(output_dir, f"{dataset_name}_region_table.csv")
-        table = create_dataset_region_table_from_excel(excel_path, output_path, roi_labels_path)
+        table = create_dataset_region_table_from_excel(data_path, output_path, roi_labels_path)
         if not table.empty:
             tables[f"{dataset_name}_individual"] = table
     
@@ -412,7 +425,13 @@ def create_overlap_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.
     
     # TD overlap
     td_datasets = ['dev', 'nki', 'adhd200_td', 'cmihbn_td']
-    td_paths = [count_data_paths.get(d) for d in td_datasets if count_data_paths.get(d) and os.path.exists(count_data_paths.get(d))]
+    td_paths = []
+    for d in td_datasets:
+        csv_path = f"/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/{d}_count_data.csv"
+        if os.path.exists(csv_path):
+            td_paths.append(csv_path)
+        else:
+            logging.warning(f"CSV file not found for {d}: {csv_path}")
     
     if len(td_paths) >= 2:
         output_path = os.path.join(output_dir, "overlap_regions_TD.csv")
@@ -422,7 +441,13 @@ def create_overlap_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.
     
     # ADHD overlap
     adhd_datasets = ['adhd200_adhd', 'cmihbn_adhd']
-    adhd_paths = [count_data_paths.get(d) for d in adhd_datasets if count_data_paths.get(d) and os.path.exists(count_data_paths.get(d))]
+    adhd_paths = []
+    for d in adhd_datasets:
+        csv_path = f"/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/{d}_count_data.csv"
+        if os.path.exists(csv_path):
+            adhd_paths.append(csv_path)
+        else:
+            logging.warning(f"CSV file not found for {d}: {csv_path}")
     
     if len(adhd_paths) >= 2:
         output_path = os.path.join(output_dir, "overlap_regions_ADHD.csv")
@@ -432,7 +457,13 @@ def create_overlap_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.
     
     # ASD overlap
     asd_datasets = ['abide_asd', 'stanford_asd']
-    asd_paths = [count_data_paths.get(d) for d in asd_datasets if count_data_paths.get(d) and os.path.exists(count_data_paths.get(d))]
+    asd_paths = []
+    for d in asd_datasets:
+        csv_path = f"/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/{d}_count_data.csv"
+        if os.path.exists(csv_path):
+            asd_paths.append(csv_path)
+        else:
+            logging.warning(f"CSV file not found for {d}: {csv_path}")
     
     if len(asd_paths) >= 2:
         output_path = os.path.join(output_dir, "overlap_regions_ASD.csv")
