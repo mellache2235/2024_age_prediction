@@ -13,6 +13,7 @@ import os
 import sys
 import yaml
 import argparse
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import numpy as np
@@ -86,6 +87,64 @@ def get_subdivision_name(row: pd.Series) -> str:
             return str(row[col]).strip()
     
     return 'Unknown'
+
+
+def canonicalize_region_name(region_name: str) -> str:
+    """
+    Canonicalize region name for robust matching (inspired by overlap_min_counts.py).
+    
+    Args:
+        region_name (str): Original region name
+        
+    Returns:
+        str: Canonicalized region name
+    """
+    if pd.isna(region_name):
+        return None
+    
+    # Convert to lowercase and strip whitespace
+    canonical = str(region_name).strip().lower()
+    
+    # Normalize whitespace
+    canonical = re.sub(r'\s+', ' ', canonical)
+    
+    # Common normalizations
+    canonical = re.sub(r'\bdlpfc\b', 'dorsolateral prefrontal cortex', canonical)
+    canonical = re.sub(r'\bvlpfc\b', 'ventrolateral prefrontal cortex', canonical)
+    canonical = re.sub(r'\bmpfc\b', 'medial prefrontal cortex', canonical)
+    canonical = re.sub(r'\bofc\b', 'orbitofrontal cortex', canonical)
+    canonical = re.sub(r'\bacc\b', 'anterior cingulate cortex', canonical)
+    canonical = re.sub(r'\bpcc\b', 'posterior cingulate cortex', canonical)
+    
+    return canonical
+
+
+def canonicalize_subdivision(subdiv: str) -> str:
+    """
+    Canonicalize subdivision for robust matching (inspired by overlap_min_counts.py).
+    
+    Args:
+        subdiv (str): Original subdivision
+        
+    Returns:
+        str: Canonicalized subdivision
+    """
+    if pd.isna(subdiv) or str(subdiv).strip().lower() in {'', 'nan', 'none', 'unknown'}:
+        return None
+    
+    canonical = str(subdiv).strip().lower()
+    
+    # Normalize Brodmann area notation
+    canonical = re.sub(r'\bbrodmann\s*area\b', 'ba', canonical)
+    canonical = re.sub(r'\s+', '', canonical)  # Remove spaces
+    
+    # Extract BA pattern
+    ba_match = re.fullmatch(r'(?:ba)?([0-9]+[a-z]?)', canonical)
+    if ba_match:
+        return f"ba{ba_match.group(1)}"
+    
+    return canonical
+
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -388,7 +447,8 @@ def create_overlap_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.
 def create_overlap_table_from_csvs(csv_paths: List[str], 
                                   output_path: str,
                                   roi_labels_path: str,
-                                  condition_name: str) -> pd.DataFrame:
+                                  condition_name: str,
+                                  min_datasets: int = 2) -> pd.DataFrame:
     """
     Create overlap table from converted CSV files for a specific condition.
     
@@ -442,9 +502,9 @@ def create_overlap_table_from_csvs(csv_paths: List[str],
             all_regions[region_id]['counts'].append(row['Count'])
             all_regions[region_id]['datasets'].append(dataset_name)
     
-    # Filter regions that appear in at least 2 datasets (overlap)
+    # Filter regions that appear in at least min_datasets (overlap)
     overlap_regions = {region_id: data for region_id, data in all_regions.items() 
-                     if len(data['datasets']) >= 2}
+                     if len(data['datasets']) >= min_datasets}
     
     if not overlap_regions:
         logging.warning(f"No overlapping regions found across {condition_name} datasets")

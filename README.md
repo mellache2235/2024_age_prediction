@@ -512,6 +512,21 @@ The pipeline now includes dedicated plotting scripts for different analysis type
 - **Heatmaps**: Network analysis results across all datasets
 - **Yeo Atlas Integration**: Groups regions by Yeo 17-network atlas
 
+#### Polar Area Plots (`scripts/create_polar_network_plots.py`)
+- **Filled Polar Area Plots**: Radar charts with filled areas and connected data points (like attached image)
+- **Individual Polar Plots**: Single dataset polar area plots
+- **Comparison Polar Plots**: Side-by-side polar plots for multiple datasets
+- **Combined Polar Plots**: Overlaid polar plots for direct comparison
+- **Customizable Styling**: Colors, transparency, and grid options
+
+#### Cohort-Specific Brain Age Plots
+- **TD Cohorts** (`scripts/plot_brain_age_td_cohorts.py`): Combined scatter plot for all TD cohorts (ABIDE TD, CMI-HBN TD, ADHD200 TD, NKI)
+- **ADHD Cohorts** (`scripts/plot_brain_age_adhd_cohorts.py`): Combined scatter plot for all ADHD cohorts (CMI-HBN ADHD, ADHD200 ADHD)
+- **ASD Cohorts** (`scripts/plot_brain_age_asd_cohorts.py`): Combined scatter plot for all ASD cohorts (ABIDE ASD, Stanford ASD)
+- **Multi-Dataset Panels**: Single panels with different colors/markers for each dataset
+- **Overall Statistics**: Combined R², MAE, and correlation across all datasets in each cohort
+- **Bias-Corrected Data**: Uses .npz files with bias-corrected predicted and actual ages
+
 #### Brain-Behavior Analysis Plots (`scripts/plot_brain_behavior_analysis.py`)
 - **Correlation Matrices**: Heatmaps of brain-behavior correlations
 - **PCA Variance Plots**: Explained variance and cumulative variance
@@ -520,7 +535,12 @@ The pipeline now includes dedicated plotting scripts for different analysis type
 
 **Usage:**
 ```bash
-# Brain age prediction plots
+# Cohort-specific brain age plots (combined panels)
+python plot_brain_age_td_cohorts.py --npz_dir . --output_dir ../results/brain_age_plots
+python plot_brain_age_adhd_cohorts.py --npz_dir . --output_dir ../results/brain_age_plots
+python plot_brain_age_asd_cohorts.py --npz_dir . --output_dir ../results/brain_age_plots
+
+# Brain age prediction plots (from JSON results)
 python plot_brain_age_correlations.py --results_file ../results/brain_age_prediction_results.json
 
 # Brain visualization plots
@@ -528,6 +548,10 @@ python plot_brain_visualization.py --config ../config.yaml
 
 # Network analysis plots
 python plot_network_analysis.py --config ../config.yaml
+
+# Polar area plots (like attached image)
+python create_polar_network_plots.py --network_csv ../results/network_analysis/nki_network_analysis.csv --output_dir ../results/polar_plots
+python create_polar_network_plots.py --config ../config.yaml --output_dir ../results/polar_plots --comparison
 
 # Brain-behavior analysis plots
 python plot_brain_behavior_analysis.py --results_file ../results/brain_behavior_results.json
