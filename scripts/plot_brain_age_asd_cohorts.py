@@ -190,8 +190,8 @@ def plot_combined_asd_cohorts(npz_files_dir: str, output_path: str,
     plt.tight_layout()
     plt.subplots_adjust(top=0.90)
     
-    # Save the plot in multiple formats including .svg for Affinity Designer
-    save_figure(fig, output_path, formats=['png', 'pdf', 'svg'])
+    # Save the plot in PNG format only
+    save_figure(fig, output_path, formats=['png'])
     logging.info(f"Combined ASD cohorts plot saved to: {output_path}")
     logging.info(f"Overall ASD cohorts - R²: {overall_r_squared:.3f}, MAE: {overall_mae:.2f} years, r: {overall_r:.3f}, p: {overall_p:.3f}, N: {len(all_actual)}")
 
@@ -211,7 +211,7 @@ Examples:
         """
     )
     
-    parser.add_argument('--npz_dir', type=str, default='.', help='Directory containing .npz files')
+    parser.add_argument('--npz_dir', type=str, default='../results/brain_age_predictions/npz_files', help='Directory containing .npz files')
     parser.add_argument('--output_dir', type=str, required=True, help='Output directory for plots')
     parser.add_argument('--title', type=str, default='ASD Cohorts', help='Plot title')
     
