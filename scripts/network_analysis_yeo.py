@@ -339,9 +339,10 @@ def process_single_dataset(count_csv_path: str, yeo_atlas_path: str,
                           output_dir: str, title: str, network_names: List[str] = None, 
                           dataset_name: str = None) -> None:
     """Process a single dataset for network analysis."""
-    # Create output directory
+    # Create output directory with 'individual_datasets' subdirectory
     output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    individual_dir = output_dir / "individual_datasets"
+    individual_dir.mkdir(parents=True, exist_ok=True)
     
     # Load count data
     if not os.path.exists(count_csv_path):
@@ -374,16 +375,16 @@ def process_single_dataset(count_csv_path: str, yeo_atlas_path: str,
     # Aggregate by networks
     network_data = aggregate_by_networks(count_data_with_networks)
     
-    # Save network data with dataset name in filename
+    # Save network data with dataset name in filename (in individual_datasets folder)
     # Use provided dataset_name or extract from title
     if dataset_name is None:
         dataset_name = title.split(" - ")[-1].lower().replace(" ", "_")
-    network_csv = output_dir / f"{dataset_name}_network_analysis.csv"
+    network_csv = individual_dir / f"{dataset_name}_network_analysis.csv"
     network_data.to_csv(network_csv, index=False)
     logging.info(f"Network data saved to: {network_csv}")
     
-    # Create polar area plot (radar chart)
-    polar_plot = output_dir / f"{dataset_name}_network_radar_plot"
+    # Create polar area plot (radar chart) in individual_datasets folder
+    polar_plot = individual_dir / f"{dataset_name}_network_radar_plot"
     create_polar_area_plot(network_data, str(polar_plot), f"{title} - Radar Plot", 
                           fill_color='lightblue', line_color='darkblue', alpha=0.3)
     

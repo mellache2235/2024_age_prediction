@@ -1,0 +1,185 @@
+{
+  "total_networks": 21,
+  "total_regions": "246",
+  "mean_attribution_across_networks": 171.89632857142857,
+  "max_attribution": 297.5,
+  "top_3_networks": [
+    {
+      "network": "DefaultB",
+      "mean_attribution": 297.5,
+      "std_attribution": 149.3114,
+      "n_regions": 6,
+      "total_attribution": 1785
+    },
+    {
+      "network": "Striatum",
+      "mean_attribution": 236.25,
+      "std_attribution": 123.0093,
+      "n_regions": 12,
+      "total_attribution": 2835
+    },
+    {
+      "network": "SomMotA",
+      "mean_attribution": 224.8,
+      "std_attribution": 134.3068,
+      "n_regions": 15,
+      "total_attribution": 3372
+    }
+  ],
+  "network_with_most_regions": {
+    "network": "LimbicB",
+    "mean_attribution": 189.1667,
+    "std_attribution": 156.0785,
+    "n_regions": 18,
+    "total_attribution": 3405
+  },
+  "network_summary": [
+    {
+      "network": "DefaultB",
+      "mean_attribution": 297.5,
+      "std_attribution": 149.3114,
+      "n_regions": 6,
+      "total_attribution": 1785
+    },
+    {
+      "network": "Striatum",
+      "mean_attribution": 236.25,
+      "std_attribution": 123.0093,
+      "n_regions": 12,
+      "total_attribution": 2835
+    },
+    {
+      "network": "SomMotA",
+      "mean_attribution": 224.8,
+      "std_attribution": 134.3068,
+      "n_regions": 15,
+      "total_attribution": 3372
+    },
+    {
+      "network": "LimbicA",
+      "mean_attribution": 215.1667,
+      "std_attribution": 128.7096,
+      "n_regions": 6,
+      "total_attribution": 1291
+    },
+    {
+      "network": "FPB",
+      "mean_attribution": 208.0,
+      "std_attribution": 163.3293,
+      "n_regions": 14,
+      "total_attribution": 2912
+    },
+    {
+      "network": "FPA",
+      "mean_attribution": 202.6667,
+      "std_attribution": 78.3411,
+      "n_regions": 3,
+      "total_attribution": 608
+    },
+    {
+      "network": "FPC",
+      "mean_attribution": 197.8182,
+      "std_attribution": 134.5748,
+      "n_regions": 11,
+      "total_attribution": 2176
+    },
+    {
+      "network": "LimbicB",
+      "mean_attribution": 189.1667,
+      "std_attribution": 156.0785,
+      "n_regions": 18,
+      "total_attribution": 3405
+    },
+    {
+      "network": "DorsAttnA",
+      "mean_attribution": 179.7857,
+      "std_attribution": 148.9301,
+      "n_regions": 14,
+      "total_attribution": 2517
+    },
+    {
+      "network": "VisCent",
+      "mean_attribution": 177.5455,
+      "std_attribution": 118.4402,
+      "n_regions": 11,
+      "total_attribution": 1953
+    },
+    {
+      "network": "DorsAttnB",
+      "mean_attribution": 177.4,
+      "std_attribution": 122.5845,
+      "n_regions": 15,
+      "total_attribution": 2661
+    },
+    {
+      "network": "TempPar",
+      "mean_attribution": 176.8889,
+      "std_attribution": 135.1191,
+      "n_regions": 18,
+      "total_attribution": 3184
+    },
+    {
+      "network": "AmyHip",
+      "mean_attribution": 163.75,
+      "std_attribution": 100.4344,
+      "n_regions": 8,
+      "total_attribution": 1310
+    },
+    {
+      "network": "SalVentAttnB",
+      "mean_attribution": 161.4167,
+      "std_attribution": 47.8035,
+      "n_regions": 12,
+      "total_attribution": 1937
+    },
+    {
+      "network": "Thalamus",
+      "mean_attribution": 148.5,
+      "std_attribution": 128.582,
+      "n_regions": 16,
+      "total_attribution": 2376
+    },
+    {
+      "network": "DefaultC",
+      "mean_attribution": 141.2857,
+      "std_attribution": 88.2552,
+      "n_regions": 14,
+      "total_attribution": 1978
+    },
+    {
+      "network": "SomMotB",
+      "mean_attribution": 125.7647,
+      "std_attribution": 83.7552,
+      "n_regions": 17,
+      "total_attribution": 2138
+    },
+    {
+      "network": "VisPeri",
+      "mean_attribution": 107.5,
+      "std_attribution": 83.8127,
+      "n_regions": 14,
+      "total_attribution": 1505
+    },
+    {
+      "network": "SalVentAttnA",
+      "mean_attribution": 102.9091,
+      "std_attribution": 47.4583,
+      "n_regions": 11,
+      "total_attribution": 1132
+    },
+    {
+      "network": "Yeo17_0",
+      "mean_attribution": 89.3333,
+      "std_attribution": 44.2869,
+      "n_regions": 3,
+      "total_attribution": 268
+    },
+    {
+      "network": "DefaultA",
+      "mean_attribution": 86.375,
+      "std_attribution": 70.1691,
+      "n_regions": 8,
+      "total_attribution": 691
+    }
+  ]
+}

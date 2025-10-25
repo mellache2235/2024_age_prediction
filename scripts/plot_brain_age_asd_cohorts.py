@@ -120,8 +120,12 @@ def plot_combined_asd_cohorts(npz_files_dir: str, output_path: str,
                       edgecolors='#1f77b4',
                       alpha=0.7, s=50, linewidth=0.5)
             
-            # Set axis limits
-            lims = [min(min(actual_ages), min(predicted_ages)), max(max(actual_ages), max(predicted_ages))]
+            # Set axis limits with padding to prevent dots from being cut off
+            min_age = min(min(actual_ages), min(predicted_ages))
+            max_age = max(max(actual_ages), max(predicted_ages))
+            age_range = max_age - min_age
+            padding = age_range * 0.05  # 5% padding on each side
+            lims = [min_age - padding, max_age + padding]
             ax.set_xlim(lims)
             ax.set_ylim(lims)
             
@@ -155,7 +159,10 @@ def plot_combined_asd_cohorts(npz_files_dir: str, output_path: str,
             ax.grid(False)
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
-            ax.tick_params(axis='both', which='major', labelsize=10)
+            
+            # Add tick marks
+            ax.tick_params(axis='both', which='major', labelsize=10, 
+                          direction='out', length=4, width=1)
             
             # Collect data for overall statistics
             all_actual.extend(actual_ages)

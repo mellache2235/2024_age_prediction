@@ -251,6 +251,7 @@ network_analysis:
 ### **General Plotting Conventions**
 All plots follow these conventions for publication-ready figures:
 - ✅ **Clean aesthetics**: No grid, no top/right spines
+- ✅ **Tick marks**: Visible tick marks on bottom and left axes (direction='out', length=4)
 - ✅ **Consistent colors**: Blue (#1f77b4) for data points
 - ✅ **Clear labels**: Bold axis labels and titles
 - ✅ **Statistics placement**: Bottom-right corner with white background box
