@@ -149,7 +149,7 @@ All results are saved to: `/oak/stanford/groups/menon/projects/mellache/2024_age
 
 ### **Step 4: Region Tables**
 - **Location**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/region_tables/`
-- **Individual Tables**: `{dataset_name}_region_table.csv` - One per dataset (~123 regions, top 50%)
+- **Individual Tables**: `{dataset_name}_region_table.csv` - One per dataset (only regions with count ≥ 289)
   - Examples: `dev_region_table.csv`, `nki_region_table.csv`, `adhd200_td_region_table.csv`, etc.
 - **Overlap Tables** (regions shared across cohorts):
   - `overlap_regions_TD.csv` - Overlap across TD cohorts (HCP-Dev, NKI, CMI-HBN TD, ADHD200 TD)
@@ -157,7 +157,9 @@ All results are saved to: `/oak/stanford/groups/menon/projects/mellache/2024_age
   - `overlap_regions_ASD.csv` - Overlap across ASD cohorts (ABIDE ASD, Stanford ASD)
 - **Format**: CSV with columns: Brain Regions, Subdivision, (ID) Region Label, Count
 - **Count Method**: Minimum count across datasets for overlapping regions
-- **Note**: Count data already filtered to top 50% during IG processing (PERCENTILE=50)
+- **Filtering**: 
+  1. Count data already filtered to top 50% during IG processing (PERCENTILE=50)
+  2. Further filtered to only include regions with count ≥ 289 (significance threshold: 289/500 = 58%)
 
 ### **Step 5: Brain Age Plots**
 - **Location**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots/`
@@ -257,24 +259,25 @@ All plots follow these conventions for publication-ready figures:
 - ✅ **Seaborn styling**: White background, professional appearance
 
 ### **Shared Region Analysis Methodology**
-The pipeline uses a **top 50% percentile approach** for finding shared important regions:
+The pipeline uses a **top 50% percentile + significance threshold** approach for finding shared important regions:
 
 1. **IG Processing**: During integrated gradients analysis, only features (ROIs) in the top 50th percentile are counted
 2. **Count Data**: Each dataset's count data already reflects only the top 50% of features
-3. **Find Overlap**: Identify regions that appear in multiple datasets (from their top 50%)
-4. **Minimum Count**: For shared regions, use the minimum count across datasets
-5. **Network Mapping**: Map shared regions to Yeo 17-network atlas
-6. **Radar Plots**: Visualize network-level aggregation of shared regions
+3. **Significance Threshold**: Only regions with counts ≥ 289 (out of 500 subjects, ~58%) are included
+4. **Find Overlap**: Identify regions that appear in multiple datasets (from their top 50% and significant counts)
+5. **Minimum Count**: For shared regions, use the minimum count across datasets
+6. **Network Mapping**: Map shared regions to Yeo 17-network atlas
+7. **Radar Plots**: Visualize network-level aggregation of shared regions
 
 **Example for TD cohorts:**
-- HCP-Dev: ~123 regions (top 50% of 246 ROIs)
-- NKI: ~123 regions (top 50% of 246 ROIs)
-- CMI-HBN TD: ~123 regions (top 50% of 246 ROIs)
-- ADHD200 TD: ~123 regions (top 50% of 246 ROIs)
-- **Shared**: Regions that appear in at least 2 datasets
+- HCP-Dev: ~123 regions (top 50% of 246 ROIs) → filter to count ≥ 289
+- NKI: ~123 regions (top 50% of 246 ROIs) → filter to count ≥ 289
+- CMI-HBN TD: ~123 regions (top 50% of 246 ROIs) → filter to count ≥ 289
+- ADHD200 TD: ~123 regions (top 50% of 246 ROIs) → filter to count ≥ 289
+- **Shared**: Regions that appear in at least 2 datasets with minimum count ≥ 289
 - **Radar plot**: Shows network-level aggregation of shared regions
 
-This approach ensures we focus on the most important regions (top 50% by IG scores) that are consistently identified across cohorts.
+This approach ensures we focus on the most important regions (top 50% by IG scores) that are also statistically significant (≥289 counts) and consistently identified across cohorts.
 
 ## 📂 **Repository Structure**
 

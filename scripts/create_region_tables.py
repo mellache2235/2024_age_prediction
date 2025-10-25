@@ -152,19 +152,21 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def create_dataset_region_table_from_excel(excel_path: str, 
                                           output_path: str,
-                                          roi_labels_path: str) -> pd.DataFrame:
+                                          roi_labels_path: str,
+                                          min_count: int = 289) -> pd.DataFrame:
     """
     Create a region table for a single dataset from Excel file.
     
     Format: Brain Regions, Subdivision, (ID) Region Label, Count
     
-    Note: The count data already reflects top 50% of features (filtered during IG processing),
-    so we use all regions from the count data file.
+    Note: The count data already reflects top 50% of features (filtered during IG processing).
+    We further filter to only include regions with counts ≥ 289 (significance threshold).
     
     Args:
         excel_path (str): Path to count data Excel file (already filtered to top 50%)
         output_path (str): Output path for the table
         roi_labels_path (str): Path to ROI labels file for accurate mapping
+        min_count (int): Minimum count threshold (default: 289, out of 500 subjects)
         
     Returns:
         pd.DataFrame: Region table
@@ -188,17 +190,18 @@ def create_dataset_region_table_from_excel(excel_path: str,
     # Load ROI labels for accurate brain region mapping
     roi_mapping = load_roi_labels_mapping(roi_labels_path)
     
-    # Use all regions from count data (already filtered to top 50% during IG processing)
-    all_regions = count_data.sort_values('Count', ascending=False)
+    # Filter to regions with count >= min_count (significance threshold)
+    significant_regions = count_data[count_data['Count'] >= min_count].copy()
+    significant_regions = significant_regions.sort_values('Count', ascending=False)
     
-    logging.info(f"Using all {len(all_regions)} regions from count data (already filtered to top 50%)")
+    logging.info(f"Filtered to {len(significant_regions)} significant regions (count ≥ {min_count}) from {len(count_data)} total")
     
     # Create final table with correct column mapping
     region_table = pd.DataFrame({
-        'Brain Regions': all_regions.apply(lambda row: get_accurate_brain_region(row, roi_mapping), axis=1),
-        'Subdivision': all_regions.apply(lambda row: get_subdivision_name(row), axis=1),
-        '(ID) Region Label': all_regions.get('(ID) Region Label', all_regions.get('Region ID', 'Unknown')),
-        'Count': all_regions['Count']
+        'Brain Regions': significant_regions.apply(lambda row: get_accurate_brain_region(row, roi_mapping), axis=1),
+        'Subdivision': significant_regions.apply(lambda row: get_subdivision_name(row), axis=1),
+        '(ID) Region Label': significant_regions.get('(ID) Region Label', significant_regions.get('Region ID', 'Unknown')),
+        'Count': significant_regions['Count']
     })
     
     # Save table
@@ -211,21 +214,22 @@ def create_dataset_region_table_from_excel(excel_path: str,
 def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
                                          output_path: str,
                                          roi_labels_path: str,
-                                         min_datasets: int = 2) -> pd.DataFrame:
+                                         min_datasets: int = 2,
+                                         min_count: int = 289) -> pd.DataFrame:
     """
     Create a table of regions shared across multiple datasets from Excel files.
     
     Format: Brain Regions, Subdivision, (ID) Region Label, Count
     For shared regions: Count = minimum count across datasets
     
-    Note: The count data already reflects top 50% of features (filtered during IG processing),
-    so we find overlap of all regions in the count data files.
+    Note: Only includes regions with counts ≥ 289 (significance threshold).
     
     Args:
-        dataset_excel_paths (List[str]): List of paths to count data Excel files (already filtered to top 50%)
+        dataset_excel_paths (List[str]): List of paths to count data Excel files
         output_path (str): Output path for the table
         roi_labels_path (str): Path to ROI labels file for accurate mapping
         min_datasets (int): Minimum number of datasets a region must appear in
+        min_count (int): Minimum count threshold (default: 289, out of 500 subjects)
         
     Returns:
         pd.DataFrame: Shared regions table
@@ -271,21 +275,25 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
             all_regions[region_id]['counts'].append(row['Count'])
             all_regions[region_id]['datasets'].append(dataset_name)
     
-    # Filter regions that appear in at least min_datasets
-    shared_regions = {region_id: data for region_id, data in all_regions.items() 
-                     if len(data['datasets']) >= min_datasets}
+    # Filter regions that appear in at least min_datasets AND have minimum count >= threshold
+    shared_regions = {}
+    for region_id, data in all_regions.items():
+        if len(data['datasets']) >= min_datasets:
+            min_region_count = np.min(data['counts'])
+            if min_region_count >= min_count:
+                shared_regions[region_id] = data
     
     # Create table in the desired format
     # For shared regions, use the MINIMUM count across datasets (as requested)
     table_data = []
     for region_id, data in shared_regions.items():
-        min_count = np.min(data['counts'])
+        min_region_count = np.min(data['counts'])
         
         table_data.append({
             'Brain Regions': data['brain_region'],
             'Subdivision': data['subdivision'],
             '(ID) Region Label': data['region_label'],
-            'Count': int(min_count)  # Use minimum count as requested
+            'Count': int(min_region_count)  # Use minimum count as requested
         })
     
     # Create and sort table
@@ -295,12 +303,12 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
         
         # Save table
         shared_table.to_csv(output_path, index=False)
-        logging.info(f"Created shared region table: {len(shared_table)} regions shared across datasets, saved to {output_path}")
+        logging.info(f"Created shared region table: {len(shared_table)} regions (count ≥ {min_count}) shared across datasets, saved to {output_path}")
     else:
         # Create empty table with proper columns
         shared_table = pd.DataFrame(columns=['Brain Regions', 'Subdivision', '(ID) Region Label', 'Count'])
         shared_table.to_csv(output_path, index=False)
-        logging.warning(f"No shared regions found. Created empty table at {output_path}")
+        logging.warning(f"No shared regions found with count ≥ {min_count}. Created empty table at {output_path}")
     
     return shared_table
 
@@ -481,15 +489,20 @@ def create_overlap_table_from_csvs(csv_paths: List[str],
                                   output_path: str,
                                   roi_labels_path: str,
                                   condition_name: str,
-                                  min_datasets: int = 2) -> pd.DataFrame:
+                                  min_datasets: int = 2,
+                                  min_count: int = 289) -> pd.DataFrame:
     """
     Create overlap table from converted CSV files for a specific condition.
+    
+    Only includes regions with counts ≥ 289 (significance threshold).
     
     Args:
         csv_paths (List[str]): List of paths to converted CSV files
         output_path (str): Output path for the table
         roi_labels_path (str): Path to ROI labels file
         condition_name (str): Name of the condition (TD, ADHD, ASD)
+        min_datasets (int): Minimum number of datasets a region must appear in
+        min_count (int): Minimum count threshold (default: 289, out of 500 subjects)
         
     Returns:
         pd.DataFrame: Overlap table
@@ -535,25 +548,29 @@ def create_overlap_table_from_csvs(csv_paths: List[str],
             all_regions[region_id]['counts'].append(row['Count'])
             all_regions[region_id]['datasets'].append(dataset_name)
     
-    # Filter regions that appear in at least min_datasets (overlap)
-    overlap_regions = {region_id: data for region_id, data in all_regions.items() 
-                     if len(data['datasets']) >= min_datasets}
+    # Filter regions that appear in at least min_datasets AND have minimum count >= threshold
+    overlap_regions = {}
+    for region_id, data in all_regions.items():
+        if len(data['datasets']) >= min_datasets:
+            min_region_count = np.min(data['counts'])
+            if min_region_count >= min_count:
+                overlap_regions[region_id] = data
     
     if not overlap_regions:
-        logging.warning(f"No overlapping regions found across {condition_name} datasets")
+        logging.warning(f"No overlapping regions found across {condition_name} datasets with count ≥ {min_count}")
         return pd.DataFrame()
     
     # Create overlap table
     table_data = []
     for region_id, data in overlap_regions.items():
         # For overlap, use the minimum count across datasets
-        min_count = np.min(data['counts'])
+        min_region_count = np.min(data['counts'])
         
         table_data.append({
             'Brain Regions': data['brain_region'],
             'Subdivision': data['subdivision'],
             '(ID) Region Label': data['region_label'],
-            'Count': int(min_count)
+            'Count': int(min_region_count)
         })
     
     # Create and sort table
@@ -563,7 +580,7 @@ def create_overlap_table_from_csvs(csv_paths: List[str],
         
         # Save table
         overlap_table.to_csv(output_path, index=False)
-        logging.info(f"Created {condition_name} overlap table: {len(overlap_table)} overlapping regions saved to {output_path}")
+        logging.info(f"Created {condition_name} overlap table: {len(overlap_table)} overlapping regions (count ≥ {min_count}) saved to {output_path}")
     else:
         # Create empty table with proper columns
         overlap_table = pd.DataFrame(columns=['Brain Regions', 'Subdivision', '(ID) Region Label', 'Count'])

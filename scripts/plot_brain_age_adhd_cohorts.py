@@ -22,6 +22,8 @@ import logging
 sys.path.append(str(Path(__file__).parent.parent / 'utils'))
 
 from plotting_utils import setup_fonts, save_figure
+from logging_utils import (print_section_header, print_step, print_success, 
+                           print_info, print_completion)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -219,6 +221,12 @@ Examples:
     
     args = parser.parse_args()
     
+    print_section_header("BRAIN AGE PREDICTION - ADHD COHORTS")
+    
+    print_info(f"NPZ files directory: {args.npz_dir}")
+    print_info(f"Output directory: {args.output_dir}")
+    print()
+    
     # Create output directory
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -226,8 +234,13 @@ Examples:
     # Create output path
     output_path = output_dir / "adhd_cohorts_combined_scatter"
     
+    print_step(1, "CREATING ADHD COHORTS PLOT", "1x2 layout: CMI-HBN ADHD, ADHD200 ADHD")
+    
     # Create the plot
     plot_combined_adhd_cohorts(args.npz_dir, str(output_path), args.title)
+    
+    print()
+    print_completion("ADHD Cohorts Brain Age Plot", [f"{output_path}.png"])
 
 
 if __name__ == "__main__":

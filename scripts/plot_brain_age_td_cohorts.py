@@ -21,6 +21,8 @@ import logging
 sys.path.append(str(Path(__file__).parent.parent / 'utils'))
 
 from plotting_utils import setup_fonts, save_figure
+from logging_utils import (print_section_header, print_step, print_success, 
+                           print_warning, print_error, print_info, print_completion)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -227,6 +229,12 @@ Examples:
     
     args = parser.parse_args()
     
+    print_section_header("BRAIN AGE PREDICTION - TD COHORTS")
+    
+    print_info(f"NPZ files directory: {args.npz_dir}")
+    print_info(f"Output directory: {args.output_dir}")
+    print()
+    
     # Create output directory
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -234,8 +242,13 @@ Examples:
     # Create output path
     output_path = output_dir / "td_cohorts_combined_scatter"
     
+    print_step(1, "CREATING TD COHORTS PLOT", "2x2 layout: HCP-Dev, NKI, CMI-HBN TD, ADHD200 TD")
+    
     # Create the plot
     plot_combined_td_cohorts(args.npz_dir, str(output_path), args.title)
+    
+    print()
+    print_completion("TD Cohorts Brain Age Plot", [f"{output_path}.png"])
 
 
 if __name__ == "__main__":
