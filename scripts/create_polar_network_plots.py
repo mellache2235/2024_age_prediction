@@ -111,8 +111,8 @@ def create_polar_area_plot(network_data: pd.DataFrame,
     ax.set_xticks(angles)
     ax.set_xticklabels(networks, fontsize=10, fontweight='bold', color='black')
     
-    # Customize grid
-    ax.grid(True, alpha=0.3, color='lightgray')
+    # Remove grid
+    ax.grid(False)
     ax.set_theta_zero_location('N')  # Start from top (North)
     ax.set_theta_direction(-1)  # Clockwise direction
     
@@ -279,7 +279,7 @@ def create_combined_polar_plot(network_data_dict: Dict[str, pd.DataFrame],
     ax.set_ylim(0, 1.0)
     ax.set_xticks(angles)
     ax.set_xticklabels(all_networks, fontsize=10, fontweight='bold', color='black')
-    ax.grid(True, alpha=0.3, color='lightgray')
+    ax.grid(False)
     ax.set_theta_zero_location('N')
     ax.set_theta_direction(-1)
     ax.set_yticks([])

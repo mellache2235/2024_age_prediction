@@ -451,7 +451,7 @@ def create_multi_panel_figure(plots: List[plt.Figure],
 
 
 def save_figure(fig: plt.Figure, save_path: str, 
-               formats: List[str] = ['png', 'pdf']) -> None:
+               formats: List[str] = ['png']) -> None:
     """
     Save figure in multiple formats.
     

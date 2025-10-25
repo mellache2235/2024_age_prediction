@@ -127,19 +127,20 @@ def plot_combined_asd_cohorts(npz_files_dir: str, output_path: str,
             p_line = np.poly1d(z)
             ax.plot(lims, p_line(lims), 'k-', alpha=0.8, linewidth=2)
             
-            # Format p-value
+            # Format p-value (short form)
             if p < 0.001:
-                p_text = "P < 0.001"
+                p_text = "< 0.001"
             else:
-                p_text = f"P = {p:.3f}"
+                p_text = f"= {p:.3f}"
             
-            # Add statistics text
-            ax.text(0.05, 0.95,
+            # Add statistics text in bottom right corner
+            ax.text(0.95, 0.05,
                     f"$\mathit{{R}}^2 = {r_squared:.3f}$\n"
                     f"$\mathit{{MAE}} = {mae:.2f}$ years\n"
-                    f"{p_text}\n"
+                    f"$\mathit{{P}}$ {p_text}\n"
                     f"N = {len(actual_ages)}",
-                    transform=ax.transAxes, fontsize=11, verticalalignment='top',
+                    transform=ax.transAxes, fontsize=11, 
+                    verticalalignment='bottom', horizontalalignment='right',
                     bbox=dict(boxstyle='round', facecolor='white', alpha=0.9))
             
             # Customize subplot
