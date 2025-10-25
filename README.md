@@ -76,10 +76,10 @@ python brain_age_prediction.py \
 python convert_count_data.py
 python create_region_tables.py
 
-# 3. Generate all plots
-python plot_brain_age_correlations.py \
-  --results_file ../results/brain_age_prediction/brain_age_prediction_results_*.json \
-  --output_dir ../results/figures/brain_age_plots
+# 3. Generate cohort-specific brain age plots
+python plot_brain_age_td_cohorts.py --npz_dir . --output_dir results/brain_age_plots
+python plot_brain_age_adhd_cohorts.py --npz_dir . --output_dir results/brain_age_plots
+python plot_brain_age_asd_cohorts.py --npz_dir . --output_dir results/brain_age_plots
 
 python plot_network_analysis.py \
   --config ../config.yaml \
@@ -138,7 +138,7 @@ python comprehensive_brain_behavior_analysis.py --dataset abide_asd
 │   ├── feature_comparison.py       # Feature comparison between cohorts
 │   │
 │   ├── plotting/                   # Separate plotting scripts
-│   │   ├── plot_brain_age_correlations.py    # Brain age prediction plots
+│   │   ├── plot_brain_age_*_cohorts.py       # Cohort-specific brain age plots
 │   │   ├── plot_brain_visualization.py       # 3D brain surface plots
 │   │   ├── plot_network_analysis.py          # Network analysis plots
 │   │   └── plot_brain_behavior_analysis.py   # Brain-behavior plots
@@ -306,10 +306,10 @@ python brain_age_prediction.py \
   --retrain_models \
   --model_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/train_regression_models/dev
 
-# Step 2: Generate brain age prediction plots
-python plot_brain_age_correlations.py \
-  --results_file ../results/brain_age_prediction/brain_age_prediction_results_*.json \
-  --output_dir ../results/figures/brain_age_plots
+# Step 2: Generate cohort-specific brain age plots
+python plot_brain_age_td_cohorts.py --npz_dir . --output_dir results/brain_age_plots
+python plot_brain_age_adhd_cohorts.py --npz_dir . --output_dir results/brain_age_plots
+python plot_brain_age_asd_cohorts.py --npz_dir . --output_dir results/brain_age_plots
 
 # Step 3: Compute Integrated Gradients for each dataset (using pre-trained model)
 python compute_integrated_gradients.py --dataset nki_rs_td --fold 0
@@ -348,8 +348,10 @@ python comprehensive_brain_behavior_analysis.py --dataset abide_asd
 python comprehensive_brain_behavior_analysis.py --dataset stanford_asd
 
 # Step 9: Create all plots (separate plotting scripts)
-# Brain age prediction plots
-python plot_brain_age_correlations.py --results_file ../results/brain_age_prediction_results.json
+# Cohort-specific brain age plots
+python plot_brain_age_td_cohorts.py --npz_dir . --output_dir results/brain_age_plots
+python plot_brain_age_adhd_cohorts.py --npz_dir . --output_dir results/brain_age_plots
+python plot_brain_age_asd_cohorts.py --npz_dir . --output_dir results/brain_age_plots
 
 # Brain visualization plots (3D brain surface plots)
 python plot_brain_visualization.py --config ../config.yaml
@@ -495,11 +497,6 @@ python cosine_similarity_analysis.py --analysis_type cross_condition --data_dir 
 
 The pipeline now includes dedicated plotting scripts for different analysis types:
 
-#### Brain Age Correlation Plots (`scripts/plot_brain_age_correlations.py`)
-- **Scatter Plots**: True vs predicted age with correlation metrics
-- **Brain Age Gap Distributions**: Histograms of BAG values
-- **Group Comparisons**: Box plots comparing BAG between groups
-- **Statistical Testing**: T-tests and effect sizes for group differences
 
 #### Brain Visualization Plots (`scripts/plot_brain_visualization.py`)
 - **3D Brain Surface Plots**: NIfTI-based brain feature maps
@@ -520,7 +517,7 @@ The pipeline now includes dedicated plotting scripts for different analysis type
 - **Customizable Styling**: Colors, transparency, and grid options
 
 #### Cohort-Specific Brain Age Plots
-- **TD Cohorts** (`scripts/plot_brain_age_td_cohorts.py`): Combined scatter plot for all TD cohorts (ABIDE TD, CMI-HBN TD, ADHD200 TD, NKI)
+- **TD Cohorts** (`scripts/plot_brain_age_td_cohorts.py`): Combined scatter plot for all TD cohorts (HCP-Dev, ABIDE TD, CMI-HBN TD, ADHD200 TD, NKI, Stanford TD)
 - **ADHD Cohorts** (`scripts/plot_brain_age_adhd_cohorts.py`): Combined scatter plot for all ADHD cohorts (CMI-HBN ADHD, ADHD200 ADHD)
 - **ASD Cohorts** (`scripts/plot_brain_age_asd_cohorts.py`): Combined scatter plot for all ASD cohorts (ABIDE ASD, Stanford ASD)
 - **Multi-Dataset Panels**: Single panels with different colors/markers for each dataset
@@ -540,8 +537,6 @@ python plot_brain_age_td_cohorts.py --npz_dir . --output_dir ../results/brain_ag
 python plot_brain_age_adhd_cohorts.py --npz_dir . --output_dir ../results/brain_age_plots
 python plot_brain_age_asd_cohorts.py --npz_dir . --output_dir ../results/brain_age_plots
 
-# Brain age prediction plots (from JSON results)
-python plot_brain_age_correlations.py --results_file ../results/brain_age_prediction_results.json
 
 # Brain visualization plots
 python plot_brain_visualization.py --config ../config.yaml

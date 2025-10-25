@@ -342,7 +342,7 @@ def create_all_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.Data
     # Create shared region tables
     logging.info("Creating shared region tables...")
     
-    # Shared among TD cohorts
+    # Shared among TD cohorts (core datasets only)
     td_datasets = ['dev', 'nki', 'adhd200_td', 'cmihbn_td']
     td_paths = [count_data_paths.get(d) for d in td_datasets if count_data_paths.get(d) and os.path.exists(count_data_paths.get(d))]
     

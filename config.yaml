@@ -23,7 +23,9 @@ network_analysis:
     cmihbn_adhd: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files/top_50_consensus_features_cmihbn_adhd_aging.xlsx"
     cmihbn_td: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files_td/top_50_consensus_features_cmihbn_td_aging.xlsx"
     abide_asd: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/abide/ig_files/top_50_consensus_features_abide_asd_aging.xlsx"
+    abide_td: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/abide/ig_files_td/top_50_consensus_features_abide_td_aging.xlsx"
     stanford_asd: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/stanford/ig_files/top_50_consensus_features_stanford_asd_aging.xlsx"
+    stanford_td: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/stanford/ig_files_td/top_50_consensus_features_stanford_td_aging.xlsx"
 
 # Brain-Behavior Correlation Analysis Configuration
 brain_behavior:

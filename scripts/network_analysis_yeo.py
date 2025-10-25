@@ -25,6 +25,7 @@ sys.path.append(str(Path(__file__).parent.parent / 'utils'))
 
 from count_data_utils import load_count_data, create_region_mapping
 from plotting_utils import setup_fonts, save_figure
+from create_polar_network_plots import create_polar_area_plot
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -366,12 +367,10 @@ def process_single_dataset(count_csv_path: str, yeo_atlas_path: str,
     network_data.to_csv(network_csv, index=False)
     logging.info(f"Network data saved to: {network_csv}")
     
-    # Create visualizations
-    from plot_network_analysis import create_polar_bar_plot, create_network_comparison_plot
-    
-    # Create polar plot
-    polar_plot = output_dir / f"{dataset_name}_network_polar_plot"
-    create_polar_bar_plot(network_data, str(polar_plot), f"{title} - Polar Plot", show_values=True)
+    # Create polar area plot (radar chart)
+    polar_plot = output_dir / f"{dataset_name}_network_radar_plot"
+    create_polar_area_plot(network_data, str(polar_plot), f"{title} - Radar Plot", 
+                          fill_color='lightblue', line_color='darkblue', alpha=0.3)
     
     # Analyze patterns
     analysis_results = analyze_network_patterns(network_data)
@@ -478,12 +477,10 @@ def create_shared_network_analysis(dataset_excel_paths: List[str],
     aggregated_data.to_csv(output_file, index=False)
     logging.info(f"Shared network analysis saved to: {output_file}")
     
-    # Create plots
-    from plot_network_analysis import create_polar_bar_plot
-    
-    # Polar bar plot
-    polar_plot_path = os.path.join(output_dir, f"shared_network_polar")
-    create_polar_bar_plot(aggregated_data, polar_plot_path, title, show_values=True)
+    # Create radar chart
+    polar_plot_path = os.path.join(output_dir, f"shared_network_radar")
+    create_polar_area_plot(aggregated_data, polar_plot_path, title, 
+                          fill_color='lightblue', line_color='darkblue', alpha=0.3)
     
     # Analyze network patterns
     network_patterns = analyze_network_patterns(aggregated_data)
@@ -553,7 +550,7 @@ def main():
         yeo_atlas_path = config.get('network_analysis', {}).get('yeo_atlas_path', '/path/to/yeo_atlas.csv')
         network_names = config.get('network_analysis', {}).get('network_names', None)
         
-        # Shared among TD cohorts
+        # Shared among TD cohorts (core datasets only)
         td_datasets = ['dev', 'nki', 'adhd200_td', 'cmihbn_td']
         td_paths = [count_data_config.get(d) for d in td_datasets if count_data_config.get(d) and os.path.exists(count_data_config.get(d))]
         

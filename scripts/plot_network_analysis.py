@@ -22,6 +22,7 @@ import logging
 sys.path.append(str(Path(__file__).parent.parent / 'utils'))
 
 from plotting_utils import setup_fonts, save_figure
+from create_polar_network_plots import create_polar_area_plot, create_comparison_polar_plots
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -157,32 +158,8 @@ def create_network_comparison_plot(network_data_dict: Dict[str, pd.DataFrame],
     
     comparison_df = pd.DataFrame(comparison_data)
     
-    # Create polar plot instead of bar plot
-    fig, ax = plt.subplots(figsize=(12, 12), subplot_kw=dict(projection='polar'))
-    
-    # Calculate angles for each network
-    angles = np.linspace(0, 2 * np.pi, len(all_networks), endpoint=False)
-    
-    colors = plt.cm.Set3(np.linspace(0, 1, len(network_data_dict)))
-    
-    for i, (dataset_name, color) in enumerate(zip(network_data_dict.keys(), colors)):
-        dataset_counts = [comparison_df[(comparison_df['Dataset'] == dataset_name) & 
-                                      (comparison_df['Network'] == network)]['Count'].values[0] 
-                         for network in all_networks]
-        
-        # Create polar bar plot
-        ax.bar(angles, dataset_counts, width=0.8/len(network_data_dict), 
-               label=dataset_name, color=color, alpha=0.8)
-    
-    # Set up polar plot
-    ax.set_xticks(angles)
-    ax.set_xticklabels(all_networks, fontsize=10)
-    ax.set_title(title, fontsize=14, fontweight='bold', pad=20)
-    ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.0))
-    ax.grid(True, alpha=0.3)
-    
-    save_figure(plt, output_path)
-    plt.close()
+    # Create radar chart comparison using the polar area plot function
+    create_comparison_polar_plots(network_data_dict, output_path, title)
 
 
 def create_network_heatmap(network_data_dict: Dict[str, pd.DataFrame],

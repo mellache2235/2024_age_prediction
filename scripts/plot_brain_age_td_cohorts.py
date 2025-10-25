@@ -80,7 +80,7 @@ def load_age_data_from_npz(predicted_file: str, actual_file: str) -> Tuple[np.nd
 
 
 def plot_combined_td_cohorts(npz_files_dir: str, output_path: str, 
-                           title: str = "Brain Age Prediction: TD Cohorts") -> None:
+                           title: str = "TD Cohorts") -> None:
     """
     Create combined scatter plot for all TD cohorts.
     
@@ -93,29 +93,41 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
     
     # Define TD cohort datasets and their colors
     td_datasets = {
+        'HCP-Dev': {
+            'predicted': 'hcp_dev_nested_predicted_ages.npz',
+            'actual': 'hcp_dev_nested_actual_ages.npz',
+            'color': '#1f77b4',  # Blue
+            'marker': 'o'
+        },
         'ABIDE TD': {
             'predicted': 'predicted_abide_td_ages_most_updated.npz',
             'actual': 'actual_abide_td_ages_most_updated.npz',
-            'color': '#1f77b4',  # Blue
-            'marker': 'o'
+            'color': '#ff7f0e',  # Orange
+            'marker': 's'
         },
         'CMI-HBN TD': {
             'predicted': 'predicted_cmihbn_td_ages.npz',
             'actual': 'actual_cmihbn_td_ages.npz',
-            'color': '#ff7f0e',  # Orange
-            'marker': 's'
+            'color': '#2ca02c',  # Green
+            'marker': '^'
         },
         'ADHD200 TD': {
             'predicted': 'predicted_adhd200_td_ages.npz',
             'actual': 'actual_adhd200_td_ages.npz',
-            'color': '#2ca02c',  # Green
-            'marker': '^'
+            'color': '#d62728',  # Red
+            'marker': 'D'
         },
         'NKI': {
             'predicted': 'predicted_nki_ages.npz',
             'actual': 'actual_nki_ages.npz',
-            'color': '#d62728',  # Red
-            'marker': 'D'
+            'color': '#9467bd',  # Purple
+            'marker': 'v'
+        },
+        'Stanford TD': {
+            'predicted': 'predicted_stanford_td_ages_most_updated.npz',
+            'actual': 'actual_stanford_td_ages_most_updated.npz',
+            'color': '#8c564b',  # Brown
+            'marker': '<'
         }
     }
     
@@ -198,7 +210,6 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
     # Add overall statistics text
     ax.text(0.05, 0.95,
             f"Overall Statistics:\n"
-            f"$\mathit{{r}} = {overall_r:.3f}$\n"
             f"$\mathit{{R}}^2 = {overall_r_squared:.3f}$\n"
             f"$\mathit{{MAE}} = {overall_mae:.2f}$ years\n"
             f"{p_text}\n"
@@ -214,15 +225,19 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
     # Add legend
     ax.legend(loc='lower right', fontsize=10, framealpha=0.9)
     
-    # Customize ticks and grid
+    # Customize ticks and remove grid
     ax.tick_params(axis='both', which='major', labelsize=10)
-    ax.grid(True, alpha=0.3)
+    ax.grid(False)
+    
+    # Remove top and right spines
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     
     # Adjust layout
     plt.tight_layout()
     
-    # Save the plot
-    save_figure(fig, output_path)
+    # Save the plot in multiple formats including .svg for Affinity Designer
+    save_figure(fig, output_path, formats=['png', 'pdf', 'svg'])
     logging.info(f"Combined TD cohorts plot saved to: {output_path}")
     logging.info(f"Overall TD cohorts - R²: {overall_r_squared:.3f}, MAE: {overall_mae:.2f} years, r: {overall_r:.3f}, p: {overall_p:.3f}, N: {len(all_actual)}")
 
@@ -244,7 +259,7 @@ Examples:
     
     parser.add_argument('--npz_dir', type=str, default='.', help='Directory containing .npz files')
     parser.add_argument('--output_dir', type=str, required=True, help='Output directory for plots')
-    parser.add_argument('--title', type=str, default='Brain Age Prediction: TD Cohorts', help='Plot title')
+    parser.add_argument('--title', type=str, default='TD Cohorts', help='Plot title')
     
     args = parser.parse_args()
     
