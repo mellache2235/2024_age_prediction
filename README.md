@@ -94,8 +94,8 @@ python comprehensive_brain_behavior_analysis.py --dataset abide_asd
 **Expected Results:**
 - ✅ Brain age predictions with bias correction
 - ✅ Comprehensive brain age gap analysis
-- ✅ Region importance tables
-- ✅ Network analysis plots
+- ✅ Comprehensive region tables (individual + shared + overlap)
+- ✅ Network analysis plots (polar plots only)
 - ✅ Brain-behavior correlations with FDR correction
 
 ## 🚀 Features
@@ -149,10 +149,10 @@ python comprehensive_brain_behavior_analysis.py --dataset abide_asd
 │   ├── figures/                    # Generated plots
 │   │   ├── brain_age_correlations/ # Brain age prediction plots
 │   │   ├── brain_visualization/    # 3D brain surface plots
-│   │   ├── network_analysis/       # Network analysis plots
+│   │   ├── network_analysis/       # Network analysis plots (polar plots only)
 │   │   └── brain_behavior_analysis/ # Brain-behavior plots
 │   ├── tables/                     # Statistical tables
-│   ├── region_tables/              # Region importance tables
+│   ├── region_tables/              # Comprehensive region tables (individual + shared + overlap)
 │   ├── count_data/                 # Count data CSV files
 │   ├── network_analysis/           # Network analysis results
 │   └── brain_behavior/             # Brain-behavior results
@@ -326,7 +326,7 @@ python convert_count_data.py
 # This creates CSV files in: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/
 # Files: nki_count_data.csv, adhd200_adhd_count_data.csv, cmihbn_adhd_count_data.csv, etc.
 
-# Step 5: Create region tables for each dataset and shared regions
+# Step 5: Create comprehensive region tables (individual + shared + overlap)
 # (Uses the converted CSV files from step 4)
 python create_region_tables.py --config ../config.yaml --output_dir ../results/region_tables
 
@@ -409,29 +409,44 @@ For external testing, IG computation, and brain-behavior analysis:
 
 ### Region Tables Creation (`scripts/create_region_tables.py`)
 
-Creates comprehensive tables for regions of importance based on count data:
+Creates comprehensive region tables including both individual dataset tables and overlap tables:
 
-**Table Types:**
-1. **Individual Dataset Tables**: Top regions for each dataset (e.g., `nki_top_regions.csv`)
-2. **Shared TD Regions**: Regions shared across TD cohorts (`shared_td_regions.csv`)
-3. **Shared ADHD Regions**: Regions shared across ADHD cohorts (`shared_adhd_regions.csv`)
-4. **Shared ASD Regions**: Regions shared across ASD cohorts (`shared_asd_regions.csv`)
-5. **Overall Shared Regions**: Regions shared across all datasets (`shared_all_regions.csv`)
+**Individual Dataset Tables:**
+1. **Individual Dataset Tables**: Top regions for each dataset (e.g., `nki_region_table.csv`, `adhd200_adhd_region_table.csv`)
+2. **Shared TD Regions**: Regions shared across TD cohorts (`shared_regions_TD.csv`)
+3. **Shared ADHD Regions**: Regions shared across ADHD cohorts (`shared_regions_ADHD.csv`)
+4. **Shared ASD Regions**: Regions shared across ASD cohorts (`shared_regions_ASD.csv`)
+5. **Overall Shared Regions**: Regions shared across all datasets (`shared_regions_all.csv`)
+
+**Overlap Tables:**
+1. **TD Overlap**: Regions shared across TD cohorts (`overlap_regions_TD.csv`)
+2. **ADHD Overlap**: Regions shared across ADHD cohorts (`overlap_regions_ADHD.csv`)
+3. **ASD Overlap**: Regions shared across ASD cohorts (`overlap_regions_ASD.csv`)
+
+**Table Format:**
+- `Brain Regions`: Anatomical names from Gyrus column
+- `Subdivision`: Brainnetome subdivision codes (a9l, a8m, a8dl, etc.) from Region Alias column
+- `(ID) Region Label`: ROI identifier from (ID) Region Label column
+- `Count`: Minimum count across overlapping datasets
 
 **Features:**
-- **Count Data Integration**: Uses CSV count data files from IG analysis
-- **ROI Mapping**: Maps ROI indices to human-readable region names
-- **Top N Selection**: Configurable number of top regions (default: 50)
-- **Shared Region Analysis**: Identifies regions appearing in multiple datasets
-- **Comprehensive Statistics**: Includes counts, ranks, and dataset information
+- **Individual Dataset Analysis**: Top regions for each dataset with accurate brain region mapping
+- **Shared Region Analysis**: Regions appearing across multiple datasets within conditions
+- **Overlap Analysis**: Regions appearing in at least 2 datasets within each condition
+- **Accurate Brain Region Mapping**: Uses Gyrus column for anatomical names, Region Alias for subdivisions
+- **Minimum Count Logic**: Uses minimum count across datasets for shared regions
+- **CSV Integration**: Uses converted CSV files from count data processing
+- **Sorted by Importance**: Tables sorted by count (highest first)
 
 **Usage:**
 ```bash
-# Create all region tables
-python create_region_tables.py
+# Create all region tables (individual + shared + overlap)
+python create_region_tables.py --config ../config.yaml --output_dir ../results/region_tables
 
-# With custom parameters
-python create_region_tables.py --top_n 100 --output_dir ../results/custom_tables
+# Output files include:
+# Individual: nki_region_table.csv, adhd200_adhd_region_table.csv, etc.
+# Shared: shared_regions_TD.csv, shared_regions_ADHD.csv, shared_regions_ASD.csv, shared_regions_all.csv
+# Overlap: overlap_regions_TD.csv, overlap_regions_ADHD.csv, overlap_regions_ASD.csv
 ```
 
 ### Comprehensive Cosine Similarity Analysis (`scripts/cosine_similarity_analysis.py`)
@@ -493,7 +508,7 @@ The pipeline now includes dedicated plotting scripts for different analysis type
 
 #### Network Analysis Plots (`scripts/plot_network_analysis.py`)
 - **Polar Bar Plots**: Network-level feature importance (similar to R ggplot2)
-- **Network Comparisons**: Grouped bar plots comparing networks across datasets
+- **Network Comparisons**: Polar plots comparing networks across datasets (no more bar plots)
 - **Heatmaps**: Network analysis results across all datasets
 - **Yeo Atlas Integration**: Groups regions by Yeo 17-network atlas
 

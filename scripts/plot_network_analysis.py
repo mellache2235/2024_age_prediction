@@ -157,12 +157,11 @@ def create_network_comparison_plot(network_data_dict: Dict[str, pd.DataFrame],
     
     comparison_df = pd.DataFrame(comparison_data)
     
-    # Create plot
-    plt.figure(figsize=(14, 8))
+    # Create polar plot instead of bar plot
+    fig, ax = plt.subplots(figsize=(12, 12), subplot_kw=dict(projection='polar'))
     
-    # Create grouped bar plot
-    x = np.arange(len(all_networks))
-    width = 0.8 / len(network_data_dict)
+    # Calculate angles for each network
+    angles = np.linspace(0, 2 * np.pi, len(all_networks), endpoint=False)
     
     colors = plt.cm.Set3(np.linspace(0, 1, len(network_data_dict)))
     
@@ -171,16 +170,16 @@ def create_network_comparison_plot(network_data_dict: Dict[str, pd.DataFrame],
                                       (comparison_df['Network'] == network)]['Count'].values[0] 
                          for network in all_networks]
         
-        plt.bar(x + i * width, dataset_counts, width, label=dataset_name, 
-                color=color, alpha=0.8)
+        # Create polar bar plot
+        ax.bar(angles, dataset_counts, width=0.8/len(network_data_dict), 
+               label=dataset_name, color=color, alpha=0.8)
     
-    plt.xlabel('Brain Networks', fontsize=12, fontweight='bold')
-    plt.ylabel('Feature Count', fontsize=12, fontweight='bold')
-    plt.title(title, fontsize=14, fontweight='bold')
-    plt.xticks(x + width * (len(network_data_dict) - 1) / 2, all_networks, rotation=45, ha='right')
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
+    # Set up polar plot
+    ax.set_xticks(angles)
+    ax.set_xticklabels(all_networks, fontsize=10)
+    ax.set_title(title, fontsize=14, fontweight='bold', pad=20)
+    ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.0))
+    ax.grid(True, alpha=0.3)
     
     save_figure(plt, output_path)
     plt.close()

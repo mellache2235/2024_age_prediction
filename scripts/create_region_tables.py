@@ -325,6 +325,161 @@ def create_all_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.Data
     return tables
 
 
+def create_overlap_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.DataFrame]:
+    """
+    Create overlap region tables for TD, ADHD, and ASD conditions using converted CSV files.
+    
+    Args:
+        config (Dict): Configuration dictionary
+        output_dir (str): Output directory for tables
+        
+    Returns:
+        Dict[str, pd.DataFrame]: Dictionary of created overlap tables
+    """
+    # Get ROI labels path from config
+    roi_labels_path = config.get('network_analysis', {}).get('roi_labels_path', '')
+    if not roi_labels_path:
+        logging.warning("ROI labels path not found in config. Using fallback mapping.")
+        roi_labels_path = ""
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Get count data paths from config (these should be the converted CSV files)
+    count_data_paths = config.get('network_analysis', {}).get('count_data', {})
+    
+    tables = {}
+    
+    # Create overlap tables for each condition
+    logging.info("Creating overlap region tables...")
+    
+    # TD overlap
+    td_datasets = ['dev', 'nki', 'adhd200_td', 'cmihbn_td']
+    td_paths = [count_data_paths.get(d) for d in td_datasets if count_data_paths.get(d) and os.path.exists(count_data_paths.get(d))]
+    
+    if len(td_paths) >= 2:
+        output_path = os.path.join(output_dir, "overlap_regions_TD.csv")
+        table = create_overlap_table_from_csvs(td_paths, output_path, roi_labels_path, "TD")
+        if not table.empty:
+            tables["overlap_TD"] = table
+    
+    # ADHD overlap
+    adhd_datasets = ['adhd200_adhd', 'cmihbn_adhd']
+    adhd_paths = [count_data_paths.get(d) for d in adhd_datasets if count_data_paths.get(d) and os.path.exists(count_data_paths.get(d))]
+    
+    if len(adhd_paths) >= 2:
+        output_path = os.path.join(output_dir, "overlap_regions_ADHD.csv")
+        table = create_overlap_table_from_csvs(adhd_paths, output_path, roi_labels_path, "ADHD")
+        if not table.empty:
+            tables["overlap_ADHD"] = table
+    
+    # ASD overlap
+    asd_datasets = ['abide_asd', 'stanford_asd']
+    asd_paths = [count_data_paths.get(d) for d in asd_datasets if count_data_paths.get(d) and os.path.exists(count_data_paths.get(d))]
+    
+    if len(asd_paths) >= 2:
+        output_path = os.path.join(output_dir, "overlap_regions_ASD.csv")
+        table = create_overlap_table_from_csvs(asd_paths, output_path, roi_labels_path, "ASD")
+        if not table.empty:
+            tables["overlap_ASD"] = table
+    
+    logging.info(f"Created {len(tables)} overlap region tables in {output_dir}")
+    return tables
+
+
+def create_overlap_table_from_csvs(csv_paths: List[str], 
+                                  output_path: str,
+                                  roi_labels_path: str,
+                                  condition_name: str) -> pd.DataFrame:
+    """
+    Create overlap table from converted CSV files for a specific condition.
+    
+    Args:
+        csv_paths (List[str]): List of paths to converted CSV files
+        output_path (str): Output path for the table
+        roi_labels_path (str): Path to ROI labels file
+        condition_name (str): Name of the condition (TD, ADHD, ASD)
+        
+    Returns:
+        pd.DataFrame: Overlap table
+    """
+    # Load ROI labels for accurate brain region mapping
+    roi_mapping = load_roi_labels_mapping(roi_labels_path)
+    
+    # Collect regions from all CSV files
+    all_regions = {}
+    
+    for csv_path in csv_paths:
+        if not os.path.exists(csv_path):
+            logging.warning(f"CSV file not found: {csv_path}")
+            continue
+            
+        dataset_name = Path(csv_path).stem.replace('_count_data', '').replace('top_50_consensus_features_', '').replace('_aging', '')
+        
+        try:
+            count_data = pd.read_csv(csv_path)
+        except Exception as e:
+            logging.error(f"Error reading CSV file {csv_path}: {e}")
+            continue
+        
+        # Check for required columns
+        if 'Count' not in count_data.columns:
+            logging.error(f"No Count column found in {csv_path}. Available columns: {list(count_data.columns)}")
+            continue
+        
+        # Get all regions (not just top N)
+        for _, row in count_data.iterrows():
+            # Use Region ID as the key for matching across datasets
+            region_id = row.get('Region ID', row.get('(ID) Region Label', 'Unknown'))
+            
+            if region_id not in all_regions:
+                all_regions[region_id] = {
+                    'brain_region': get_accurate_brain_region(row, roi_mapping),
+                    'subdivision': get_subdivision_name(row),
+                    'region_label': row.get('(ID) Region Label', region_id),
+                    'counts': [],
+                    'datasets': []
+                }
+            
+            all_regions[region_id]['counts'].append(row['Count'])
+            all_regions[region_id]['datasets'].append(dataset_name)
+    
+    # Filter regions that appear in at least 2 datasets (overlap)
+    overlap_regions = {region_id: data for region_id, data in all_regions.items() 
+                     if len(data['datasets']) >= 2}
+    
+    if not overlap_regions:
+        logging.warning(f"No overlapping regions found across {condition_name} datasets")
+        return pd.DataFrame()
+    
+    # Create overlap table
+    table_data = []
+    for region_id, data in overlap_regions.items():
+        # For overlap, use the minimum count across datasets
+        min_count = np.min(data['counts'])
+        
+        table_data.append({
+            'Brain Regions': data['brain_region'],
+            'Subdivision': data['subdivision'],
+            '(ID) Region Label': data['region_label'],
+            'Count': int(min_count)
+        })
+    
+    # Create and sort table
+    if table_data:
+        overlap_table = pd.DataFrame(table_data)
+        overlap_table = overlap_table.sort_values('Count', ascending=False)
+        
+        # Save table
+        overlap_table.to_csv(output_path, index=False)
+        logging.info(f"Created {condition_name} overlap table: {len(overlap_table)} overlapping regions saved to {output_path}")
+    else:
+        # Create empty table with proper columns
+        overlap_table = pd.DataFrame(columns=['Brain Regions', 'Subdivision', '(ID) Region Label', 'Count'])
+        overlap_table.to_csv(output_path, index=False)
+        logging.warning(f"No overlapping regions found. Created empty table at {output_path}")
+    
+    return overlap_table
+
+
 def main():
     """Main function."""
     parser = argparse.ArgumentParser(
@@ -370,10 +525,18 @@ Examples:
         with open(args.config, 'r') as f:
             config = yaml.safe_load(f)
         
-        tables = create_all_region_tables(config, args.output_dir)
+        # Create both individual dataset tables and overlap tables
+        logging.info("Creating individual dataset region tables...")
+        individual_tables = create_all_region_tables(config, args.output_dir)
+        
+        logging.info("Creating overlap region tables...")
+        overlap_tables = create_overlap_region_tables(config, args.output_dir)
+        
+        # Combine all tables
+        all_tables = {**individual_tables, **overlap_tables}
         
         logging.info("=== REGION TABLES SUMMARY ===")
-        for table_name, table in tables.items():
+        for table_name, table in all_tables.items():
             logging.info(f"{table_name}: {len(table)} regions")
         logging.info("Region table creation completed!")
     
