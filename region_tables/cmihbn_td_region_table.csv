@@ -1,0 +1,51 @@
+Brain Regions,Subdivision,(ID) Region Label,Count
+Prefrontal Cortex,"A8vl, ventrolateral area 8","(24), MFG_R_7_5",498
+Prefrontal Cortex,"IFJ, inferior frontal junction","(17), MFG_L_7_2",497
+Prefrontal Cortex,"A9l, lateral area 9","(5), SFG_L_7_3",495
+Middle Temporal Gyrus,"A35/36c, caudal area 35/36","(112), PhG_R_6_2",494
+Middle Temporal Gyrus,"A21r, rostral area 21","(84), MTG_R_4_2",491
+Inferior Temporal Gyrus,"A20r, rostral area 20","(94), ITG_R_7_3",491
+Prefrontal Cortex,"A9l, lateral area 9","(6), SFG_R_7_3",490
+Precentral Gyrus,"A4hf, area 4(head and face region)","(54), PrG_R_6_1",487
+Thalamus,"Otha, occipital thalamus","(241), Tha_L_8_6",487
+"PCC, Precuneus","A5m, medial area 5(PEm)","(149), Pcun_L_4_2",486
+Superior Temporal Gyrus,"A38l, lateral area 38","(78), STG_R_6_5",477
+Middle Temporal Gyrus,"A35/36r, rostral area 35/36","(109), PhG_L_6_1",475
+Prefrontal Cortex,"A45c, caudal area 45","(34), IFG_R_6_3",474
+Inferior Temporal Gyrus,"A37vm, ventromedial area37","(92), ITG_R_7_2",474
+Striatum,"dCa, dorsal caudate","(227), Str_L_6_5",472
+Prefrontal Cortex,"IFS, inferior frontal sulcus","(32), IFG_R_6_2",468
+Thalamus,"rTtha, rostral Temporal thalamus","(238), Tha_R_8_4",468
+Middle Temporal Gyrus,"A28/34, area 28/34 (EC, entorhinal cortex)","(115), PhG_L_6_4",467
+Inferior Parietal Lobe,"A39c, caudal area 39(PGp)","(135), IPL_L_6_1",467
+Middle Temporal Gyrus,"A35/36c, caudal area 35/36","(111), PhG_L_6_2",464
+Striatum,"dCa, dorsal caudate","(228), Str_R_6_5",460
+Inferior Temporal Gyrus,"A20r, rostral area 20","(93), ITG_L_7_3",459
+Striatum,"vCa, ventral caudate","(219), Str_L_6_1",456
+Prefrontal Cortex,"A10m, medial area 10","(13), SFG_L_7_7",450
+Inferior Parietal Lobe,"A39rd, rostrodorsal area 39(Hip3)","(138), IPL_R_6_2",450
+Cingulate Gyrus,"A23v, ventral area 23","(182), CG_R_7_4",449
+"PCC, Precuneus","dmPOS, dorsomeidal parietooccipital  sulcus(PEr) ","(151), Pcun_L_4_3",448
+Prefrontal Cortex,"A9m,medial area 9","(12), SFG_R_7_6",447
+Prefrontal Cortex,"IFJ, inferior frontal junction","(18), MFG_R_7_2",444
+Middle Temporal Gyrus,"A28/34, area 28/34 (EC, entorhinal cortex)","(116), PhG_R_6_4",442
+Inferior Temporal Gyrus,"A20il, intermediate lateral area 20","(96), ITG_R_7_4",441
+Prefrontal Cortex,"A11l, lateral area 11","(45), OrG_L_6_3",439
+Thalamus,"Otha, occipital thalamus","(242), Tha_R_8_6",438
+Precentral Gyrus,"A4t, area 4(trunk region)","(60), PrG_R_6_4",436
+"PCC, Precuneus","dmPOS, dorsomeidal parietooccipital  sulcus(PEr) ","(152), Pcun_R_4_3",435
+Superior Parietal Lobule,"A7pc, postcentral area 7","(130), SPL_R_5_3",422
+Prefrontal Cortex,"A44d,dorsal area 44","(30), IFG_R_6_1",420
+Striatum,"dlPu, dorsolateral putamen","(230), Str_R_6_6",420
+"PCC, Precuneus","A7m, medial area 7(PEp)","(147), Pcun_L_4_1",419
+Paracentral Lobule,"A4ll, area 4, (lower limb region)","(67), PCL_L_2_2",416
+Superior Temporal Gyrus,"A38m, medial area 38","(69), STG_L_6_1",415
+Postcentral Gyrus,"A2, area 2","(160), PoG_R_4_3",414
+Cingulate Gyrus,"A23v, ventral area 23","(181), CG_L_7_4",408
+Thalamus,"PPtha, posterior parietal thalamus","(240), Tha_R_8_5",407
+Superior Parietal Lobule,"A7ip, intraparietal area 7(hIP3)","(126), SPL_R_5_1",404
+Striatum,"dlPu, dorsolateral putamen","(229), Str_L_6_6",399
+Precentral Gyrus,"A4ul, area 4(upper limb region)","(57), PrG_L_6_3",394
+Middle Temporal Gyrus,"mAmyg, medial amyg","(211), Amyg_L_2_1",390
+Precentral Gyrus,"A4t, area 4(trunk region)","(59), PrG_L_6_4",390
+Middle Temporal Gyrus,"rHipp, rostral hipp","(216), Hipp_R_2_1",382

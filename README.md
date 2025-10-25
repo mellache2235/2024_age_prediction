@@ -272,30 +272,30 @@ source venv/bin/activate       # For venv
 
 ### 1. Configuration
 
-Edit `config.yaml` to specify your data paths and analysis parameters:
+The `config.yaml` file is already configured with the correct paths for the HPC system. Key sections include:
 
 ```yaml
 # Network Analysis Configuration
 network_analysis:
-  ig_dir: "/path/to/integrated_gradients"
-  model_prefix: "dev_age_model"
-  num_models: 5
-  yeo_atlas_path: "/path/to/yeo_atlas.csv"
-  percentile: 95.0
+  count_data:
+    dev: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/dev/ig_files/top_50_consensus_features_hcp_dev_aging.xlsx"
+    nki: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/nki/ig_files/top_50_consensus_features_nki_cog_dev_aging.xlsx"
+    # ... other datasets
 
-# Brain-Behavior Analysis
-brain_behavior:
-  data_dir: "/path/to/behavioral_data"
-  analyze_cmihbn_td: true
-  analyze_adhd200_td: true
-  correction_method: "fdr_bh"
+# Comprehensive Brain-Behavior Analysis Datasets
+nki_rs_td:
+  ig_csv: "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/nki_count_data.csv"
+  behavioral_data: "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/nki_age_cog_dev_wIDs/fold_0.bin"
+# ... other datasets
 ```
+
+**Important**: The CSV file paths point to the `2024_age_prediction_test` directory where `convert_count_data.py` saves the converted files.
 
 ### 2. Complete Analysis Workflow
 
 **🎯 Using Pre-trained Models (Recommended)**
 
-Follow this 8-step workflow using existing trained models and data:
+Follow this 9-step workflow using existing trained models and data:
 
 > **Note**: Run all commands from the `scripts/` directory. Use `../config.yaml` for config file and `../results/` for output paths.
 
@@ -321,56 +321,24 @@ python compute_integrated_gradients.py --dataset abide_asd --fold 0
 python compute_integrated_gradients.py --dataset stanford_asd --fold 0
 
 # Step 4: Convert existing count data Excel files to CSV format
-# (Uses existing Excel files from results/figures/*/ig_files/)
+# (Converts Excel files from results/figures/*/ig_files/ to CSV files in test directory)
 python convert_count_data.py
+# This creates CSV files in: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/
+# Files: nki_count_data.csv, adhd200_adhd_count_data.csv, cmihbn_adhd_count_data.csv, etc.
 
-# Step 5: Generate count data from IG computed from 5 trained CV models (if needed)
-# Note: Requires both --ig_csv and --output arguments
-python generate_count_data.py \
-  --ig_csv ../results/integrated_gradients/nki_rs_td/nki_rs_td_features_IG_convnet_regressor_trained_on_hcp_dev_fold_0.csv \
-  --output ../results/count_data/nki_rs_td_count_data.csv \
-  --percentile 50
+# Step 5: Create region tables for each dataset and shared regions
+# (Uses the converted CSV files from step 4)
+python create_region_tables.py --config ../config.yaml --output_dir ../results/region_tables
 
-python generate_count_data.py \
-  --ig_csv ../results/integrated_gradients/cmihbn_td/cmihbn_td_features_IG_convnet_regressor_trained_on_hcp_dev_fold_0.csv \
-  --output ../results/count_data/cmihbn_td_count_data.csv \
-  --percentile 50
+# Step 6: Compute cosine similarity between discovery and validation cohorts
+# (Uses the converted CSV files from step 4)
+python cosine_similarity_analysis.py --analysis_type all
 
-python generate_count_data.py \
-  --ig_csv ../results/integrated_gradients/adhd200_td/adhd200_td_features_IG_convnet_regressor_trained_on_hcp_dev_fold_0.csv \
-  --output ../results/count_data/adhd200_td_count_data.csv \
-  --percentile 50
-
-python generate_count_data.py \
-  --ig_csv ../results/integrated_gradients/adhd200_adhd/adhd200_adhd_features_IG_convnet_regressor_trained_on_hcp_dev_fold_0.csv \
-  --output ../results/count_data/adhd200_adhd_count_data.csv \
-  --percentile 50
-
-python generate_count_data.py \
-  --ig_csv ../results/integrated_gradients/cmihbn_adhd/cmihbn_adhd_features_IG_convnet_regressor_trained_on_hcp_dev_fold_0.csv \
-  --output ../results/count_data/cmihbn_adhd_count_data.csv \
-  --percentile 50
-
-python generate_count_data.py \
-  --ig_csv ../results/integrated_gradients/abide_asd/abide_asd_features_IG_convnet_regressor_trained_on_hcp_dev_fold_0.csv \
-  --output ../results/count_data/abide_asd_count_data.csv \
-  --percentile 50
-
-python generate_count_data.py \
-  --ig_csv ../results/integrated_gradients/stanford_asd/stanford_asd_features_IG_convnet_regressor_trained_on_hcp_dev_fold_0.csv \
-  --output ../results/count_data/stanford_asd_count_data.csv \
-  --percentile 50
-
-# Step 6: Create region tables for each dataset and shared regions
-python create_region_tables.py
-
-# Step 7: Compute cosine similarity between discovery and validation cohorts
-python cosine_similarity_analysis.py --analysis_type all --data_dir ../results/count_data/
-
-# Step 8: Generate feature maps and network analysis for each dataset
+# Step 7: Generate feature maps and network analysis for each dataset
 python network_analysis_yeo.py --process_all
 
-# Step 9: Brain behavior analysis for TD, ADHD, ASD
+# Step 8: Brain behavior analysis for TD, ADHD, ASD
+# (Uses the converted CSV files from step 4 - config.yaml points to correct paths)
 python comprehensive_brain_behavior_analysis.py --dataset nki_rs_td
 python comprehensive_brain_behavior_analysis.py --dataset cmihbn_td
 python comprehensive_brain_behavior_analysis.py --dataset adhd200_td
@@ -379,7 +347,7 @@ python comprehensive_brain_behavior_analysis.py --dataset cmihbn_adhd
 python comprehensive_brain_behavior_analysis.py --dataset abide_asd
 python comprehensive_brain_behavior_analysis.py --dataset stanford_asd
 
-# Step 10: Create all plots (separate plotting scripts)
+# Step 9: Create all plots (separate plotting scripts)
 # Brain age prediction plots
 python plot_brain_age_correlations.py --results_file ../results/brain_age_prediction_results.json
 
