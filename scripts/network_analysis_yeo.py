@@ -144,28 +144,40 @@ def aggregate_by_networks(count_data: pd.DataFrame) -> pd.DataFrame:
     Returns:
         pd.DataFrame: Network-level aggregated data
     """
+    # Determine which column to use for values (attribution or Count)
+    value_col = 'attribution' if 'attribution' in count_data.columns else 'Count'
+    
     # Debug: Check data before aggregation
     logging.info(f"Columns in count_data: {list(count_data.columns)}")
-    logging.info(f"Sample attribution values: {count_data['attribution'].head().tolist()}")
+    logging.info(f"Using value column: {value_col}")
+    logging.info(f"Sample {value_col} values: {count_data[value_col].head().tolist()}")
     logging.info(f"Sample network assignments: {count_data['network'].head().tolist()}")
     logging.info(f"Unique networks: {count_data['network'].unique()}")
     
     # Group by network and aggregate
     network_agg = count_data.groupby('network').agg({
-        'attribution': ['mean', 'std', 'count', 'sum']
+        value_col: ['mean', 'std', 'count', 'sum']
     }).round(4)
     
     # Flatten column names
     network_agg.columns = ['_'.join(col).strip() for col in network_agg.columns]
     network_agg = network_agg.reset_index()
     
-    # Rename columns for clarity
-    network_agg = network_agg.rename(columns={
-        'attribution_mean': 'mean_attribution',
-        'attribution_std': 'std_attribution',
-        'attribution_count': 'n_regions',
-        'attribution_sum': 'total_attribution'
-    })
+    # Rename columns for clarity (handle both 'attribution' and 'Count')
+    if value_col == 'attribution':
+        network_agg = network_agg.rename(columns={
+            'attribution_mean': 'mean_attribution',
+            'attribution_std': 'std_attribution',
+            'attribution_count': 'n_regions',
+            'attribution_sum': 'total_attribution'
+        })
+    else:  # value_col == 'Count'
+        network_agg = network_agg.rename(columns={
+            'Count_mean': 'mean_attribution',
+            'Count_std': 'std_attribution',
+            'Count_count': 'n_regions',
+            'Count_sum': 'total_attribution'
+        })
     
     # Sort by mean attribution
     network_agg = network_agg.sort_values('mean_attribution', ascending=False)
@@ -420,9 +432,13 @@ def create_shared_network_analysis(dataset_excel_paths: List[str],
         dataset_name = Path(excel_path).stem.replace('_count_data', '').replace('top_50_consensus_features_', '').replace('_aging', '')
         
         try:
-            count_data = pd.read_excel(excel_path)
+            # Read file based on extension
+            if excel_path.endswith('.csv'):
+                count_data = pd.read_csv(excel_path)
+            else:
+                count_data = pd.read_excel(excel_path)
         except Exception as e:
-            logging.error(f"Error reading Excel file {excel_path}: {e}")
+            logging.error(f"Error reading data file {excel_path}: {e}")
             continue
         
         # Check for required columns
