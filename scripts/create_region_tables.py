@@ -152,18 +152,19 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def create_dataset_region_table_from_excel(excel_path: str, 
                                           output_path: str,
-                                          roi_labels_path: str,
-                                          top_n: int = 50) -> pd.DataFrame:
+                                          roi_labels_path: str) -> pd.DataFrame:
     """
     Create a region table for a single dataset from Excel file.
     
     Format: Brain Regions, Subdivision, (ID) Region Label, Count
     
+    Note: The count data already reflects top 50% of features (filtered during IG processing),
+    so we use all regions from the count data file.
+    
     Args:
-        excel_path (str): Path to count data Excel file
+        excel_path (str): Path to count data Excel file (already filtered to top 50%)
         output_path (str): Output path for the table
         roi_labels_path (str): Path to ROI labels file for accurate mapping
-        top_n (int): Number of top regions to include
         
     Returns:
         pd.DataFrame: Region table
@@ -187,15 +188,17 @@ def create_dataset_region_table_from_excel(excel_path: str,
     # Load ROI labels for accurate brain region mapping
     roi_mapping = load_roi_labels_mapping(roi_labels_path)
     
-    # Sort by count and get top N
-    top_regions = count_data.nlargest(top_n, 'Count')
+    # Use all regions from count data (already filtered to top 50% during IG processing)
+    all_regions = count_data.sort_values('Count', ascending=False)
+    
+    logging.info(f"Using all {len(all_regions)} regions from count data (already filtered to top 50%)")
     
     # Create final table with correct column mapping
     region_table = pd.DataFrame({
-        'Brain Regions': top_regions.apply(lambda row: get_accurate_brain_region(row, roi_mapping), axis=1),
-        'Subdivision': top_regions.apply(lambda row: get_subdivision_name(row), axis=1),
-        '(ID) Region Label': top_regions.get('(ID) Region Label', top_regions.get('Region ID', 'Unknown')),
-        'Count': top_regions['Count']
+        'Brain Regions': all_regions.apply(lambda row: get_accurate_brain_region(row, roi_mapping), axis=1),
+        'Subdivision': all_regions.apply(lambda row: get_subdivision_name(row), axis=1),
+        '(ID) Region Label': all_regions.get('(ID) Region Label', all_regions.get('Region ID', 'Unknown')),
+        'Count': all_regions['Count']
     })
     
     # Save table
@@ -208,7 +211,6 @@ def create_dataset_region_table_from_excel(excel_path: str,
 def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
                                          output_path: str,
                                          roi_labels_path: str,
-                                         top_n: int = 50,
                                          min_datasets: int = 2) -> pd.DataFrame:
     """
     Create a table of regions shared across multiple datasets from Excel files.
@@ -216,11 +218,13 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
     Format: Brain Regions, Subdivision, (ID) Region Label, Count
     For shared regions: Count = minimum count across datasets
     
+    Note: The count data already reflects top 50% of features (filtered during IG processing),
+    so we find overlap of all regions in the count data files.
+    
     Args:
-        dataset_excel_paths (List[str]): List of paths to count data Excel files
+        dataset_excel_paths (List[str]): List of paths to count data Excel files (already filtered to top 50%)
         output_path (str): Output path for the table
         roi_labels_path (str): Path to ROI labels file for accurate mapping
-        top_n (int): Number of top regions to include per dataset
         min_datasets (int): Minimum number of datasets a region must appear in
         
     Returns:
@@ -250,10 +254,8 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
             logging.error(f"No Count column found in {excel_path}. Available columns: {list(count_data.columns)}")
             continue
         
-        # Get top N regions
-        top_regions = count_data.nlargest(top_n, 'Count')
-        
-        for _, row in top_regions.iterrows():
+        # Use all regions (count data already filtered to top 50% during IG processing)
+        for _, row in count_data.iterrows():
             # Use Region ID as the key for matching across datasets
             region_id = row.get('Region ID', row.get('(ID) Region Label', 'Unknown'))
             
@@ -516,7 +518,7 @@ def create_overlap_table_from_csvs(csv_paths: List[str],
             logging.error(f"No Count column found in {csv_path}. Available columns: {list(count_data.columns)}")
             continue
         
-        # Get all regions (not just top N)
+        # Use all regions (count data already filtered to top 50% during IG processing)
         for _, row in count_data.iterrows():
             # Use Region ID as the key for matching across datasets
             region_id = row.get('Region ID', row.get('(ID) Region Label', 'Unknown'))
@@ -612,24 +614,40 @@ Examples:
             logging.error("Failed to create individual region table")
     
     elif args.config:
+        # Import logging utils
+        sys.path.append(str(Path(__file__).parent.parent / 'utils'))
+        from logging_utils import (print_section_header, print_step, print_success, 
+                                   print_info, print_completion)
+        
+        print_section_header("CREATE REGION TABLES")
+        
         # Load configuration and create all tables
         with open(args.config, 'r') as f:
             config = yaml.safe_load(f)
         
-        # Create both individual dataset tables and overlap tables
-        logging.info("Creating individual dataset region tables...")
-        individual_tables = create_all_region_tables(config, args.output_dir)
+        print_info(f"Output directory: {args.output_dir}")
+        print()
         
-        logging.info("Creating overlap region tables...")
+        # Create both individual dataset tables and overlap tables
+        print_step(1, "INDIVIDUAL DATASET TABLES", "Creating region tables for each dataset")
+        individual_tables = create_all_region_tables(config, args.output_dir)
+        print_success(f"Created {len(individual_tables)} individual tables")
+        print()
+        
+        print_step(2, "OVERLAP TABLES", "Creating overlap region tables for cohorts (TD, ADHD, ASD)")
         overlap_tables = create_overlap_region_tables(config, args.output_dir)
+        print_success(f"Created {len(overlap_tables)} overlap tables")
+        print()
         
         # Combine all tables
         all_tables = {**individual_tables, **overlap_tables}
         
-        logging.info("=== REGION TABLES SUMMARY ===")
+        print_section_header("REGION TABLES SUMMARY")
         for table_name, table in all_tables.items():
-            logging.info(f"{table_name}: {len(table)} regions")
-        logging.info("Region table creation completed!")
+            print_info(f"{table_name}: {len(table)} regions")
+        
+        output_files = [f"{args.output_dir}/*.csv"]
+        print_completion("Region Table Creation", output_files)
     
     else:
         parser.print_help()

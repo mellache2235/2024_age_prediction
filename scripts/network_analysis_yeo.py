@@ -449,10 +449,8 @@ def create_shared_network_analysis(dataset_excel_paths: List[str],
             logging.error(f"No Count column found in {excel_path}. Available columns: {list(count_data.columns)}")
             continue
         
-        # Get top 50 regions
-        top_regions = count_data.nlargest(50, 'Count')
-        
-        for _, row in top_regions.iterrows():
+        # Use all regions (count data already filtered to top 50% during IG processing)
+        for _, row in count_data.iterrows():
             # Use Region ID as the key for matching across datasets
             region_id = row.get('Region ID', row.get('(ID) Region Label', 'Unknown'))
             

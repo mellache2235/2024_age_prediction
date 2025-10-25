@@ -81,31 +81,41 @@ python analyze_td_shared_regions.py --threshold 450
 /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/
 ```
 
-**Key folders for PNG files:**
+**Key folders for files to download:**
 
-1. **Network Analysis Plots** (Steps 2 & 3):
+1. **Network Analysis Plots** (Steps 2 & 3) - PNG files:
    - Individual datasets: `results/network_analysis_yeo/{dataset_name}/{dataset_name}_network_radar_plot.png`
-     - Datasets: dev, nki, adhd200_td, cmihbn_td, adhd200_adhd, cmihbn_adhd, abide_asd, stanford_asd
+     - 8 datasets: dev, nki, adhd200_td, cmihbn_td, adhd200_adhd, cmihbn_adhd, abide_asd, stanford_asd
    - Shared cohorts: `results/network_analysis_yeo/shared_{TD,ADHD,ASD}/shared_network_radar.png`
-     - 3 files total (one for each cohort type)
+     - 3 files: shared_TD, shared_ADHD, shared_ASD
 
-2. **Brain Age Plots** (Step 5):
+2. **Region Tables** (Step 4) - CSV files:
+   - Individual: `results/region_tables/{dataset_name}_region_table.csv` (8 files)
+   - Overlap: `results/region_tables/overlap_regions_{TD,ADHD,ASD}.csv` (3 files)
+
+3. **Brain Age Plots** (Step 5) - PNG files:
    - Location: `results/brain_age_plots/`
    - Files:
      - `td_cohorts_combined_scatter.png` (2x2 subplot: HCP-Dev, NKI, CMI-HBN TD, ADHD200 TD)
      - `adhd_cohorts_combined_scatter.png` (1x2 subplot: CMI-HBN ADHD, ADHD200 ADHD)
      - `asd_cohorts_combined_scatter.png` (1x2 subplot: ABIDE ASD, Stanford ASD)
 
-3. **Brain-Behavior Plots** (Step 6, optional):
+4. **Brain-Behavior Plots** (Step 6, optional) - PNG files:
    - Location: `results/brain_behavior_analysis/{dataset_name}/`
    - Various correlation and scatter plots (if Step 6 is run)
 
-**To download all PNG files from HPC:**
+**To download files from HPC:**
 ```bash
 # From your local machine, run:
-scp -r username@login.sherlock.stanford.edu:/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/*.png ./local_folder/
 
-# Or download entire results folder:
+# Download all PNG plots
+scp -r username@login.sherlock.stanford.edu:/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/ ./local_folder/network_plots/
+scp -r username@login.sherlock.stanford.edu:/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots/ ./local_folder/brain_age_plots/
+
+# Download CSV tables
+scp -r username@login.sherlock.stanford.edu:/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/region_tables/ ./local_folder/region_tables/
+
+# Or download entire results folder (includes everything):
 scp -r username@login.sherlock.stanford.edu:/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/ ./local_folder/
 ```
 
@@ -139,16 +149,15 @@ All results are saved to: `/oak/stanford/groups/menon/projects/mellache/2024_age
 
 ### **Step 4: Region Tables**
 - **Location**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/region_tables/`
-- **Individual Tables**: `{dataset_name}_region_table.csv` - One per dataset
-- **Shared Tables**: 
-  - `shared_regions_TD.csv` - Shared across TD cohorts
-  - `shared_regions_ADHD.csv` - Shared across ADHD cohorts
-  - `shared_regions_ASD.csv` - Shared across ASD cohorts
-- **Overlap Tables**:
-  - `overlap_regions_TD.csv` - Minimum count overlap for TD
-  - `overlap_regions_ADHD.csv` - Minimum count overlap for ADHD
-  - `overlap_regions_ASD.csv` - Minimum count overlap for ASD
+- **Individual Tables**: `{dataset_name}_region_table.csv` - One per dataset (~123 regions, top 50%)
+  - Examples: `dev_region_table.csv`, `nki_region_table.csv`, `adhd200_td_region_table.csv`, etc.
+- **Overlap Tables** (regions shared across cohorts):
+  - `overlap_regions_TD.csv` - Overlap across TD cohorts (HCP-Dev, NKI, CMI-HBN TD, ADHD200 TD)
+  - `overlap_regions_ADHD.csv` - Overlap across ADHD cohorts (CMI-HBN ADHD, ADHD200 ADHD)
+  - `overlap_regions_ASD.csv` - Overlap across ASD cohorts (ABIDE ASD, Stanford ASD)
 - **Format**: CSV with columns: Brain Regions, Subdivision, (ID) Region Label, Count
+- **Count Method**: Minimum count across datasets for overlapping regions
+- **Note**: Count data already filtered to top 50% during IG processing (PERCENTILE=50)
 
 ### **Step 5: Brain Age Plots**
 - **Location**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots/`
@@ -246,6 +255,26 @@ All plots follow these conventions for publication-ready figures:
 - ✅ **P-value format**: "< 0.001" for very small p-values
 - ✅ **File format**: PNG only (no PDF or SVG)
 - ✅ **Seaborn styling**: White background, professional appearance
+
+### **Shared Region Analysis Methodology**
+The pipeline uses a **top 50% percentile approach** for finding shared important regions:
+
+1. **IG Processing**: During integrated gradients analysis, only features (ROIs) in the top 50th percentile are counted
+2. **Count Data**: Each dataset's count data already reflects only the top 50% of features
+3. **Find Overlap**: Identify regions that appear in multiple datasets (from their top 50%)
+4. **Minimum Count**: For shared regions, use the minimum count across datasets
+5. **Network Mapping**: Map shared regions to Yeo 17-network atlas
+6. **Radar Plots**: Visualize network-level aggregation of shared regions
+
+**Example for TD cohorts:**
+- HCP-Dev: ~123 regions (top 50% of 246 ROIs)
+- NKI: ~123 regions (top 50% of 246 ROIs)
+- CMI-HBN TD: ~123 regions (top 50% of 246 ROIs)
+- ADHD200 TD: ~123 regions (top 50% of 246 ROIs)
+- **Shared**: Regions that appear in at least 2 datasets
+- **Radar plot**: Shows network-level aggregation of shared regions
+
+This approach ensures we focus on the most important regions (top 50% by IG scores) that are consistently identified across cohorts.
 
 ## 📂 **Repository Structure**
 
