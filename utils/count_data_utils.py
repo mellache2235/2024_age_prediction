@@ -123,7 +123,7 @@ def load_count_data(excel_path: str,
         raise
 
 
-def process_all_count_data(config: Dict, output_dir: str = "results/count_data") -> Dict[str, pd.DataFrame]:
+def process_all_count_data(config: Dict, output_dir: str = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data") -> Dict[str, pd.DataFrame]:
     """
     Process all count data files from configuration.
     

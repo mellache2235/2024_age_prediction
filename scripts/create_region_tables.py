@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-Create tables for regions of importance based on count data from CSV files.
+Create tables for regions of importance based on count data from Excel files.
 
 This script generates comprehensive tables summarizing important brain regions
-across different datasets and cohorts using the count data CSV files.
+across different datasets and cohorts using the count data Excel files.
+
+Format: Brain Regions, Subdivision, (ID) Region Label, Count
+For shared regions: Count = minimum count across datasets
 """
 
 import os
@@ -22,110 +25,38 @@ try:
 except ImportError:
     logging.warning("openpyxl not found. Install with: pip install openpyxl")
 
-# Define the create_region_mapping function directly to avoid import issues
-def create_region_mapping(roi_labels_path: str) -> Dict[int, str]:
-    """
-    Create mapping from ROI index to region name.
-    
-    Args:
-        roi_labels_path (str): Path to ROI labels text file
-    
-    Returns:
-        Dict[int, str]: Mapping from ROI index to region name
-    """
-    try:
-        with open(roi_labels_path, 'r') as f:
-            roi_labels = [line.strip() for line in f.readlines()]
-        
-        # Create mapping (assuming 1-based indexing)
-        roi_mapping = {i+1: label for i, label in enumerate(roi_labels)}
-        
-        logging.info(f"Created ROI mapping: {len(roi_mapping)} regions")
-        return roi_mapping
-        
-    except Exception as e:
-        logging.error(f"Error creating ROI mapping: {e}")
-        return {}
-
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
-def create_dataset_region_table_from_dataframe(count_data: pd.DataFrame, 
-                                               roi_labels_path: str,
-                                               output_path: str,
-                                               top_n: int = 50) -> pd.DataFrame:
+def create_dataset_region_table_from_excel(excel_path: str, 
+                                          output_path: str,
+                                          top_n: int = 50) -> pd.DataFrame:
     """
-    Create a region table for a single dataset from a DataFrame.
+    Create a region table for a single dataset from Excel file.
+    
+    Format: Brain Regions, Subdivision, (ID) Region Label, Count
     
     Args:
-        count_data (pd.DataFrame): Count data DataFrame
-        roi_labels_path (str): Path to ROI labels file
+        excel_path (str): Path to count data Excel file
         output_path (str): Output path for the table
         top_n (int): Number of top regions to include
         
     Returns:
         pd.DataFrame: Region table
     """
-    # Load ROI labels
-    roi_mapping = create_region_mapping(roi_labels_path)
+    # Load count data from Excel
+    try:
+        count_data = pd.read_excel(excel_path)
+    except Exception as e:
+        logging.error(f"Error reading Excel file {excel_path}: {e}")
+        return pd.DataFrame()
     
-    # Extract ROI index from region names
-    def extract_roi_index(region_name):
-        try:
-            if isinstance(region_name, str):
-                import re
-                numbers = re.findall(r'\d+', region_name)
-                if numbers:
-                    return int(numbers[0])
-            elif isinstance(region_name, (int, float)):
-                return int(region_name)
-        except:
-            pass
-        return None
-    
-    count_data['roi_index'] = count_data['region'].apply(extract_roi_index)
-    
-    # Map ROI indices to region names
-    count_data['region_name'] = count_data['roi_index'].map(roi_mapping)
-    
-    # Sort by count and get top N
-    top_regions = count_data.nlargest(top_n, 'Count')
-    
-    # Create final table
-    region_table = pd.DataFrame({
-        'ROI_Index': top_regions['roi_index'],
-        'Region_Name': top_regions['region_name'],
-        'Count': top_regions['Count'],
-        'Rank': range(1, len(top_regions) + 1)
-    })
-    
-    # Save table
-    region_table.to_csv(output_path, index=False)
-    logging.info(f"Created region table for dataset: {len(region_table)} regions saved to {output_path}")
-    
-    return region_table
-
-
-def create_dataset_region_table(count_csv_path: str, 
-                               roi_labels_path: str,
-                               output_path: str,
-                               top_n: int = 50) -> pd.DataFrame:
-    """
-    Create a region table for a single dataset in the format:
-    Brain Regions, Subdivision, (ID) Region Label, Count
-    
-    Args:
-        count_csv_path (str): Path to count data CSV file
-        roi_labels_path (str): Path to ROI labels file
-        output_path (str): Output path for the table
-        top_n (int): Number of top regions to include
-        
-    Returns:
-        pd.DataFrame: Region table
-    """
-    # Load count data
-    count_data = pd.read_csv(count_csv_path)
+    # Check for required columns
+    required_cols = ['Count']
+    if not all(col in count_data.columns for col in required_cols):
+        logging.error(f"Missing required columns in {excel_path}. Available: {list(count_data.columns)}")
+        return pd.DataFrame()
     
     # Sort by count and get top N
     top_regions = count_data.nlargest(top_n, 'Count')
@@ -134,7 +65,7 @@ def create_dataset_region_table(count_csv_path: str,
     region_table = pd.DataFrame({
         'Brain Regions': top_regions.get('Gyrus', top_regions.get('Description', 'Unknown')),
         'Subdivision': top_regions.get('Region Alias', 'Unknown'),
-        '(ID) Region Label': top_regions.get('(ID) Region Label', top_regions.get('region', 'Unknown')),
+        '(ID) Region Label': top_regions.get('(ID) Region Label', top_regions.get('Region ID', 'Unknown')),
         'Count': top_regions['Count']
     })
     
@@ -146,16 +77,17 @@ def create_dataset_region_table(count_csv_path: str,
 
 
 def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
-                                         roi_labels_path: str,
                                          output_path: str,
                                          top_n: int = 50,
                                          min_datasets: int = 2) -> pd.DataFrame:
     """
     Create a table of regions shared across multiple datasets from Excel files.
     
+    Format: Brain Regions, Subdivision, (ID) Region Label, Count
+    For shared regions: Count = minimum count across datasets
+    
     Args:
         dataset_excel_paths (List[str]): List of paths to count data Excel files
-        roi_labels_path (str): Path to ROI labels file
         output_path (str): Output path for the table
         top_n (int): Number of top regions to include per dataset
         min_datasets (int): Minimum number of datasets a region must appear in
@@ -163,9 +95,6 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
     Returns:
         pd.DataFrame: Shared regions table
     """
-    # Load ROI labels
-    roi_mapping = create_region_mapping(roi_labels_path)
-    
     # Collect top regions from each dataset
     all_regions = {}
     
@@ -174,220 +103,75 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
             logging.warning(f"Count data file not found: {excel_path}")
             continue
             
-        dataset_name = Path(excel_path).stem.replace('top_50_consensus_features_', '').replace('_aging', '')
+        dataset_name = Path(excel_path).stem.replace('_count_data', '').replace('top_50_consensus_features_', '').replace('_aging', '')
+        
         try:
             count_data = pd.read_excel(excel_path)
-            logging.info(f"Columns in {excel_path}: {list(count_data.columns)}")
-            
-            # Check if we have the expected columns
-            if 'region' not in count_data.columns:
-                # Try alternative column names (including the actual column names from your files)
-                possible_region_cols = ['Region ID', 'Region', 'ROI', 'roi', 'Region Label', 'Region_Label', '(ID) Region Label']
-                region_col = None
-                for col in possible_region_cols:
-                    if col in count_data.columns:
-                        region_col = col
-                        break
-                
-                if region_col:
-                    # Rename the column to 'region' for consistency
-                    count_data = count_data.rename(columns={region_col: 'region'})
-                    logging.info(f"Renamed column '{region_col}' to 'region'")
-                else:
-                    logging.error(f"No region column found in {excel_path}. Available columns: {list(count_data.columns)}")
-                    continue
-            
-            # Check for Count column
-            if 'Count' not in count_data.columns:
-                # Try alternative column names for count
-                possible_count_cols = ['count', 'Counts', 'counts', 'Frequency', 'frequency']
-                count_col = None
-                for col in possible_count_cols:
-                    if col in count_data.columns:
-                        count_col = col
-                        break
-                
-                if count_col:
-                    # Rename the column to 'Count' for consistency
-                    count_data = count_data.rename(columns={count_col: 'Count'})
-                    logging.info(f"Renamed column '{count_col}' to 'Count'")
-                else:
-                    logging.error(f"No count column found in {excel_path}. Available columns: {list(count_data.columns)}")
-                    continue
-                    
         except Exception as e:
             logging.error(f"Error reading Excel file {excel_path}: {e}")
             continue
         
-        # Extract ROI index
-        def extract_roi_index(region_name):
-            try:
-                if isinstance(region_name, str):
-                    import re
-                    numbers = re.findall(r'\d+', region_name)
-                    if numbers:
-                        return int(numbers[0])
-                elif isinstance(region_name, (int, float)):
-                    return int(region_name)
-            except:
-                pass
-            return None
-        
-        count_data['roi_index'] = count_data['region'].apply(extract_roi_index)
-        
-        # Get top N regions
-        top_regions = count_data.nlargest(top_n, 'Count')
-        
-        for _, row in top_regions.iterrows():
-            roi_idx = row['roi_index']
-            if roi_idx is not None:
-                if roi_idx not in all_regions:
-                    all_regions[roi_idx] = {
-                        'region_name': roi_mapping.get(roi_idx, f'ROI_{roi_idx}'),
-                        'datasets': [],
-                        'counts': [],
-                    }
-                all_regions[roi_idx]['datasets'].append(dataset_name)
-                all_regions[roi_idx]['counts'].append(row['Count'])
-    
-    # Filter regions that appear in at least min_datasets
-    shared_regions = {roi_idx: data for roi_idx, data in all_regions.items() 
-                     if len(data['datasets']) >= min_datasets}
-    
-    # Create table
-    table_data = []
-    for roi_idx, data in shared_regions.items():
-        table_data.append({
-            'ROI_Index': roi_idx,
-            'Region_Name': data['region_name'],
-            'N_Datasets': len(data['datasets']),
-            'Datasets': ', '.join(data['datasets']),
-            'Mean_Count': np.mean(data['counts']),
-            'Max_Count': np.max(data['counts']),
-            'Min_Count': np.min(data['counts']),
-            'Std_Count': np.std(data['counts'])
-        })
-    
-    # Create and sort table
-    if table_data:
-        shared_table = pd.DataFrame(table_data)
-        shared_table = shared_table.sort_values('Mean_Count', ascending=False)
-        shared_table['Rank'] = range(1, len(shared_table) + 1)
-        
-        # Save table
-        shared_table.to_csv(output_path, index=False)
-        logging.info(f"Created shared region table: {len(shared_table)} regions shared across datasets, saved to {output_path}")
-    else:
-        # Create empty table with proper columns
-        shared_table = pd.DataFrame(columns=['ROI_Index', 'Region_Name', 'N_Datasets', 'Datasets', 'Mean_Count', 'Max_Count', 'Min_Count', 'Std_Count', 'Rank'])
-        shared_table.to_csv(output_path, index=False)
-        logging.warning(f"No shared regions found. Created empty table at {output_path}")
-    
-    return shared_table
-
-
-def create_shared_region_table(dataset_csv_paths: List[str],
-                              roi_labels_path: str,
-                              output_path: str,
-                              top_n: int = 50,
-                              min_datasets: int = 2) -> pd.DataFrame:
-    """
-    Create a table of regions shared across multiple datasets.
-    
-    Args:
-        dataset_csv_paths (List[str]): List of paths to count data CSV files
-        roi_labels_path (str): Path to ROI labels file
-        output_path (str): Output path for the table
-        top_n (int): Number of top regions to include per dataset
-        min_datasets (int): Minimum number of datasets a region must appear in
-        
-    Returns:
-        pd.DataFrame: Shared regions table
-    """
-    # Load ROI labels
-    roi_mapping = create_region_mapping(roi_labels_path)
-    
-    # Collect top regions from each dataset
-    all_regions = {}
-    
-    for csv_path in dataset_csv_paths:
-        if not os.path.exists(csv_path):
-            logging.warning(f"Count data file not found: {csv_path}")
+        # Check for required columns
+        if 'Count' not in count_data.columns:
+            logging.error(f"No Count column found in {excel_path}. Available columns: {list(count_data.columns)}")
             continue
-            
-        dataset_name = Path(csv_path).stem.replace('_count_data', '')
-        count_data = pd.read_csv(csv_path)
-        
-        # Extract ROI index
-        def extract_roi_index(region_name):
-            try:
-                if isinstance(region_name, str):
-                    import re
-                    numbers = re.findall(r'\d+', region_name)
-                    if numbers:
-                        return int(numbers[0])
-                elif isinstance(region_name, (int, float)):
-                    return int(region_name)
-            except:
-                pass
-            return None
-        
-        count_data['roi_index'] = count_data['region'].apply(extract_roi_index)
         
         # Get top N regions
         top_regions = count_data.nlargest(top_n, 'Count')
         
         for _, row in top_regions.iterrows():
-            roi_idx = row['roi_index']
-            if roi_idx is not None:
-                if roi_idx not in all_regions:
-                    all_regions[roi_idx] = {
-                        'region_name': roi_mapping.get(roi_idx, f'ROI_{roi_idx}'),
-                        'datasets': [],
-                        'counts': [],
-                    }
-                all_regions[roi_idx]['datasets'].append(dataset_name)
-                all_regions[roi_idx]['counts'].append(row['Count'])
+            # Use Region ID as the key for matching across datasets
+            region_id = row.get('Region ID', row.get('(ID) Region Label', 'Unknown'))
+            
+            if region_id not in all_regions:
+                all_regions[region_id] = {
+                    'brain_region': row.get('Gyrus', row.get('Description', 'Unknown')),
+                    'subdivision': row.get('Region Alias', 'Unknown'),
+                    'region_label': row.get('(ID) Region Label', region_id),
+                    'counts': [],
+                    'datasets': []
+                }
+            
+            all_regions[region_id]['counts'].append(row['Count'])
+            all_regions[region_id]['datasets'].append(dataset_name)
     
     # Filter regions that appear in at least min_datasets
-    shared_regions = {roi_idx: data for roi_idx, data in all_regions.items() 
+    shared_regions = {region_id: data for region_id, data in all_regions.items() 
                      if len(data['datasets']) >= min_datasets}
     
-    # Create table
+    # Create table in the desired format
+    # For shared regions, use the MINIMUM count across datasets (as requested)
     table_data = []
-    for roi_idx, data in shared_regions.items():
+    for region_id, data in shared_regions.items():
+        min_count = np.min(data['counts'])
+        
         table_data.append({
-            'ROI_Index': roi_idx,
-            'Region_Name': data['region_name'],
-            'N_Datasets': len(data['datasets']),
-            'Datasets': ', '.join(data['datasets']),
-            'Mean_Count': np.mean(data['counts']),
-            'Max_Count': np.max(data['counts']),
-            'Min_Count': np.min(data['counts']),
-            'Std_Count': np.std(data['counts'])
+            'Brain Regions': data['brain_region'],
+            'Subdivision': data['subdivision'],
+            '(ID) Region Label': data['region_label'],
+            'Count': int(min_count)  # Use minimum count as requested
         })
     
     # Create and sort table
     if table_data:
         shared_table = pd.DataFrame(table_data)
-        shared_table = shared_table.sort_values('Mean_Count', ascending=False)
-        shared_table['Rank'] = range(1, len(shared_table) + 1)
+        shared_table = shared_table.sort_values('Count', ascending=False)
         
         # Save table
         shared_table.to_csv(output_path, index=False)
         logging.info(f"Created shared region table: {len(shared_table)} regions shared across datasets, saved to {output_path}")
     else:
         # Create empty table with proper columns
-        shared_table = pd.DataFrame(columns=['ROI_Index', 'Region_Name', 'N_Datasets', 'Datasets', 'Mean_Count', 'Max_Count', 'Min_Count', 'Std_Count', 'Rank'])
+        shared_table = pd.DataFrame(columns=['Brain Regions', 'Subdivision', '(ID) Region Label', 'Count'])
         shared_table.to_csv(output_path, index=False)
         logging.warning(f"No shared regions found. Created empty table at {output_path}")
     
     return shared_table
 
 
-def create_all_region_tables(config: Dict, output_dir: str = "results/region_tables", config_path: str = None) -> Dict[str, pd.DataFrame]:
+def create_all_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.DataFrame]:
     """
-    Create all region tables for different dataset groups.
+    Create all region tables (individual datasets and shared regions).
     
     Args:
         config (Dict): Configuration dictionary
@@ -396,171 +180,126 @@ def create_all_region_tables(config: Dict, output_dir: str = "results/region_tab
     Returns:
         Dict[str, pd.DataFrame]: Dictionary of created tables
     """
-    # Create output directory
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
     
-    # Get paths from config
-    roi_labels_path = config.get('network_analysis', {}).get('roi_labels_path')
+    # Get count data paths from config
+    count_data_paths = config.get('network_analysis', {}).get('count_data', {})
     
-    if not roi_labels_path:
-        logging.error("Missing required configuration: roi_labels_path")
+    if not count_data_paths:
+        logging.error("No count data paths found in configuration")
         return {}
     
     tables = {}
     
-    # Load Excel file paths from config
-    if config_path is None:
-        config_path = Path(__file__).parent.parent / 'config.yaml'
-    else:
-        config_path = Path(config_path)
-    
-    if not config_path.exists():
-        logging.error(f"Configuration file not found: {config_path}")
-        return {}
-    
-    with open(config_path, 'r') as f:
-        config = yaml.safe_load(f)
-    
-    # Get Excel file paths from config
-    excel_file_paths = config.get('network_analysis', {}).get('count_data', {})
-    
-    if not excel_file_paths:
-        logging.error("No count_data paths found in config file")
-        sys.exit(1)
-    
     # Create individual dataset tables
     logging.info("Creating individual dataset region tables...")
-    for dataset_name, excel_path in excel_file_paths.items():
-        if os.path.exists(excel_path):
-            # Convert Excel to CSV if needed, or read directly
-            try:
-                # Read Excel file directly
-                count_data = pd.read_excel(excel_path)
-                logging.info(f"Columns in {excel_path}: {list(count_data.columns)}")
-                
-                # Check if we have the expected columns
-                if 'region' not in count_data.columns:
-                    # Try alternative column names (including the actual column names from your files)
-                    possible_region_cols = ['Region ID', 'Region', 'ROI', 'roi', 'Region Label', 'Region_Label', '(ID) Region Label']
-                    region_col = None
-                    for col in possible_region_cols:
-                        if col in count_data.columns:
-                            region_col = col
-                            break
-                    
-                    if region_col:
-                        # Rename the column to 'region' for consistency
-                        count_data = count_data.rename(columns={region_col: 'region'})
-                        logging.info(f"Renamed column '{region_col}' to 'region'")
-                    else:
-                        logging.error(f"No region column found in {excel_path}. Available columns: {list(count_data.columns)}")
-                        continue
-                
-                # Check for Count column
-                if 'Count' not in count_data.columns:
-                    # Try alternative column names for count
-                    possible_count_cols = ['count', 'Counts', 'counts', 'Frequency', 'frequency']
-                    count_col = None
-                    for col in possible_count_cols:
-                        if col in count_data.columns:
-                            count_col = col
-                            break
-                    
-                    if count_col:
-                        # Rename the column to 'Count' for consistency
-                        count_data = count_data.rename(columns={count_col: 'Count'})
-                        logging.info(f"Renamed column '{count_col}' to 'Count'")
-                    else:
-                        logging.error(f"No count column found in {excel_path}. Available columns: {list(count_data.columns)}")
-                        continue
-                
-                output_path = os.path.join(output_dir, f"{dataset_name}_top_regions.csv")
-                table = create_dataset_region_table_from_dataframe(count_data, roi_labels_path, output_path)
-                tables[f"{dataset_name}_individual"] = table
-            except Exception as e:
-                logging.error(f"Error reading Excel file {excel_path}: {e}")
-        else:
+    for dataset_name, excel_path in count_data_paths.items():
+        if not os.path.exists(excel_path):
             logging.warning(f"Count data Excel file not found for {dataset_name}: {excel_path}")
+            continue
+        
+        output_path = os.path.join(output_dir, f"{dataset_name}_region_table.csv")
+        table = create_dataset_region_table_from_excel(excel_path, output_path)
+        if not table.empty:
+            tables[f"{dataset_name}_individual"] = table
     
-    # Create shared TD regions table
-    td_datasets = ['nki', 'adhd200_td', 'cmihbn_td']
-    td_excel_paths = [excel_file_paths[dataset] for dataset in td_datasets if dataset in excel_file_paths]
-    td_excel_paths = [path for path in td_excel_paths if os.path.exists(path)]
+    # Create shared region tables
+    logging.info("Creating shared region tables...")
     
-    if td_excel_paths:
-        logging.info("Creating shared TD regions table...")
-        output_path = os.path.join(output_dir, "shared_td_regions.csv")
-        td_table = create_shared_region_table_from_excel(td_excel_paths, roi_labels_path, output_path)
-        tables['shared_td'] = td_table
+    # Shared among TD cohorts
+    td_datasets = ['dev', 'nki', 'adhd200_td', 'cmihbn_td']
+    td_paths = [count_data_paths.get(d) for d in td_datasets if count_data_paths.get(d) and os.path.exists(count_data_paths.get(d))]
     
-    # Create shared ADHD regions table
+    if len(td_paths) >= 2:
+        output_path = os.path.join(output_dir, "shared_regions_TD.csv")
+        table = create_shared_region_table_from_excel(td_paths, output_path, min_datasets=2)
+        if not table.empty:
+            tables["shared_TD"] = table
+    
+    # Shared among ADHD cohorts
     adhd_datasets = ['adhd200_adhd', 'cmihbn_adhd']
-    adhd_excel_paths = [excel_file_paths[dataset] for dataset in adhd_datasets if dataset in excel_file_paths]
-    adhd_excel_paths = [path for path in adhd_excel_paths if os.path.exists(path)]
+    adhd_paths = [count_data_paths.get(d) for d in adhd_datasets if count_data_paths.get(d) and os.path.exists(count_data_paths.get(d))]
     
-    if adhd_excel_paths:
-        logging.info("Creating shared ADHD regions table...")
-        output_path = os.path.join(output_dir, "shared_adhd_regions.csv")
-        adhd_table = create_shared_region_table_from_excel(adhd_excel_paths, roi_labels_path, output_path)
-        tables['shared_adhd'] = adhd_table
+    if len(adhd_paths) >= 2:
+        output_path = os.path.join(output_dir, "shared_regions_ADHD.csv")
+        table = create_shared_region_table_from_excel(adhd_paths, output_path, min_datasets=2)
+        if not table.empty:
+            tables["shared_ADHD"] = table
     
-    # Create shared ASD regions table
+    # Shared among ASD cohorts
     asd_datasets = ['abide_asd', 'stanford_asd']
-    asd_excel_paths = [excel_file_paths[dataset] for dataset in asd_datasets if dataset in excel_file_paths]
-    asd_excel_paths = [path for path in asd_excel_paths if os.path.exists(path)]
+    asd_paths = [count_data_paths.get(d) for d in asd_datasets if count_data_paths.get(d) and os.path.exists(count_data_paths.get(d))]
     
-    if asd_excel_paths:
-        logging.info("Creating shared ASD regions table...")
-        output_path = os.path.join(output_dir, "shared_asd_regions.csv")
-        asd_table = create_shared_region_table_from_excel(asd_excel_paths, roi_labels_path, output_path)
-        tables['shared_asd'] = asd_table
+    if len(asd_paths) >= 2:
+        output_path = os.path.join(output_dir, "shared_regions_ASD.csv")
+        table = create_shared_region_table_from_excel(asd_paths, output_path, min_datasets=2)
+        if not table.empty:
+            tables["shared_ASD"] = table
     
-    # Create overall shared regions table (across all datasets)
-    all_excel_paths = [path for path in excel_file_paths.values() if os.path.exists(path)]
-    
-    if all_excel_paths:
-        logging.info("Creating overall shared regions table...")
-        output_path = os.path.join(output_dir, "shared_all_regions.csv")
-        all_table = create_shared_region_table_from_excel(all_excel_paths, roi_labels_path, output_path, min_datasets=3)
-        tables['shared_all'] = all_table
+    # Shared among all cohorts
+    all_paths = [path for path in count_data_paths.values() if path and os.path.exists(path)]
+    if len(all_paths) >= 3:
+        output_path = os.path.join(output_dir, "shared_regions_all.csv")
+        table = create_shared_region_table_from_excel(all_paths, output_path, min_datasets=3)
+        if not table.empty:
+            tables["shared_all"] = table
     
     logging.info(f"Created {len(tables)} region tables in {output_dir}")
     return tables
 
 
 def main():
-    """Main function to create region tables."""
-    parser = argparse.ArgumentParser(description="Create region tables from count data")
-    parser.add_argument("--config", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml",
-                       help="Path to configuration file")
-    parser.add_argument("--output_dir", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/region_tables",
-                       help="Output directory for tables")
+    """Main function."""
+    parser = argparse.ArgumentParser(
+        description="Create region tables from count data Excel files",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Create all region tables using config file
+  python create_region_tables_fixed.py --config config.yaml --output_dir results/region_tables
+  
+  # Create individual dataset table
+  python create_region_tables_fixed.py \\
+    --excel_path /path/to/count_data.xlsx \\
+    --output_path results/individual_table.csv
+        """
+    )
+    
+    parser.add_argument("--config", type=str, 
+                       help="Path to configuration YAML file")
+    parser.add_argument("--output_dir", type=str, default="results/region_tables",
+                       help="Output directory for region tables")
+    parser.add_argument("--excel_path", type=str,
+                       help="Path to single Excel file (for individual table)")
+    parser.add_argument("--output_path", type=str,
+                       help="Output path for single table")
     parser.add_argument("--top_n", type=int, default=50,
-                       help="Number of top regions to include")
+                       help="Number of top regions to include (default: 50)")
     
     args = parser.parse_args()
     
-    # Load configuration
-    config_path = Path(args.config)
-    if not config_path.exists():
-        # Try relative path as fallback
-        config_path = Path(__file__).parent.parent / 'config.yaml'
-        if not config_path.exists():
-            logging.error(f"Configuration file not found: {args.config} or {config_path}")
-            sys.exit(1)
+    if args.excel_path and args.output_path:
+        # Create single dataset table
+        table = create_dataset_region_table_from_excel(args.excel_path, args.output_path, args.top_n)
+        if not table.empty:
+            logging.info(f"Successfully created individual region table with {len(table)} regions")
+        else:
+            logging.error("Failed to create individual region table")
     
-    with open(config_path, 'r') as f:
-        config = yaml.safe_load(f)
+    elif args.config:
+        # Load configuration and create all tables
+        with open(args.config, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        tables = create_all_region_tables(config, args.output_dir)
+        
+        logging.info("=== REGION TABLES SUMMARY ===")
+        for table_name, table in tables.items():
+            logging.info(f"{table_name}: {len(table)} regions")
+        logging.info("Region table creation completed!")
     
-    # Create all region tables
-    tables = create_all_region_tables(config, args.output_dir, args.config)
-    
-    # Print summary
-    logging.info("=== REGION TABLES SUMMARY ===")
-    for table_name, table in tables.items():
-        logging.info(f"{table_name}: {len(table)} regions")
-    
-    logging.info("Region table creation completed!")
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":
