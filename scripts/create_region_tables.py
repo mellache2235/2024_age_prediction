@@ -25,12 +25,66 @@ try:
 except ImportError:
     logging.warning("openpyxl not found. Install with: pip install openpyxl")
 
+def load_roi_labels_mapping(roi_labels_path: str) -> Dict[int, str]:
+    """
+    Load ROI labels mapping from the Brainnetome ROI labels file.
+    
+    Args:
+        roi_labels_path (str): Path to the ROI labels file
+        
+    Returns:
+        Dict[int, str]: Mapping from ROI index to brain region name
+    """
+    roi_mapping = {}
+    try:
+        with open(roi_labels_path, 'r') as f:
+            for i, line in enumerate(f, 1):  # ROI indices start from 1
+                roi_mapping[i] = line.strip()
+        logging.info(f"Loaded {len(roi_mapping)} ROI labels from {roi_labels_path}")
+    except Exception as e:
+        logging.warning(f"Could not load ROI labels from {roi_labels_path}: {e}")
+    return roi_mapping
+
+def get_accurate_brain_region(row: pd.Series, roi_mapping: Dict[int, str]) -> str:
+    """
+    Get accurate brain region name using ROI mapping and available columns.
+    
+    Args:
+        row (pd.Series): Row from count data
+        roi_mapping (Dict[int, str]): ROI index to brain region mapping
+        
+    Returns:
+        str: Accurate brain region name
+    """
+    # Try to get ROI index from various possible column names
+    roi_id = None
+    for col in ['(ID) Region Label', 'Region ID', 'Region']:
+        if col in row and pd.notna(row[col]):
+            try:
+                # Extract numeric part from ROI ID (e.g., "ROI_001" -> 1)
+                roi_id = int(str(row[col]).split('_')[-1])
+                break
+            except (ValueError, IndexError):
+                continue
+    
+    # If we have ROI ID, use the mapping
+    if roi_id and roi_id in roi_mapping:
+        return roi_mapping[roi_id]
+    
+    # Fallback to available columns in order of preference
+    for col in ['Gyrus', 'Description', 'Region Alias']:
+        if col in row and pd.notna(row[col]) and str(row[col]).strip() != 'Unknown':
+            return str(row[col]).strip()
+    
+    return 'Unknown'
+
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 def create_dataset_region_table_from_excel(excel_path: str, 
                                           output_path: str,
+                                          roi_labels_path: str,
                                           top_n: int = 50) -> pd.DataFrame:
     """
     Create a region table for a single dataset from Excel file.
@@ -40,6 +94,7 @@ def create_dataset_region_table_from_excel(excel_path: str,
     Args:
         excel_path (str): Path to count data Excel file
         output_path (str): Output path for the table
+        roi_labels_path (str): Path to ROI labels file for accurate mapping
         top_n (int): Number of top regions to include
         
     Returns:
@@ -58,13 +113,16 @@ def create_dataset_region_table_from_excel(excel_path: str,
         logging.error(f"Missing required columns in {excel_path}. Available: {list(count_data.columns)}")
         return pd.DataFrame()
     
+    # Load ROI labels for accurate brain region mapping
+    roi_mapping = load_roi_labels_mapping(roi_labels_path)
+    
     # Sort by count and get top N
     top_regions = count_data.nlargest(top_n, 'Count')
     
-    # Create final table in the desired format
+    # Create final table with accurate brain region mapping
     region_table = pd.DataFrame({
-        'Brain Regions': top_regions.get('Gyrus', top_regions.get('Description', 'Unknown')),
-        'Subdivision': top_regions.get('Region Alias', 'Unknown'),
+        'Brain Regions': top_regions.apply(lambda row: get_accurate_brain_region(row, roi_mapping), axis=1),
+        'Subdivision': top_regions.get('Region Alias', top_regions.get('Gyrus', 'Unknown')),
         '(ID) Region Label': top_regions.get('(ID) Region Label', top_regions.get('Region ID', 'Unknown')),
         'Count': top_regions['Count']
     })
@@ -78,6 +136,7 @@ def create_dataset_region_table_from_excel(excel_path: str,
 
 def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
                                          output_path: str,
+                                         roi_labels_path: str,
                                          top_n: int = 50,
                                          min_datasets: int = 2) -> pd.DataFrame:
     """
@@ -89,12 +148,16 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
     Args:
         dataset_excel_paths (List[str]): List of paths to count data Excel files
         output_path (str): Output path for the table
+        roi_labels_path (str): Path to ROI labels file for accurate mapping
         top_n (int): Number of top regions to include per dataset
         min_datasets (int): Minimum number of datasets a region must appear in
         
     Returns:
         pd.DataFrame: Shared regions table
     """
+    # Load ROI labels for accurate brain region mapping
+    roi_mapping = load_roi_labels_mapping(roi_labels_path)
+    
     # Collect top regions from each dataset
     all_regions = {}
     
@@ -125,7 +188,7 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
             
             if region_id not in all_regions:
                 all_regions[region_id] = {
-                    'brain_region': row.get('Gyrus', row.get('Description', 'Unknown')),
+                    'brain_region': get_accurate_brain_region(row, roi_mapping),
                     'subdivision': row.get('Region Alias', 'Unknown'),
                     'region_label': row.get('(ID) Region Label', region_id),
                     'counts': [],
@@ -180,6 +243,11 @@ def create_all_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.Data
     Returns:
         Dict[str, pd.DataFrame]: Dictionary of created tables
     """
+    # Get ROI labels path from config
+    roi_labels_path = config.get('network_analysis', {}).get('roi_labels_path', '')
+    if not roi_labels_path:
+        logging.warning("ROI labels path not found in config. Using fallback mapping.")
+        roi_labels_path = ""
     os.makedirs(output_dir, exist_ok=True)
     
     # Get count data paths from config
@@ -199,7 +267,7 @@ def create_all_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.Data
             continue
         
         output_path = os.path.join(output_dir, f"{dataset_name}_region_table.csv")
-        table = create_dataset_region_table_from_excel(excel_path, output_path)
+        table = create_dataset_region_table_from_excel(excel_path, output_path, roi_labels_path)
         if not table.empty:
             tables[f"{dataset_name}_individual"] = table
     
@@ -212,7 +280,7 @@ def create_all_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.Data
     
     if len(td_paths) >= 2:
         output_path = os.path.join(output_dir, "shared_regions_TD.csv")
-        table = create_shared_region_table_from_excel(td_paths, output_path, min_datasets=2)
+        table = create_shared_region_table_from_excel(td_paths, output_path, roi_labels_path, min_datasets=2)
         if not table.empty:
             tables["shared_TD"] = table
     
@@ -222,7 +290,7 @@ def create_all_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.Data
     
     if len(adhd_paths) >= 2:
         output_path = os.path.join(output_dir, "shared_regions_ADHD.csv")
-        table = create_shared_region_table_from_excel(adhd_paths, output_path, min_datasets=2)
+        table = create_shared_region_table_from_excel(adhd_paths, output_path, roi_labels_path, min_datasets=2)
         if not table.empty:
             tables["shared_ADHD"] = table
     
@@ -232,7 +300,7 @@ def create_all_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.Data
     
     if len(asd_paths) >= 2:
         output_path = os.path.join(output_dir, "shared_regions_ASD.csv")
-        table = create_shared_region_table_from_excel(asd_paths, output_path, min_datasets=2)
+        table = create_shared_region_table_from_excel(asd_paths, output_path, roi_labels_path, min_datasets=2)
         if not table.empty:
             tables["shared_ASD"] = table
     
@@ -240,7 +308,7 @@ def create_all_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.Data
     all_paths = [path for path in count_data_paths.values() if path and os.path.exists(path)]
     if len(all_paths) >= 3:
         output_path = os.path.join(output_dir, "shared_regions_all.csv")
-        table = create_shared_region_table_from_excel(all_paths, output_path, min_datasets=3)
+        table = create_shared_region_table_from_excel(all_paths, output_path, roi_labels_path, min_datasets=3)
         if not table.empty:
             tables["shared_all"] = table
     
@@ -280,7 +348,9 @@ Examples:
     
     if args.excel_path and args.output_path:
         # Create single dataset table
-        table = create_dataset_region_table_from_excel(args.excel_path, args.output_path, args.top_n)
+        # Get ROI labels path from config for single dataset processing
+        roi_labels_path = config.get('network_analysis', {}).get('roi_labels_path', '')
+        table = create_dataset_region_table_from_excel(args.excel_path, args.output_path, roi_labels_path, args.top_n)
         if not table.empty:
             logging.info(f"Successfully created individual region table with {len(table)} regions")
         else:
