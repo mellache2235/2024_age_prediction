@@ -242,44 +242,85 @@ network_analysis:
 
 ### **Brain-Behavior Correlation Analysis**
 
-**NKI-RS TD Analysis (`brain_behavior_nki.py`):**
-- **Purpose**: PCA-based brain-behavior correlation for NKI-RS TD cohort
+**Individual TD Cohort Scripts (Recommended for Testing):**
+
+Each cohort has a dedicated bash script with pre-configured paths:
+
+**1. NKI-RS TD (`run_nki_brain_behavior_only.sh`):**
+- **Script**: `brain_behavior_nki.py`
 - **Data Sources**:
   - IG CSV: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv`
   - CAARS Behavioral: `/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data/8100_CAARS-S-S_20191009.csv`
-- **Method**: 
-  1. Load IG scores from CSV (with subject IDs)
-  2. Load CAARS behavioral data (Hyperactivity/Impulsivity, Inattention measures)
-  3. Match subjects between IG and behavioral data
-  4. Perform PCA on IG scores (default: 10 components)
-  5. Correlate PCA components with CAARS measures
-  6. Apply FDR correction (Benjamini-Hochberg)
+- **Features**:
+  - Auto-detects CAARS columns (Inattention, Hyperactivity T-scores and totals)
+  - Handles non-numeric data gracefully
+  - Drops 'Unnamed: 0' index column from IG CSV
+  - Sanitizes output filenames
 - **Usage**:
 ```bash
-python brain_behavior_nki.py \
-  --ig_csv /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv \
-  --behavioral_file /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data/8100_CAARS-S-S_20191009.csv \
-  --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td \
-  --n_components 10
+cd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/scripts
+bash run_nki_brain_behavior_only.sh
 ```
 
-**CMI-HBN TD and ADHD200 TD Analysis (`run_both_td_brain_behavior.py`):**
-- **Purpose**: PCA-based brain-behavior correlation for CMI-HBN TD and ADHD200 TD
+**2. ADHD200 TD (`run_adhd200_td_brain_behavior_only.sh`):**
+- **Script**: `brain_behavior_td_simple.py`
 - **Data Sources**:
-  - CMI-HBN C3SR: `/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data/C3SR.csv`
-  - ADHD200 behavioral data: Embedded in `.pklz` files
-- **Method**: 
-  1. Load imaging data (.pklz files, mean_fd < 0.5, TD only)
-  2. Merge with behavioral data (C3SR for CMI-HBN)
-  3. Load IG scores for matched subjects
-  4. Perform PCA on IG scores (default: 10 components)
-  5. Correlate PCA components with behavioral measures (HY, IN)
-  6. Apply FDR correction (Benjamini-Hochberg)
+  - PKLZ File: `/oak/stanford/groups/menon/projects/wdcai/2019_ADHD_NN/data/imaging/timeseries/ADHD200/restfmri/timeseries/group_level/brainnetome/normz/adhd200_run-rest_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs.pklz` (⚠️ **WITHOUT** `_nn` suffix)
+  - IG CSV: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/adhd200_td_count_data.csv`
+  - Behavioral: Embedded in .pklz file (Hyper/Impulsive, Inattentive columns)
+- **Features**:
+  - Loads single .pklz file
+  - Filters for TD subjects (DX/label == 0)
+  - Filters for quality (mean_fd < 0.5)
+  - Handles NaNs in behavioral columns
 - **Usage**:
 ```bash
-# Run both CMI-HBN TD and ADHD200 TD analyses sequentially
-python run_both_td_brain_behavior.py
+cd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/scripts
+bash run_adhd200_td_brain_behavior_only.sh
 ```
+
+**3. CMI-HBN TD (`run_cmihbn_td_brain_behavior_only.sh`):**
+- **Script**: `brain_behavior_td_simple.py`
+- **Data Sources**:
+  - PKLZ Directory: `/oak/stanford/groups/menon/projects/wdcai/2019_ADHD_NN/data/imaging/timeseries/CMIHBN/restfmri/timeseries/group_level/brainnetome/normz/` (⚠️ **Directory**, not single file)
+  - IG CSV: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/cmihbn_td_count_data.csv`
+  - C3SR Behavioral: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/prepare_data/cmihbn/behavior/` (auto-detects Conners CSV)
+- **Features**:
+  - Loads all run1 .pklz files from directory
+  - Concatenates multiple files
+  - Filters for valid subjects (label != 99)
+  - Filters for TD subjects (label == 0)
+  - Filters for quality (mean_fd < 0.5)
+  - Merges with C3SR behavioral data (C3SR_HY_T, C3SR_IN_T)
+- **Usage**:
+```bash
+cd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/scripts
+bash run_cmihbn_td_brain_behavior_only.sh
+```
+
+**Common Analysis Steps (All Cohorts):**
+1. Load IG scores from CSV (with subject IDs)
+2. Load behavioral data (CAARS for NKI, embedded for ADHD200, C3SR for CMI-HBN)
+3. Match subjects between IG and behavioral data
+4. Perform PCA on IG scores (default: 10 components)
+5. Correlate PCA components with behavioral measures
+6. Apply FDR correction (Benjamini-Hochberg)
+7. Save results to CSV files
+
+**Expected Output Files:**
+- **NKI-RS TD**: 
+  - `nki_A_TOTAL_INATTENTION_MEMORY_PROBLEMS_pca_correlations.csv`
+  - `nki_B_TOTAL_HYPERACTIVITY_RESTLESSNESS_pca_correlations.csv`
+  - `nki_A_T-SCORE_INATTENTION_MEMORY_PROBLEMS_pca_correlations.csv`
+  - `nki_B_T-SCORE_HYPERACTIVITY_RESTLESSNESS_pca_correlations.csv`
+- **ADHD200 TD**: 
+  - `adhd200_td_Hyper_Impulsive_pca_correlations.csv`
+  - `adhd200_td_Inattentive_pca_correlations.csv`
+- **CMI-HBN TD**: 
+  - `cmihbn_td_C3SR_HY_T_pca_correlations.csv`
+  - `cmihbn_td_C3SR_IN_T_pca_correlations.csv`
+
+Each CSV contains: Component (PC1-PC10), Correlation_r, P_value, P_value_corrected (FDR), Significant (True/False)
 
 **Comprehensive Script (`comprehensive_brain_behavior_analysis.py`):**
 - **Datasets**: NKI-RS TD, ADHD-200 ADHD/TD, CMI-HBN ADHD/TD, ABIDE ASD, Stanford ASD, HCP-Dev
