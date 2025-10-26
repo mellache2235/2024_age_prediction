@@ -1,51 +1,437 @@
 #!/usr/bin/env python3
 """
-Run enhanced brain-behavior analysis for NKI-RS TD with all paths pre-configured.
+Enhanced brain-behavior analysis for NKI-RS TD with all paths pre-configured.
+Includes: Elbow plot, Linear Regression, Scatter plots, PC importance, PC loadings.
 
 Just run: python run_nki_brain_behavior_enhanced.py
 """
 
-import subprocess
 import sys
+import os
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import cross_val_score
+from scipy.stats import spearmanr
+import warnings
+warnings.filterwarnings('ignore')
 
-# All paths pre-configured (no arguments needed)
+# Add utils to path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'utils'))
+from logging_utils import (print_section_header, print_step, print_success, 
+                           print_warning, print_error, print_info, print_completion)
+
+# ============================================================================
+# PRE-CONFIGURED PATHS (NO ARGUMENTS NEEDED)
+# ============================================================================
 DATASET = "nki_rs_td"
 IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv"
 BEHAVIORAL_FILE = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data/8100_CAARS-S-S_20191009.csv"
 OUTPUT_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td"
 
-print("="*100)
-print("🧠 ENHANCED BRAIN-BEHAVIOR ANALYSIS - NKI-RS TD")
-print("="*100)
-print()
-print("📂 Configuration:")
-print(f"   IG CSV:     {IG_CSV}")
-print(f"   CAARS CSV:  {BEHAVIORAL_FILE}")
-print(f"   Output:     {OUTPUT_DIR}")
-print()
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
 
-# Run the enhanced script
-cmd = [
-    sys.executable,
-    "brain_behavior_enhanced.py",
-    "--ig_csv", IG_CSV,
-    "--behavioral_file", BEHAVIORAL_FILE,
-    "--output_dir", OUTPUT_DIR,
-    "--dataset", DATASET
-]
+def load_nki_ig_scores(ig_csv):
+    """Load NKI IG scores."""
+    print_step("Loading IG scores", f"From {Path(ig_csv).name}")
+    
+    df = pd.read_csv(ig_csv)
+    
+    # Drop Unnamed: 0 if present
+    if 'Unnamed: 0' in df.columns:
+        df = df.drop(columns=['Unnamed: 0'])
+    
+    # Identify subject ID column
+    id_col = None
+    for col in ['subject_id', 'id', 'ID', 'Subject_ID']:
+        if col in df.columns:
+            id_col = col
+            break
+    
+    if id_col is None:
+        raise ValueError("No subject ID column found in IG CSV")
+    
+    # Standardize to 'subject_id'
+    if id_col != 'subject_id':
+        df = df.rename(columns={id_col: 'subject_id'})
+    
+    # Convert subject IDs to string
+    df['subject_id'] = df['subject_id'].astype(str)
+    
+    # ROI columns are all columns except subject_id
+    roi_cols = [col for col in df.columns if col != 'subject_id']
+    
+    print_info(f"IG subjects: {len(df)}")
+    print_info(f"IG features (ROIs): {len(roi_cols)}")
+    print_info(f"Sample ROI columns: {roi_cols[:3]}...")
+    
+    return df, roi_cols
 
-try:
-    result = subprocess.run(cmd, check=True)
+
+def load_nki_behavioral_data(behavioral_file):
+    """Load NKI CAARS behavioral data."""
+    print_step("Loading CAARS behavioral data", f"From {Path(behavioral_file).name}")
+    
+    df = pd.read_csv(behavioral_file)
+    
+    # Identify subject ID column
+    id_col = None
+    for col in df.columns:
+        if 'id' in col.lower() or 'subject' in col.lower():
+            id_col = col
+            break
+    
+    if id_col is None:
+        raise ValueError("No subject ID column found in behavioral CSV")
+    
+    # Standardize to 'subject_id'
+    if id_col != 'subject_id':
+        df = df.rename(columns={id_col: 'subject_id'})
+    
+    # Convert subject IDs to string
+    df['subject_id'] = df['subject_id'].astype(str)
+    
+    # Auto-detect CAARS columns
+    caars_cols = [col for col in df.columns if 'CAARS' in col.upper() or 
+                  ('TOTAL' in col.upper() and ('INATTENTION' in col.upper() or 'HYPERACTIVITY' in col.upper())) or
+                  ('T-SCORE' in col.upper())]
+    
+    if not caars_cols:
+        raise ValueError("No CAARS columns found in behavioral CSV")
+    
+    print_info(f"Behavioral subjects: {len(df)}")
+    print_info(f"CAARS measures: {len(caars_cols)}")
+    print_info(f"CAARS columns: {caars_cols}")
+    
+    return df, caars_cols
+
+
+def merge_data(ig_df, behavioral_df):
+    """Merge IG and behavioral data by subject ID."""
+    print_step("Merging data", "Matching subject IDs")
+    
+    print_info(f"IG subjects: {len(ig_df)}")
+    print_info(f"Behavioral subjects: {len(behavioral_df)}")
+    
+    # Remove duplicates in behavioral data (keep first)
+    behavioral_df = behavioral_df.drop_duplicates(subset='subject_id', keep='first')
+    print_info(f"Behavioral subjects after deduplication: {len(behavioral_df)}")
+    
+    # Merge on subject_id
+    merged = pd.merge(ig_df, behavioral_df, on='subject_id', how='inner')
+    
+    common_subjects = len(merged)
+    print_success(f"Merged: {common_subjects} subjects with both IG and behavioral data")
+    
+    if common_subjects < 10:
+        raise ValueError(f"Insufficient overlap: only {common_subjects} common subjects")
+    
+    return merged
+
+
+def create_elbow_plot(pca, output_dir):
+    """Create elbow plot to determine optimal number of PCs."""
+    print_step("Creating elbow plot", "Determining optimal number of PCs")
+    
+    # Get explained variance
+    explained_var = pca.explained_variance_ratio_
+    cumulative_var = np.cumsum(explained_var)
+    
+    # Create figure
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+    
+    # Plot 1: Scree plot
+    ax1.plot(range(1, len(explained_var) + 1), explained_var * 100, 'bo-', linewidth=2, markersize=8)
+    ax1.set_xlabel('Principal Component', fontsize=11)
+    ax1.set_ylabel('Variance Explained (%)', fontsize=11)
+    ax1.set_title('Scree Plot', fontsize=12, fontweight='bold')
+    ax1.grid(False)
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    ax1.tick_params(axis='both', which='major', labelsize=10, direction='out', length=4, width=1)
+    
+    # Plot 2: Cumulative variance
+    ax2.plot(range(1, len(cumulative_var) + 1), cumulative_var * 100, 'ro-', linewidth=2, markersize=8)
+    ax2.axhline(y=80, color='gray', linestyle='--', linewidth=1, alpha=0.7, label='80% threshold')
+    ax2.set_xlabel('Number of Components', fontsize=11)
+    ax2.set_ylabel('Cumulative Variance Explained (%)', fontsize=11)
+    ax2.set_title('Cumulative Variance', fontsize=12, fontweight='bold')
+    ax2.legend(fontsize=9)
+    ax2.grid(False)
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+    ax2.tick_params(axis='both', which='major', labelsize=10, direction='out', length=4, width=1)
+    
+    plt.tight_layout()
+    
+    # Save
+    output_path = Path(output_dir) / 'elbow_plot.png'
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    print_success(f"Elbow plot saved: {output_path.name}")
+    
+    # Determine optimal number of PCs (80% variance threshold)
+    optimal_pcs = np.argmax(cumulative_var >= 0.80) + 1
+    print_info(f"Optimal PCs (80% variance): {optimal_pcs}")
+    print_info(f"Variance explained by {optimal_pcs} PCs: {cumulative_var[optimal_pcs-1]*100:.2f}%")
+    
+    return optimal_pcs
+
+
+def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, output_dir):
+    """Perform linear regression using all PCs to predict behavioral scores."""
+    print_step(f"Linear regression for {behavioral_name}", "Using all PCs as predictors")
+    
+    # Remove NaNs
+    valid_mask = ~np.isnan(behavioral_scores)
+    X = pca_scores[valid_mask]
+    y = behavioral_scores[valid_mask]
+    
+    if len(y) < 10:
+        print_warning(f"Insufficient valid data for {behavioral_name}: {len(y)} subjects")
+        return None
+    
+    # Fit linear regression
+    model = LinearRegression()
+    model.fit(X, y)
+    
+    # Predict
+    y_pred = model.predict(X)
+    
+    # Calculate Spearman correlation
+    rho, p_value = spearmanr(y, y_pred)
+    
+    # Calculate R² using cross-validation
+    cv_scores = cross_val_score(model, X, y, cv=5, scoring='r2')
+    r2_mean = cv_scores.mean()
+    r2_std = cv_scores.std()
+    
+    # Format p-value for console output
+    if p_value < 0.001:
+        p_str = "< 0.001"
+    else:
+        p_str = f"= {p_value:.4f}"
+    
+    print_info(f"N subjects: {len(y)}")
+    print_info(f"Spearman ρ = {rho:.3f}, p {p_str}")
+    print_info(f"R² (CV) = {r2_mean:.3f} ± {r2_std:.3f}")
+    
+    # Create scatter plot
+    create_scatter_plot(y, y_pred, rho, p_value, behavioral_name, output_dir)
+    
+    # Get PC importance (absolute coefficients)
+    pc_importance = np.abs(model.coef_)
+    pc_ranks = np.argsort(pc_importance)[::-1]
+    
+    return {
+        'behavioral_measure': behavioral_name,
+        'n_subjects': len(y),
+        'spearman_rho': rho,
+        'p_value': p_value,
+        'r2_mean': r2_mean,
+        'r2_std': r2_std,
+        'pc_importance': pc_importance,
+        'pc_ranks': pc_ranks
+    }
+
+
+def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, output_dir):
+    """Create scatter plot of predicted vs actual behavioral scores."""
+    fig, ax = plt.subplots(figsize=(6, 6))
+    
+    # Scatter plot
+    ax.scatter(y_actual, y_pred, alpha=0.6, s=50, color='#1f77b4', edgecolors='#1f77b4', linewidth=1)
+    
+    # Format p-value
+    if p_value < 0.001:
+        p_str = "< 0.001"
+    else:
+        p_str = f"= {p_value:.3f}"
+    
+    # Add statistics text
+    stats_text = f"ρ = {rho:.3f}\np {p_str}"
+    ax.text(0.95, 0.05, stats_text, transform=ax.transAxes,
+            fontsize=10, verticalalignment='bottom', horizontalalignment='right',
+            bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='gray'))
+    
+    # Labels and title
+    ax.set_xlabel('Actual Behavioral Score', fontsize=11)
+    ax.set_ylabel('Predicted Behavioral Score', fontsize=11)
+    
+    # Clean behavioral name for title
+    clean_name = behavioral_name.replace('_', ' ').title()
+    ax.set_title(clean_name, fontsize=12, fontweight='bold')
+    
+    # Styling
+    ax.grid(False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.tick_params(axis='both', which='major', labelsize=10, direction='out', length=4, width=1)
+    
+    plt.tight_layout()
+    
+    # Save
+    safe_name = behavioral_name.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
+    output_path = Path(output_dir) / f'scatter_{safe_name}.png'
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+
+
+def get_pc_loadings(pca, roi_cols, n_top=10):
+    """Get top contributing brain regions for each PC."""
+    print_step("Extracting PC loadings", f"Top {n_top} regions per PC")
+    
+    loadings = pca.components_
+    
+    pc_loadings_dict = {}
+    for i in range(loadings.shape[0]):
+        # Get absolute loadings for this PC
+        abs_loadings = np.abs(loadings[i, :])
+        top_indices = np.argsort(abs_loadings)[::-1][:n_top]
+        
+        pc_loadings_dict[f'PC{i+1}'] = [
+            (roi_cols[idx], abs_loadings[idx]) for idx in top_indices
+        ]
+    
+    return pc_loadings_dict
+
+
+def save_results(results_list, pc_loadings_dict, output_dir):
+    """Save all results to CSV files."""
+    print_step("Saving results", "Writing CSV files")
+    
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 1. Save regression results
+    results_df = pd.DataFrame([
+        {
+            'Behavioral_Measure': r['behavioral_measure'],
+            'N_Subjects': r['n_subjects'],
+            'Spearman_Rho': r['spearman_rho'],
+            'P_Value': r['p_value'],
+            'R2_Mean': r['r2_mean'],
+            'R2_Std': r['r2_std']
+        }
+        for r in results_list if r is not None
+    ])
+    results_path = output_dir / 'linear_regression_results.csv'
+    results_df.to_csv(results_path, index=False)
+    print_success(f"Regression results: {results_path.name}")
+    
+    # 2. Save PC importance
+    for r in results_list:
+        if r is not None:
+            pc_importance_df = pd.DataFrame({
+                'PC': [f'PC{i+1}' for i in range(len(r['pc_importance']))],
+                'Importance': r['pc_importance'],
+                'Rank': [np.where(r['pc_ranks'] == i)[0][0] + 1 for i in range(len(r['pc_importance']))]
+            })
+            safe_name = r['behavioral_measure'].replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
+            pc_imp_path = output_dir / f'pc_importance_{safe_name}.csv'
+            pc_importance_df.to_csv(pc_imp_path, index=False)
+            print_success(f"PC importance: {pc_imp_path.name}")
+    
+    # 3. Save PC loadings
+    for pc_name, loadings in pc_loadings_dict.items():
+        loadings_df = pd.DataFrame(loadings, columns=['Brain_Region', 'Loading'])
+        loadings_path = output_dir / f'{pc_name}_loadings.csv'
+        loadings_df.to_csv(loadings_path, index=False)
+        print_success(f"PC loadings: {loadings_path.name}")
+
+
+# ============================================================================
+# MAIN ANALYSIS
+# ============================================================================
+
+def main():
+    print_section_header("ENHANCED BRAIN-BEHAVIOR ANALYSIS - NKI-RS TD")
+    
+    print_info(f"IG CSV:     {IG_CSV}")
+    print_info(f"CAARS CSV:  {BEHAVIORAL_FILE}")
+    print_info(f"Output:     {OUTPUT_DIR}")
     print()
-    print("="*100)
-    print("✅ NKI-RS TD Enhanced Analysis Complete!")
-    print(f"📊 Results saved to: {OUTPUT_DIR}")
-    print("="*100)
-    sys.exit(0)
-except subprocess.CalledProcessError as e:
-    print()
-    print("="*100)
-    print(f"❌ Analysis failed with exit code {e.returncode}")
-    print("="*100)
-    sys.exit(1)
+    
+    try:
+        # 1. Load data
+        ig_df, roi_cols = load_nki_ig_scores(IG_CSV)
+        behavioral_df, caars_cols = load_nki_behavioral_data(BEHAVIORAL_FILE)
+        
+        # 2. Merge data
+        merged_df = merge_data(ig_df, behavioral_df)
+        
+        # Extract IG matrix and behavioral scores
+        ig_matrix = merged_df[roi_cols].values
+        
+        print_info(f"IG matrix shape: {ig_matrix.shape} (subjects x ROIs)")
+        print()
+        
+        # 3. Perform PCA with many components
+        print_step("Performing PCA", "Using 50 components for elbow plot")
+        scaler = StandardScaler()
+        ig_scaled = scaler.fit_transform(ig_matrix)
+        
+        pca = PCA(n_components=min(50, ig_matrix.shape[0], ig_matrix.shape[1]))
+        pca_scores = pca.fit_transform(ig_scaled)
+        
+        print_info(f"PCA scores shape: {pca_scores.shape}")
+        print_info(f"Variance explained by first 3 PCs: {pca.explained_variance_ratio_[:3].sum()*100:.2f}%")
+        print()
+        
+        # 4. Create elbow plot and determine optimal PCs
+        optimal_pcs = create_elbow_plot(pca, OUTPUT_DIR)
+        print()
+        
+        # Use optimal number of PCs for regression
+        pca_scores_optimal = pca_scores[:, :optimal_pcs]
+        print_info(f"Using {optimal_pcs} PCs for linear regression")
+        print()
+        
+        # 5. Get PC loadings
+        pc_loadings_dict = get_pc_loadings(pca, roi_cols, n_top=10)
+        print()
+        
+        # 6. Perform linear regression for each behavioral measure
+        print_section_header("LINEAR REGRESSION RESULTS")
+        results_list = []
+        for caars_col in caars_cols:
+            print()
+            print_step(f"Analyzing {caars_col}", "Predicted vs Actual Behavioral Scores")
+            behavioral_scores = pd.to_numeric(merged_df[caars_col], errors='coerce').values
+            result = perform_linear_regression(pca_scores_optimal, behavioral_scores, caars_col, OUTPUT_DIR)
+            if result is not None:
+                results_list.append(result)
+                # Print summary
+                if result['p_value'] < 0.001:
+                    p_display = "< 0.001"
+                else:
+                    p_display = f"= {result['p_value']:.4f}"
+                print_success(f"✓ ρ = {result['spearman_rho']:.3f}, p {p_display}")
+        
+        print()
+        
+        # 7. Save all results
+        save_results(results_list, pc_loadings_dict, OUTPUT_DIR)
+        
+        print()
+        print_completion("NKI-RS TD Enhanced Analysis Complete!")
+        print_info(f"Results saved to: {OUTPUT_DIR}")
+        
+    except Exception as e:
+        print()
+        print_error(f"Analysis failed: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
+
+if __name__ == "__main__":
+    main()

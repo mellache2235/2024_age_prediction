@@ -383,13 +383,31 @@ Three standalone scripts with all paths pre-configured (no arguments needed):
   - Output: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/cmihbn_td`
 - **Usage**: `python run_cmihbn_brain_behavior_enhanced.py`
 
-**Features** (all scripts):
-- ✅ Elbow plot for optimal PC selection
-- ✅ Linear regression using all PCs to predict behavioral scores
-- ✅ Scatter plots (predicted vs actual behavior)
-- ✅ PC importance ranking (which PCs matter most)
-- ✅ PC loadings (top 10 brain regions per PC)
-- ✅ No arguments needed - just run the script!
+**What these scripts do:**
+1. Load IG scores and behavioral data
+2. Merge datasets by subject ID
+3. Perform PCA with up to 50 components
+4. Create **elbow plot** to determine optimal number of PCs (80% variance threshold)
+5. Use optimal PCs in **linear regression** to predict behavioral scores
+6. Calculate **Spearman ρ** between predicted and actual behavioral scores
+7. Create **scatter plots** for each behavioral measure (with ρ and p-value)
+8. Rank **PC importance** (absolute regression coefficients)
+9. Extract **PC loadings** (top 10 brain regions per PC)
+10. Save all results to CSV files and PNG plots
+
+**Console output includes:**
+- Data loading progress with subject counts
+- PCA variance explained by components
+- Optimal number of PCs selected (80% threshold)
+- **Spearman correlation results** (ρ and p-value) for each behavioral measure
+- File save confirmations with filenames
+
+**Output files:**
+- `elbow_plot.png` - Scree plot and cumulative variance
+- `scatter_{behavioral_measure}.png` - Predicted vs actual (one per measure)
+- `linear_regression_results.csv` - Summary table with ρ, p-value, R², N subjects
+- `pc_importance_{behavioral_measure}.csv` - PC rankings (one per measure)
+- `PC{N}_loadings.csv` - Top 10 brain regions per PC
 
 **Comprehensive Script (`comprehensive_brain_behavior_analysis.py`):**
 - **Datasets**: NKI-RS TD, ADHD-200 ADHD/TD, CMI-HBN ADHD/TD, ABIDE ASD, Stanford ASD, HCP-Dev
