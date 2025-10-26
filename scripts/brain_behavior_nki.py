@@ -171,6 +171,23 @@ def merge_data(ig_data: pd.DataFrame, behavioral_data: pd.DataFrame) -> Tuple[pd
     ig_merged = ig_data[ig_data['subject_id'].isin(common_ids)].sort_values('subject_id').reset_index(drop=True)
     behavior_merged = behavioral_data[behavioral_data['subject_id'].isin(common_ids)].sort_values('subject_id').reset_index(drop=True)
     
+    # Check for duplicates in behavioral data
+    if len(behavior_merged) != len(ig_merged):
+        print_warning(f"Length mismatch after merge: IG={len(ig_merged)}, Behavioral={len(behavior_merged)}")
+        
+        # Check for duplicate subject IDs in behavioral data
+        behavior_dups = behavior_merged[behavior_merged.duplicated(subset='subject_id', keep=False)]
+        if len(behavior_dups) > 0:
+            print_warning(f"Found {len(behavior_dups)} duplicate entries in behavioral data")
+            # Keep first occurrence
+            behavior_merged = behavior_merged.drop_duplicates(subset='subject_id', keep='first').reset_index(drop=True)
+            print_info(f"After removing duplicates: {len(behavior_merged)} subjects")
+    
+    # Verify lengths match now
+    if len(ig_merged) != len(behavior_merged):
+        print_error(f"Still mismatched after duplicate removal: IG={len(ig_merged)}, Behavioral={len(behavior_merged)}")
+        return pd.DataFrame(), pd.DataFrame()
+    
     print_success(f"Merged: {len(ig_merged)} subjects with both IG and behavioral data")
     
     return ig_merged, behavior_merged
