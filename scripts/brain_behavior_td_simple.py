@@ -54,26 +54,65 @@ def benjamini_hochberg_correction(p_values, alpha=0.05):
     return corrected_p, rejected
 
 
-def load_pklz_td_data(pklz_file: str, dataset_name: str) -> pd.DataFrame:
+def load_pklz_td_data(pklz_path: str, dataset_name: str) -> pd.DataFrame:
     """
-    Load TD subjects from .pklz file.
+    Load TD subjects from .pklz file(s).
+    
+    For CMI-HBN: pklz_path should be a directory containing multiple run1 .pklz files
+    For ADHD200: pklz_path should be a single .pklz file
     
     Args:
-        pklz_file: Path to .pklz file
+        pklz_path: Path to .pklz file or directory containing .pklz files
         dataset_name: Name of dataset (for logging)
         
     Returns:
         DataFrame with TD subjects and behavioral data
     """
-    print_step(1, f"LOADING {dataset_name.upper()} DATA", f"From {Path(pklz_file).name}")
+    print_step(1, f"LOADING {dataset_name.upper()} DATA", f"From {pklz_path}")
     
-    # Load data
-    data = np.load(pklz_file, allow_pickle=True)
+    # Check if path is a directory (CMI-HBN) or file (ADHD200)
+    path_obj = Path(pklz_path)
+    
+    if path_obj.is_dir():
+        # CMI-HBN: Load multiple run1 files from directory
+        print_info(f"Loading multiple run1 files from directory...")
+        from os import listdir
+        from os.path import isfile, join
+        
+        files = [f for f in listdir(pklz_path) if isfile(join(pklz_path, f))]
+        run1_files = [f for f in files if 'run1' in f]
+        
+        print_info(f"Found {len(run1_files)} run1 files")
+        
+        data = None
+        for i, filename in enumerate(run1_files):
+            file_path = join(pklz_path, filename)
+            file_data = np.load(file_path, allow_pickle=True)
+            
+            if i == 0:
+                data = file_data
+            else:
+                data = pd.concat([data, file_data], ignore_index=True)
+        
+        if data is None:
+            print_error("No run1 files found in directory")
+            return pd.DataFrame()
+        
+        print_info(f"Loaded {len(data)} total subjects from {len(run1_files)} files")
+    else:
+        # ADHD200: Load single file
+        print_info(f"Loading single file: {path_obj.name}")
+        data = np.load(pklz_path, allow_pickle=True)
+        print_info(f"Loaded {len(data)} subjects")
     
     # Convert to proper types
     data['subject_id'] = data['subject_id'].astype('str')
     if 'site' in data.columns:
         data['site'] = data['site'].astype('str')
+    
+    # Convert label to int (for CMI-HBN)
+    if 'label' in data.columns:
+        data['label'] = data['label'].astype(str).astype(int)
     
     # Remove duplicates
     data = data.drop_duplicates(subset='subject_id', keep='first')
@@ -85,12 +124,24 @@ def load_pklz_td_data(pklz_file: str, dataset_name: str) -> pd.DataFrame:
     if 'DX' in data.columns:
         df_td = data[data['DX'] == 0].copy()
     elif 'label' in data.columns:
-        df_td = data[data['label'] == 0].copy()
+        # For CMI-HBN: label != 99 means valid subjects, then filter for TD (label == 0)
+        df_valid = data[data['label'] != 99].copy()
+        print_info(f"Valid subjects (label != 99): {len(df_valid)}")
+        df_td = df_valid[df_valid['label'] == 0].copy()
     else:
         print_warning("No DX or label column found, using all subjects")
         df_td = data.copy()
     
     print_info(f"TD subjects: {len(df_td)}")
+    
+    # Filter for quality (mean_fd < 0.5)
+    if 'mean_fd' in df_td.columns:
+        n_before = len(df_td)
+        df_td = df_td[df_td['mean_fd'] < 0.5].copy()
+        n_removed = n_before - len(df_td)
+        if n_removed > 0:
+            print_info(f"Removed {n_removed} subjects with mean_fd >= 0.5")
+            print_info(f"Remaining subjects: {len(df_td)}")
     
     # Check for behavioral columns
     behavioral_cols = ['Hyper/Impulsive', 'Inattentive', 'HY', 'IN']

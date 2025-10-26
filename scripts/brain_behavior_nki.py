@@ -124,6 +124,11 @@ def load_ig_csv(ig_csv: str) -> pd.DataFrame:
     
     ig_data = pd.read_csv(ig_csv)
     
+    # Drop 'Unnamed: 0' column if it exists (index column from CSV)
+    if 'Unnamed: 0' in ig_data.columns:
+        ig_data = ig_data.drop(columns=['Unnamed: 0'])
+        print_info("Dropped 'Unnamed: 0' index column")
+    
     # Standardize ID column name
     if 'id' in ig_data.columns and 'subject_id' not in ig_data.columns:
         ig_data = ig_data.rename(columns={'id': 'subject_id'})
@@ -309,8 +314,22 @@ def main():
         if col in behavior_merged.columns:
             behavioral_scores = behavior_merged[col].values
             
+            # Convert to numeric, coercing errors to NaN
+            try:
+                behavioral_scores = pd.to_numeric(behavioral_scores, errors='coerce')
+            except Exception as e:
+                print_error(f"Could not convert {col} to numeric: {e}")
+                continue
+            
             # Remove NaNs
             valid_mask = ~np.isnan(behavioral_scores)
+            n_valid = valid_mask.sum()
+            
+            if n_valid < 10:
+                print_warning(f"Only {n_valid} valid subjects for {col}, skipping (need at least 10)")
+                print()
+                continue
+            
             if not valid_mask.all():
                 n_removed = (~valid_mask).sum()
                 print_warning(f"Removing {n_removed} subjects with NaN in {col}")
@@ -322,7 +341,9 @@ def main():
             results = correlate_with_behavior(pca_scores_filtered, behavioral_scores, col)
             
             # Save
-            output_path = output_dir / f"nki_{col}_pca_correlations.csv"
+            # Clean up filename (remove special characters)
+            safe_col_name = col.replace('/', '_').replace(' ', '_').replace('(', '').replace(')', '')
+            output_path = output_dir / f"nki_{safe_col_name}_pca_correlations.csv"
             save_results(results, str(output_path))
             output_files.append(str(output_path))
             print()
