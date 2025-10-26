@@ -30,7 +30,7 @@ from logging_utils import (print_section_header, print_step, print_success,
 # PRE-CONFIGURED PATHS (NO ARGUMENTS NEEDED)
 # ============================================================================
 DATASET = "nki_rs_td"
-IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv"
+IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/integrated_gradients/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv"
 BEHAVIORAL_FILE = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data/8100_CAARS-S-S_20191009.csv"
 OUTPUT_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td"
 

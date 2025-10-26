@@ -363,7 +363,7 @@ Three standalone scripts with all paths pre-configured (no arguments needed):
 
 **1. NKI-RS TD** (`run_nki_brain_behavior_enhanced.py`):
 - **Pre-configured paths**:
-  - IG CSV: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv`
+  - IG CSV: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/integrated_gradients/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv`
   - CAARS: `/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data/8100_CAARS-S-S_20191009.csv`
   - Output: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td`
 - **Usage**: `python run_nki_brain_behavior_enhanced.py`
@@ -371,14 +371,14 @@ Three standalone scripts with all paths pre-configured (no arguments needed):
 **2. ADHD200 TD** (`run_adhd200_brain_behavior_enhanced.py`):
 - **Pre-configured paths**:
   - PKLZ: `/oak/stanford/groups/menon/deriveddata/public/adhd200/restfmri/timeseries/group_level/brainnetome/normz/adhd200_run-rest_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs.pklz`
-  - IG CSV: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/adhd200_td_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_pred.csv`
+  - IG CSV: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/integrated_gradients/adhd200_td_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_pred.csv`
   - Output: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_td`
 - **Usage**: `python run_adhd200_brain_behavior_enhanced.py`
 
 **3. CMI-HBN TD** (`run_cmihbn_brain_behavior_enhanced.py`):
 - **Pre-configured paths**:
   - PKLZ Directory: `/oak/stanford/groups/menon/deriveddata/public/cmihbn/restfmri/timeseries/group_level/brainnetome/normz`
-  - IG CSV: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/cmihbn_td_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_pred.csv`
+  - IG CSV: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/integrated_gradients/cmihbn_td_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_pred.csv`
   - C3SR: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/prepare_data/cmihbn/behavior`
   - Output: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/cmihbn_td`
 - **Usage**: `python run_cmihbn_brain_behavior_enhanced.py`

@@ -31,7 +31,7 @@ from logging_utils import (print_section_header, print_step, print_success,
 # ============================================================================
 DATASET = "cmihbn_td"
 PKLZ_DIR = "/oak/stanford/groups/menon/deriveddata/public/cmihbn/restfmri/timeseries/group_level/brainnetome/normz"
-IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/cmihbn_td_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_pred.csv"
+IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/integrated_gradients/cmihbn_td_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_pred.csv"
 C3SR_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/prepare_data/cmihbn/behavior"
 OUTPUT_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/cmihbn_td"
 
@@ -86,16 +86,21 @@ def load_cmihbn_pklz_data(pklz_dir, c3sr_dir):
     td_data = td_data[td_data['mean_fd'] < 0.5]
     print_info(f"After mean_fd < 0.5 filter: {len(td_data)}")
     
-    # Load C3SR behavioral data
+    # Load C3SR behavioral data (Conners rating scale)
     print_step("Loading C3SR behavioral data", f"From {Path(c3sr_dir).name}")
     
-    # Find C3SR CSV file
-    c3sr_files = list(Path(c3sr_dir).glob('*C3SR*.csv')) + list(Path(c3sr_dir).glob('*c3sr*.csv'))
+    # Find Conners CSV file (C3SR = Conners 3 Short Rating Scale)
+    c3sr_files = (list(Path(c3sr_dir).glob('*C3SR*.csv')) + 
+                  list(Path(c3sr_dir).glob('*c3sr*.csv')) +
+                  list(Path(c3sr_dir).glob('*Conners*.csv')) +
+                  list(Path(c3sr_dir).glob('*conners*.csv')))
     
     if not c3sr_files:
-        raise ValueError(f"No C3SR CSV file found in {c3sr_dir}")
+        raise ValueError(f"No C3SR/Conners CSV file found in {c3sr_dir}")
     
-    c3sr_file = c3sr_files[0]
+    # Prefer files with "ADHD" or "8-21years" in the name
+    adhd_files = [f for f in c3sr_files if 'ADHD' in f.name or '8-21' in f.name]
+    c3sr_file = adhd_files[0] if adhd_files else c3sr_files[0]
     print_info(f"Using C3SR file: {c3sr_file.name}")
     
     c3sr = pd.read_csv(c3sr_file)
@@ -113,15 +118,29 @@ def load_cmihbn_pklz_data(pklz_dir, c3sr_dir):
     # Process C3SR subject IDs (take first 12 characters)
     c3sr['subject_id'] = c3sr[id_col].apply(lambda x: str(x)[:12])
     
-    # Identify C3SR behavioral columns
-    behavioral_cols = [col for col in c3sr.columns if 'C3SR_HY_T' in col or 'C3SR_IN_T' in col or
-                       'c3sr_hy_t' in col.lower() or 'c3sr_in_t' in col.lower()]
+    # Identify C3SR/Conners behavioral columns
+    # Look for various patterns: C3SR_HY_T, C3SR_IN_T, or Conners subscales
+    behavioral_cols = []
+    
+    # First try C3SR naming
+    for col in c3sr.columns:
+        col_lower = col.lower()
+        if any(pattern in col_lower for pattern in ['c3sr_hy_t', 'c3sr_in_t', 'hyperactivity', 'inattention']):
+            behavioral_cols.append(col)
+    
+    # If no C3SR columns, look for Conners subscales (T-scores)
+    if not behavioral_cols:
+        for col in c3sr.columns:
+            if ('_t' in col.lower() or 't_score' in col.lower() or 'tscore' in col.lower()) and \
+               any(keyword in col.lower() for keyword in ['hyperactiv', 'inattent', 'adhd']):
+                behavioral_cols.append(col)
     
     if not behavioral_cols:
-        print_warning("No C3SR_HY_T or C3SR_IN_T columns found")
+        print_warning("No behavioral columns found in C3SR/Conners file")
+        print_info(f"Available columns: {list(c3sr.columns)[:10]}...")
         return td_data, []
     
-    print_info(f"C3SR behavioral columns: {behavioral_cols}")
+    print_info(f"Behavioral columns: {behavioral_cols}")
     
     # Merge TD data with C3SR
     c3sr_subset = c3sr[['subject_id'] + behavioral_cols]
