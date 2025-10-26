@@ -310,9 +310,17 @@ def main():
     
     # Correlate with behavioral measures
     output_files = []
+    
+    # Debug: Check behavior_merged length
+    print_info(f"behavior_merged shape: {behavior_merged.shape}")
+    print_info(f"pca_scores shape: {pca_scores.shape}")
+    
     for col in behavioral_cols:
         if col in behavior_merged.columns:
+            # Get behavioral scores - should be same length as behavior_merged
             behavioral_scores = behavior_merged[col].values
+            
+            print_info(f"Processing {col}: initial length = {len(behavioral_scores)}")
             
             # Convert to numeric, coercing errors to NaN
             try:
@@ -328,6 +336,8 @@ def main():
             # Ensure it's a numpy array
             behavioral_scores = np.array(behavioral_scores, dtype=float)
             
+            print_info(f"After conversion: length = {len(behavioral_scores)}")
+            
             # Remove NaNs
             valid_mask = ~np.isnan(behavioral_scores)
             n_valid = valid_mask.sum()
@@ -342,8 +352,10 @@ def main():
                 print_warning(f"Removing {n_removed} subjects with NaN in {col}")
                 behavioral_scores = behavioral_scores[valid_mask]
                 pca_scores_filtered = pca_scores[valid_mask]
+                print_info(f"After NaN removal: behavioral={len(behavioral_scores)}, PCA={len(pca_scores_filtered)}")
             else:
                 pca_scores_filtered = pca_scores
+                print_info(f"No NaNs: behavioral={len(behavioral_scores)}, PCA={len(pca_scores_filtered)}")
             
             # Verify lengths match
             if len(pca_scores_filtered) != len(behavioral_scores):

@@ -118,9 +118,12 @@ def load_pklz_td_data(pklz_path: str, dataset_name: str) -> pd.DataFrame:
     if 'site' in data.columns:
         data['site'] = data['site'].astype('str')
     
-    # Convert label to int (for CMI-HBN)
+    # Convert label to int (for CMI-HBN and ADHD200)
     if 'label' in data.columns:
-        data['label'] = data['label'].astype(str).astype(int)
+        # Convert to string first, then handle non-numeric values
+        data['label'] = data['label'].astype(str)
+        # Replace 'pending' or other non-numeric values with NaN, then convert to float
+        data['label'] = pd.to_numeric(data['label'], errors='coerce')
     
     # Remove duplicates
     data = data.drop_duplicates(subset='subject_id', keep='first')
@@ -132,9 +135,15 @@ def load_pklz_td_data(pklz_path: str, dataset_name: str) -> pd.DataFrame:
     if 'DX' in data.columns:
         df_td = data[data['DX'] == 0].copy()
     elif 'label' in data.columns:
-        # For CMI-HBN: label != 99 means valid subjects, then filter for TD (label == 0)
-        df_valid = data[data['label'] != 99].copy()
+        # Remove subjects with NaN labels (e.g., 'pending' or 'nan' converted to NaN)
+        df_valid = data[data['label'].notna()].copy()
+        print_info(f"Valid subjects (non-NaN labels): {len(df_valid)}")
+        
+        # Remove label == 99 (invalid/missing labels for both CMI-HBN and ADHD200)
+        df_valid = df_valid[df_valid['label'] != 99].copy()
         print_info(f"Valid subjects (label != 99): {len(df_valid)}")
+        
+        # Filter for TD (label == 0)
         df_td = df_valid[df_valid['label'] == 0].copy()
     else:
         print_warning("No DX or label column found, using all subjects")
