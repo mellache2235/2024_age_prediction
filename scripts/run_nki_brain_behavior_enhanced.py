@@ -30,8 +30,8 @@ from logging_utils import (print_section_header, print_step, print_success,
 # PRE-CONFIGURED PATHS (NO ARGUMENTS NEEDED)
 # ============================================================================
 DATASET = "nki_rs_td"
-IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/integrated_gradients/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv"
-BEHAVIORAL_FILE = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data/8100_CAARS-S-S_20191009.csv"
+IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv"
+BEHAVIORAL_DIR = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data"
 OUTPUT_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td"
 
 # ============================================================================
@@ -75,42 +75,76 @@ def load_nki_ig_scores(ig_csv):
     return df, roi_cols
 
 
-def load_nki_behavioral_data(behavioral_file):
-    """Load NKI CAARS behavioral data."""
-    print_step("Loading CAARS behavioral data", f"From {Path(behavioral_file).name}")
+def load_nki_behavioral_data(behavioral_dir):
+    """Load NKI behavioral data (CAARS and Conners 3)."""
+    print_step("Loading NKI behavioral data", f"From {Path(behavioral_dir).name}")
     
-    df = pd.read_csv(behavioral_file)
+    behavioral_dir = Path(behavioral_dir)
     
-    # Identify subject ID column
-    id_col = None
-    for col in df.columns:
-        if 'id' in col.lower() or 'subject' in col.lower():
-            id_col = col
-            break
+    # Look for multiple behavioral files
+    behavioral_files = []
+    for pattern in ['*CAARS*.csv', '*Conners*.csv', '*RBS*.csv']:
+        behavioral_files.extend(behavioral_dir.glob(pattern))
     
-    if id_col is None:
-        raise ValueError("No subject ID column found in behavioral CSV")
+    if not behavioral_files:
+        raise ValueError(f"No behavioral files found in {behavioral_dir}")
     
-    # Standardize to 'subject_id'
-    if id_col != 'subject_id':
-        df = df.rename(columns={id_col: 'subject_id'})
+    print_info(f"Found {len(behavioral_files)} behavioral files:")
+    for f in behavioral_files:
+        print_info(f"  • {f.name}")
     
-    # Convert subject IDs to string
-    df['subject_id'] = df['subject_id'].astype(str)
+    # Load and merge all behavioral files
+    all_dfs = []
+    for bf in behavioral_files:
+        df = pd.read_csv(bf)
+        
+        # Identify subject ID column
+        id_col = None
+        for col in df.columns:
+            if 'id' in col.lower() or 'subject' in col.lower():
+                id_col = col
+                break
+        
+        if id_col is None:
+            print_warning(f"No subject ID column in {bf.name}, skipping")
+            continue
+        
+        # Standardize to 'subject_id'
+        if id_col != 'subject_id':
+            df = df.rename(columns={id_col: 'subject_id'})
+        
+        # Convert subject IDs to string
+        df['subject_id'] = df['subject_id'].astype(str)
+        
+        all_dfs.append(df)
     
-    # Auto-detect CAARS columns
-    caars_cols = [col for col in df.columns if 'CAARS' in col.upper() or 
-                  ('TOTAL' in col.upper() and ('INATTENTION' in col.upper() or 'HYPERACTIVITY' in col.upper())) or
-                  ('T-SCORE' in col.upper())]
+    # Merge all dataframes on subject_id
+    if not all_dfs:
+        raise ValueError("No valid behavioral files found")
     
-    if not caars_cols:
-        raise ValueError("No CAARS columns found in behavioral CSV")
+    merged_df = all_dfs[0]
+    for df in all_dfs[1:]:
+        merged_df = pd.merge(merged_df, df, on='subject_id', how='outer')
     
-    print_info(f"Behavioral subjects: {len(df)}")
-    print_info(f"CAARS measures: {len(caars_cols)}")
-    print_info(f"CAARS columns: {caars_cols}")
+    # Auto-detect behavioral columns (CAARS, Conners, RBS)
+    behavioral_cols = [col for col in merged_df.columns if 
+                       'CAARS' in col.upper() or 
+                       'CONNERS' in col.upper() or
+                       'RBS' in col.upper() or
+                       ('TOTAL' in col.upper() and ('INATTENTION' in col.upper() or 'HYPERACTIVITY' in col.upper())) or
+                       ('T-SCORE' in col.upper() or 'T_SCORE' in col.upper())]
     
-    return df, caars_cols
+    # Exclude subject_id if it got included
+    behavioral_cols = [col for col in behavioral_cols if col != 'subject_id']
+    
+    if not behavioral_cols:
+        raise ValueError("No behavioral columns found")
+    
+    print_info(f"Total behavioral subjects: {len(merged_df)}")
+    print_info(f"Behavioral measures: {len(behavioral_cols)}")
+    print_info(f"Sample columns: {behavioral_cols[:5]}...")
+    
+    return merged_df, behavioral_cols
 
 
 def merge_data(ig_df, behavioral_df):
@@ -225,7 +259,7 @@ def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, ou
     print_info(f"R² (CV) = {r2_mean:.3f} ± {r2_std:.3f}")
     
     # Create scatter plot
-    create_scatter_plot(y, y_pred, rho, p_value, behavioral_name, output_dir)
+    create_scatter_plot(y, y_pred, rho, p_value, behavioral_name, DATASET, output_dir)
     
     # Get PC importance (absolute coefficients)
     pc_importance = np.abs(model.coef_)
@@ -243,7 +277,7 @@ def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, ou
     }
 
 
-def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, output_dir):
+def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, dataset_name, output_dir):
     """Create scatter plot of predicted vs actual behavioral scores."""
     fig, ax = plt.subplots(figsize=(6, 6))
     
@@ -266,9 +300,9 @@ def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, output_
     ax.set_xlabel('Actual Behavioral Score', fontsize=11)
     ax.set_ylabel('Predicted Behavioral Score', fontsize=11)
     
-    # Clean behavioral name for title
-    clean_name = behavioral_name.replace('_', ' ').title()
-    ax.set_title(clean_name, fontsize=12, fontweight='bold')
+    # Use dataset name as title (e.g., "NKI-RS TD", "ADHD200 TD", "CMI-HBN TD")
+    title = dataset_name.replace('_', '-').upper()
+    ax.set_title(title, fontsize=12, fontweight='bold')
     
     # Styling
     ax.grid(False)
@@ -355,15 +389,15 @@ def save_results(results_list, pc_loadings_dict, output_dir):
 def main():
     print_section_header("ENHANCED BRAIN-BEHAVIOR ANALYSIS - NKI-RS TD")
     
-    print_info(f"IG CSV:     {IG_CSV}")
-    print_info(f"CAARS CSV:  {BEHAVIORAL_FILE}")
-    print_info(f"Output:     {OUTPUT_DIR}")
+    print_info(f"IG CSV:          {IG_CSV}")
+    print_info(f"Behavioral DIR:  {BEHAVIORAL_DIR}")
+    print_info(f"Output:          {OUTPUT_DIR}")
     print()
     
     try:
         # 1. Load data
         ig_df, roi_cols = load_nki_ig_scores(IG_CSV)
-        behavioral_df, caars_cols = load_nki_behavioral_data(BEHAVIORAL_FILE)
+        behavioral_df, caars_cols = load_nki_behavioral_data(BEHAVIORAL_DIR)
         
         # 2. Merge data
         merged_df = merge_data(ig_df, behavioral_df)

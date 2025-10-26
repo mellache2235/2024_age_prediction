@@ -31,15 +31,15 @@ from logging_utils import (print_section_header, print_step, print_success,
 # ============================================================================
 DATASET = "cmihbn_td"
 PKLZ_DIR = "/oak/stanford/groups/menon/deriveddata/public/cmihbn/restfmri/timeseries/group_level/brainnetome/normz"
-IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/integrated_gradients/cmihbn_td_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_pred.csv"
-C3SR_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/prepare_data/cmihbn/behavior"
+IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/cmihbn_td_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv"
+C3SR_FILE = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/adhd/C3SR.csv"
 OUTPUT_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/cmihbn_td"
 
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
 
-def load_cmihbn_pklz_data(pklz_dir, c3sr_dir):
+def load_cmihbn_pklz_data(pklz_dir, c3sr_file):
     """Load CMI-HBN .pklz files (run1 only) and merge with C3SR behavioral data."""
     print_step("Loading CMI-HBN TD data", f"From {Path(pklz_dir).name}")
     
@@ -67,41 +67,40 @@ def load_cmihbn_pklz_data(pklz_dir, c3sr_dir):
     data = data.drop_duplicates(subset='subject_id', keep='first')
     print_info(f"Total subjects after deduplication: {len(data)}")
     
-    # Convert label to numeric (handles 'pending', 'nan', etc.)
-    data['label'] = pd.to_numeric(data['label'], errors='coerce')
+    # CMI-HBN specific filtering (similar to ADHD200)
+    # First remove 'pending' labels if they exist
+    if 'label' in data.columns:
+        data = data[data['label'] != 'pending']
+        print_info(f"After removing 'pending' labels: {len(data)}")
     
-    # Filter out NaN labels
-    data = data[~data['label'].isna()]
-    print_info(f"Valid subjects (non-NaN labels): {len(data)}")
-    
-    # Filter out label == 99
-    data = data[data['label'] != 99]
-    print_info(f"Valid subjects (label != 99): {len(data)}")
-    
-    # Filter for TD subjects (label == 0)
-    td_data = data[data['label'] == 0]
-    print_info(f"TD subjects: {len(td_data)}")
+    # Convert label to numeric (handles remaining non-numeric values)
+    if 'label' in data.columns:
+        data['label'] = pd.to_numeric(data['label'], errors='coerce')
+        
+        # Filter out NaN labels
+        data = data[~data['label'].isna()]
+        print_info(f"Valid subjects (non-NaN labels): {len(data)}")
+        
+        # Filter out label == 99
+        data = data[data['label'] != 99]
+        print_info(f"Valid subjects (label != 99): {len(data)}")
+        
+        # Filter for TD subjects (label == 0)
+        td_data = data[data['label'] == 0]
+        print_info(f"TD subjects (label=0): {len(td_data)}")
+    else:
+        print_warning("No 'label' column found. Assuming all subjects are TD.")
+        td_data = data
     
     # Filter by mean_fd < 0.5
     td_data = td_data[td_data['mean_fd'] < 0.5]
     print_info(f"After mean_fd < 0.5 filter: {len(td_data)}")
     
-    # Load C3SR behavioral data (Conners rating scale)
-    print_step("Loading C3SR behavioral data", f"From {Path(c3sr_dir).name}")
+    # Load C3SR behavioral data
+    print_step("Loading C3SR behavioral data", f"From {Path(c3sr_file).name}")
     
-    # Find Conners CSV file (C3SR = Conners 3 Short Rating Scale)
-    c3sr_files = (list(Path(c3sr_dir).glob('*C3SR*.csv')) + 
-                  list(Path(c3sr_dir).glob('*c3sr*.csv')) +
-                  list(Path(c3sr_dir).glob('*Conners*.csv')) +
-                  list(Path(c3sr_dir).glob('*conners*.csv')))
-    
-    if not c3sr_files:
-        raise ValueError(f"No C3SR/Conners CSV file found in {c3sr_dir}")
-    
-    # Prefer files with "ADHD" or "8-21years" in the name
-    adhd_files = [f for f in c3sr_files if 'ADHD' in f.name or '8-21' in f.name]
-    c3sr_file = adhd_files[0] if adhd_files else c3sr_files[0]
-    print_info(f"Using C3SR file: {c3sr_file.name}")
+    if not Path(c3sr_file).exists():
+        raise ValueError(f"C3SR file not found: {c3sr_file}")
     
     c3sr = pd.read_csv(c3sr_file)
     
@@ -303,7 +302,7 @@ def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, ou
     print_info(f"R² (CV) = {r2_mean:.3f} ± {r2_std:.3f}")
     
     # Create scatter plot
-    create_scatter_plot(y, y_pred, rho, p_value, behavioral_name, output_dir)
+    create_scatter_plot(y, y_pred, rho, p_value, behavioral_name, DATASET, output_dir)
     
     # Get PC importance (absolute coefficients)
     pc_importance = np.abs(model.coef_)
@@ -321,7 +320,7 @@ def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, ou
     }
 
 
-def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, output_dir):
+def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, dataset_name, output_dir):
     """Create scatter plot of predicted vs actual behavioral scores."""
     fig, ax = plt.subplots(figsize=(6, 6))
     
@@ -344,9 +343,9 @@ def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, output_
     ax.set_xlabel('Actual Behavioral Score', fontsize=11)
     ax.set_ylabel('Predicted Behavioral Score', fontsize=11)
     
-    # Clean behavioral name for title
-    clean_name = behavioral_name.replace('_', ' ').title()
-    ax.set_title(clean_name, fontsize=12, fontweight='bold')
+    # Use dataset name as title (e.g., "CMIHBN-TD")
+    title = dataset_name.replace('_', '-').upper()
+    ax.set_title(title, fontsize=12, fontweight='bold')
     
     # Styling
     ax.grid(False)
@@ -435,13 +434,13 @@ def main():
     
     print_info(f"PKLZ DIR:   {PKLZ_DIR}")
     print_info(f"IG CSV:     {IG_CSV}")
-    print_info(f"C3SR DIR:   {C3SR_DIR}")
+    print_info(f"C3SR FILE:  {C3SR_FILE}")
     print_info(f"Output:     {OUTPUT_DIR}")
     print()
     
     try:
         # 1. Load data
-        pklz_data, behavioral_cols = load_cmihbn_pklz_data(PKLZ_DIR, C3SR_DIR)
+        pklz_data, behavioral_cols = load_cmihbn_pklz_data(PKLZ_DIR, C3SR_FILE)
         
         if not behavioral_cols:
             raise ValueError("No behavioral columns found")

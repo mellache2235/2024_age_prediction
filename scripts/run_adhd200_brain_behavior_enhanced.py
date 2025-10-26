@@ -31,7 +31,7 @@ from logging_utils import (print_section_header, print_step, print_success,
 # ============================================================================
 DATASET = "adhd200_td"
 PKLZ_FILE = "/oak/stanford/groups/menon/deriveddata/public/adhd200/restfmri/timeseries/group_level/brainnetome/normz/adhd200_run-rest_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs.pklz"
-IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/integrated_gradients/adhd200_td_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_pred.csv"
+IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/adhd200_td_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv"
 OUTPUT_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_td"
 
 # ============================================================================
@@ -45,27 +45,41 @@ def load_adhd200_pklz_data(pklz_file):
     data = pd.read_pickle(pklz_file)
     print_info(f"Total subjects loaded: {len(data)}")
     
-    # Convert subject_id to string
+    # ADHD200-specific filtering
+    # Filter out TR != 2.5
+    if 'tr' in data.columns:
+        data = data[data['tr'] != 2.5]
+        print_info(f"After TR != 2.5 filter: {len(data)}")
+    
+    # Remove 'pending' labels
+    if 'label' in data.columns:
+        data = data[data['label'] != 'pending']
+        print_info(f"After removing 'pending' labels: {len(data)}")
+    
+    # Filter by mean_fd < 0.5
+    if 'mean_fd' in data.columns:
+        data = data[data['mean_fd'] < 0.5]
+        print_info(f"After mean_fd < 0.5 filter: {len(data)}")
+    
+    # Convert subject_id to string (then to int for consistency)
     data['subject_id'] = data['subject_id'].astype(str)
     
     # Remove duplicates
     data = data.drop_duplicates(subset='subject_id', keep='first')
     print_info(f"After deduplication: {len(data)}")
     
-    # Convert DX to numeric (handles 'pending' and other non-numeric values)
-    data['DX'] = pd.to_numeric(data['DX'], errors='coerce')
-    
-    # Filter out NaN DX
-    data = data[~data['DX'].isna()]
-    print_info(f"Valid DX values: {len(data)}")
-    
-    # Filter for TD subjects (DX == 0)
-    td_data = data[data['DX'] == 0]
-    print_info(f"TD subjects (DX=0): {len(td_data)}")
-    
-    # Filter by mean_fd < 0.5
-    td_data = td_data[td_data['mean_fd'] < 0.5]
-    print_info(f"After mean_fd < 0.5 filter: {len(td_data)}")
+    # Filter for TD subjects (label == 0)
+    if 'label' in data.columns:
+        # Convert label to numeric
+        data['label'] = pd.to_numeric(data['label'], errors='coerce')
+        # Filter out NaN labels
+        data = data[~data['label'].isna()]
+        # Get TD subjects (label == 0)
+        td_data = data[data['label'] == 0]
+        print_info(f"TD subjects (label=0): {len(td_data)}")
+    else:
+        print_warning("No 'label' column found. Assuming all subjects are TD.")
+        td_data = data
     
     # Check for behavioral columns
     behavioral_cols = []
@@ -235,7 +249,7 @@ def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, ou
     print_info(f"R² (CV) = {r2_mean:.3f} ± {r2_std:.3f}")
     
     # Create scatter plot
-    create_scatter_plot(y, y_pred, rho, p_value, behavioral_name, output_dir)
+    create_scatter_plot(y, y_pred, rho, p_value, behavioral_name, DATASET, output_dir)
     
     # Get PC importance (absolute coefficients)
     pc_importance = np.abs(model.coef_)
@@ -253,7 +267,7 @@ def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, ou
     }
 
 
-def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, output_dir):
+def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, dataset_name, output_dir):
     """Create scatter plot of predicted vs actual behavioral scores."""
     fig, ax = plt.subplots(figsize=(6, 6))
     
@@ -276,9 +290,9 @@ def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, output_
     ax.set_xlabel('Actual Behavioral Score', fontsize=11)
     ax.set_ylabel('Predicted Behavioral Score', fontsize=11)
     
-    # Clean behavioral name for title
-    clean_name = behavioral_name.replace('_', ' ').title()
-    ax.set_title(clean_name, fontsize=12, fontweight='bold')
+    # Use dataset name as title (e.g., "ADHD200-TD")
+    title = dataset_name.replace('_', '-').upper()
+    ax.set_title(title, fontsize=12, fontweight='bold')
     
     # Styling
     ax.grid(False)
