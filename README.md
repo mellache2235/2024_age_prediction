@@ -64,16 +64,26 @@ python plot_brain_age_adhd_cohorts.py \
 python plot_brain_age_asd_cohorts.py \
   --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots
 
-# Step 6 (Optional): Run brain-behavior correlation analysis for TD cohorts
-# Test each cohort individually with dedicated scripts:
+# Step 6 (Optional): Brain-behavior correlation analysis for TD cohorts
+
+# Option A: Quick analysis (CSV results only)
 bash run_nki_brain_behavior_only.sh
 bash run_adhd200_td_brain_behavior_only.sh
 bash run_cmihbn_td_brain_behavior_only.sh
 
-# Step 7 (Optional): Enhance brain-behavior results with plots and PC analysis
-# Run after Step 6 to add elbow plots, scatter plots, and PC loadings
+# Option B: Full analysis with plots (recommended)
+# The enhanced script does everything in one go:
+#   - Loads data and performs PCA
+#   - Creates elbow plot for optimal PC selection
+#   - Uses all PCs in linear regression to predict behavioral scores
+#   - Calculates Spearman correlation (predicted vs actual behavior)
+#   - Creates scatter plots
+#   - Ranks PC importance
+#   - Shows top brain regions per PC
 python brain_behavior_enhanced.py \
-  --results_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior \
+  --ig_csv /oak/.../integrated_gradients/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv \
+  --behavioral_file /oak/.../FLUX/assessment_data/8100_CAARS-S-S_20191009.csv \
+  --output_dir /oak/.../results/brain_behavior/nki_rs_td \
   --dataset nki_rs_td
 
 # Optional: Analyze shared TD regions with high counts
@@ -305,40 +315,48 @@ cd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/scripts
 bash run_cmihbn_td_brain_behavior_only.sh
 ```
 
-**Common Analysis Steps (All Cohorts):**
+**Linear Regression Approach (Enhanced Script):**
 1. Load IG scores from CSV (with subject IDs)
 2. Load behavioral data (CAARS for NKI, embedded for ADHD200, C3SR for CMI-HBN)
 3. Match subjects between IG and behavioral data
-4. Perform PCA on IG scores (10 components default, or optimal via elbow method)
-5. Use each PC as a feature for brain-behavior correlation
-6. Calculate Spearman correlations between PCs and behavioral measures
-7. Apply FDR correction (Benjamini-Hochberg)
-8. Create scatter plots for significant correlations
-9. Generate PC loading reports (top contributing brain regions per PC)
-10. Save results to CSV files and PNG plots
+4. Perform PCA on IG scores → determine optimal # of PCs via elbow method
+5. **Use ALL PCs together** in linear regression to predict behavioral scores
+6. Calculate Spearman correlation between predicted and actual behavioral scores
+7. Rank PC importance (absolute regression coefficients)
+8. Create scatter plots (predicted vs actual behavioral scores)
+9. Generate PC loading reports (top 10 brain regions contributing to each PC)
+10. Save results: scatter plots (PNG), importance rankings (CSV), PC loadings (CSV)
 
-**Expected Output Files:**
-- **NKI-RS TD**: 
-  - CSVs: `nki_<behavioral_measure>_pca_correlations.csv` (4 files for CAARS measures)
-  - Plots: `nki_PC{X}_vs_<behavioral_measure>.png` (scatter plots for significant PCs)
-  - Elbow: `nki_pca_elbow_plot.png`
-  - Loadings: `nki_pc_loadings.csv`
-- **ADHD200 TD**: 
-  - CSVs: `adhd200_td_Hyper_Impulsive_pca_correlations.csv`, `adhd200_td_Inattentive_pca_correlations.csv`
-  - Plots: `adhd200_td_PC{X}_vs_{HY,IN}.png`
-  - Elbow: `adhd200_td_pca_elbow_plot.png`
-  - Loadings: `adhd200_td_pc_loadings.csv`
-- **CMI-HBN TD**: 
-  - CSVs: `cmihbn_td_C3SR_HY_T_pca_correlations.csv`, `cmihbn_td_C3SR_IN_T_pca_correlations.csv`
-  - Plots: `cmihbn_td_PC{X}_vs_{HY,IN}.png`
-  - Elbow: `cmihbn_td_pca_elbow_plot.png`
-  - Loadings: `cmihbn_td_pc_loadings.csv`
+**Key Difference from Individual PC Correlation:**
+- Uses **all PCs simultaneously** in a regression model (not one at a time)
+- Predicts behavioral scores from brain features
+- Reports **one correlation per behavioral measure** (model performance)
+- Shows which PCs are most important for prediction
 
-**CSV Format**: Component (PC1-PC10), Correlation_r (Spearman), P_value, P_value_corrected (FDR), Significant (True/False)
+**Expected Output Files (Enhanced Script):**
+- **Per Dataset**: 
+  - Elbow plot: `{dataset}_pca_elbow_plot.png` (optimal PC selection)
+  - PC loadings: `{dataset}_pc_loadings.csv` (top 10 brain regions per PC)
+  
+- **Per Behavioral Measure**:
+  - Scatter plot: `{dataset}_predicted_vs_actual_{behavior}.png` (predicted vs actual behavioral scores)
+  - Results CSV: `{dataset}_{behavior}_regression_results.csv` (Spearman ρ, p-value, R² CV)
+  - PC importance: `{dataset}_{behavior}_pc_importance.csv` (ranked PCs by contribution)
 
-**Plot Features**: Scatter plot with regression line, Spearman ρ and p-value in bottom-right corner, no grid, no top/right spines
+**Example for NKI-RS TD** (4 CAARS measures):
+- `nki_rs_td_pca_elbow_plot.png`
+- `nki_rs_td_pc_loadings.csv`
+- `nki_rs_td_predicted_vs_actual_CAARS_A_TOTAL.png` (×4 behavioral measures)
+- `nki_rs_td_CAARS_A_TOTAL_regression_results.csv` (×4)
+- `nki_rs_td_CAARS_A_TOTAL_pc_importance.csv` (×4)
 
-**PC Loadings Format**: PC, Top_Region_1, Loading_1, Top_Region_2, Loading_2, ..., Top_Region_10, Loading_10
+**Results CSV Contains**: Spearman_r, P_value, R2_CV_mean, R2_CV_std, N_subjects, N_PCs_used
+
+**PC Importance CSV Contains**: PC (ranked by importance), Importance (abs coefficient), Rank
+
+**PC Loadings CSV Contains**: PC, Region_1, Loading_1, Abs_Loading_1, ..., Region_10, Loading_10, Abs_Loading_10
+
+**Plot Features**: Predicted vs actual scatter, regression line, Spearman ρ and p-value (< 0.001 format) in bottom-right, no grid, no top/right spines
 
 **Enhanced Analysis Script (`brain_behavior_enhanced.py`):**
 - **Purpose**: Post-processing script to add visualizations and PC analysis to existing results
