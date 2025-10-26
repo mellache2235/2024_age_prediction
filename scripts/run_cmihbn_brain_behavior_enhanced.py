@@ -296,20 +296,22 @@ def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, ou
         print_warning(f"Insufficient valid data for {behavioral_name}: {len(y)} subjects")
         return None
     
-    # Fit linear regression
+    n_features = X.shape[1]
+    n_samples = len(y)
+    
+    # Fit linear regression on ALL data
     model = LinearRegression()
     model.fit(X, y)
     
-    # Predict
+    # Predict on ALL data
     y_pred = model.predict(X)
     
     # Calculate Spearman correlation
     rho, p_value = spearmanr(y, y_pred)
     
-    # Calculate R² using cross-validation
-    cv_scores = cross_val_score(model, X, y, cv=5, scoring='r2')
-    r2_mean = cv_scores.mean()
-    r2_std = cv_scores.std()
+    # Calculate R² on all data
+    from sklearn.metrics import r2_score
+    r2 = r2_score(y, y_pred)
     
     # Format p-value for console output
     if p_value < 0.001:
@@ -318,8 +320,9 @@ def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, ou
         p_str = f"= {p_value:.4f}"
     
     print_info(f"N subjects: {len(y)}")
+    print_info(f"N features (PCs): {n_features}")
     print_info(f"Spearman ρ = {rho:.3f}, p {p_str}")
-    print_info(f"R² (CV) = {r2_mean:.3f} ± {r2_std:.3f}")
+    print_info(f"R² = {r2:.3f}")
     
     # Create scatter plot
     create_scatter_plot(y, y_pred, rho, p_value, behavioral_name, DATASET, output_dir)
@@ -331,10 +334,10 @@ def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, ou
     return {
         'behavioral_measure': behavioral_name,
         'n_subjects': len(y),
+        'n_features': n_features,
         'spearman_rho': rho,
         'p_value': p_value,
-        'r2_mean': r2_mean,
-        'r2_std': r2_std,
+        'r2': r2,
         'pc_importance': pc_importance,
         'pc_ranks': pc_ranks
     }
