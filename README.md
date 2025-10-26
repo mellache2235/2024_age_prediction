@@ -71,20 +71,19 @@ bash run_nki_brain_behavior_only.sh
 bash run_adhd200_td_brain_behavior_only.sh
 bash run_cmihbn_td_brain_behavior_only.sh
 
-# Option B: Full analysis with plots (recommended)
-# The enhanced script does everything in one go:
-#   - Loads data and performs PCA
-#   - Creates elbow plot for optimal PC selection
-#   - Uses all PCs in linear regression to predict behavioral scores
+# Option B: Full analysis with plots (recommended) - NO ARGUMENTS NEEDED
+# All paths are pre-configured in the scripts. Just run:
+python run_nki_brain_behavior_enhanced.py
+python run_adhd200_brain_behavior_enhanced.py
+python run_cmihbn_brain_behavior_enhanced.py
+
+# Each script does everything in one go:
+#   - Loads data and performs PCA with elbow method
+#   - Uses ALL PCs in linear regression to predict behavioral scores
 #   - Calculates Spearman correlation (predicted vs actual behavior)
-#   - Creates scatter plots
-#   - Ranks PC importance
+#   - Creates scatter plots, elbow plots
+#   - Ranks PC importance (which PCs contribute most)
 #   - Shows top brain regions per PC
-python brain_behavior_enhanced.py \
-  --ig_csv /oak/.../integrated_gradients/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv \
-  --behavioral_file /oak/.../FLUX/assessment_data/8100_CAARS-S-S_20191009.csv \
-  --output_dir /oak/.../results/brain_behavior/nki_rs_td \
-  --dataset nki_rs_td
 
 # Optional: Analyze shared TD regions with high counts
 # (Install tabulate for pretty tables: pip install tabulate)
@@ -358,20 +357,39 @@ bash run_cmihbn_td_brain_behavior_only.sh
 
 **Plot Features**: Predicted vs actual scatter, regression line, Spearman ρ and p-value (< 0.001 format) in bottom-right, no grid, no top/right spines
 
-**Enhanced Analysis Script (`brain_behavior_enhanced.py`):**
-- **Purpose**: Post-processing script to add visualizations and PC analysis to existing results
-- **Features**:
-  - Elbow plot for optimal PC selection (variance explained vs. number of PCs)
-  - Scatter plots for each significant PC-behavioral correlation (Spearman ρ)
-  - PC loadings showing top 10 contributing brain regions per PC
-  - Publication-ready plots (no grid, no top/right spines, statistics in bottom-right)
-- **Usage**: Run after completing Step 6 brain-behavior analysis
-```bash
-# Run for each dataset
-python brain_behavior_enhanced.py --results_dir /oak/.../results/brain_behavior --dataset nki_rs_td
-python brain_behavior_enhanced.py --results_dir /oak/.../results/brain_behavior --dataset adhd200_td
-python brain_behavior_enhanced.py --results_dir /oak/.../results/brain_behavior --dataset cmihbn_td
-```
+**Enhanced Analysis Scripts (Option B - Recommended):**
+
+Three standalone scripts with all paths pre-configured (no arguments needed):
+
+**1. NKI-RS TD** (`run_nki_brain_behavior_enhanced.py`):
+- **Pre-configured paths**:
+  - IG CSV: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv`
+  - CAARS: `/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data/8100_CAARS-S-S_20191009.csv`
+  - Output: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td`
+- **Usage**: `python run_nki_brain_behavior_enhanced.py`
+
+**2. ADHD200 TD** (`run_adhd200_brain_behavior_enhanced.py`):
+- **Pre-configured paths**:
+  - PKLZ: `/oak/stanford/groups/menon/deriveddata/public/adhd200/restfmri/timeseries/group_level/brainnetome/normz/adhd200_run-rest_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs.pklz`
+  - IG CSV: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/adhd200_td_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_pred.csv`
+  - Output: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_td`
+- **Usage**: `python run_adhd200_brain_behavior_enhanced.py`
+
+**3. CMI-HBN TD** (`run_cmihbn_brain_behavior_enhanced.py`):
+- **Pre-configured paths**:
+  - PKLZ Directory: `/oak/stanford/groups/menon/deriveddata/public/cmihbn/restfmri/timeseries/group_level/brainnetome/normz`
+  - IG CSV: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/cmihbn_td_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_pred.csv`
+  - C3SR: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/prepare_data/cmihbn/behavior`
+  - Output: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/cmihbn_td`
+- **Usage**: `python run_cmihbn_brain_behavior_enhanced.py`
+
+**Features** (all scripts):
+- ✅ Elbow plot for optimal PC selection
+- ✅ Linear regression using all PCs to predict behavioral scores
+- ✅ Scatter plots (predicted vs actual behavior)
+- ✅ PC importance ranking (which PCs matter most)
+- ✅ PC loadings (top 10 brain regions per PC)
+- ✅ No arguments needed - just run the script!
 
 **Comprehensive Script (`comprehensive_brain_behavior_analysis.py`):**
 - **Datasets**: NKI-RS TD, ADHD-200 ADHD/TD, CMI-HBN ADHD/TD, ABIDE ASD, Stanford ASD, HCP-Dev
