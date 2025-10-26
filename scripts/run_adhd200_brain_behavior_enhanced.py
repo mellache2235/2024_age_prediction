@@ -96,8 +96,16 @@ def load_adhd200_pklz_data(pklz_file):
     
     # Convert behavioral columns to numeric (handles nested arrays/Series)
     for col in behavioral_cols:
-        # Extract values from numpy arrays if needed
-        td_data[col] = td_data[col].apply(lambda x: float(x) if not isinstance(x, (pd.Series, np.ndarray)) else float(x[0]) if len(x) > 0 else np.nan)
+        # Extract values from numpy arrays/Series
+        def extract_value(x):
+            if isinstance(x, pd.Series):
+                return float(x.iloc[0]) if len(x) > 0 else np.nan
+            elif isinstance(x, np.ndarray):
+                return float(x[0]) if len(x) > 0 else np.nan
+            else:
+                return float(x)
+        
+        td_data[col] = td_data[col].apply(extract_value)
         
         # Convert to numeric
         td_data[col] = pd.to_numeric(td_data[col], errors='coerce')
