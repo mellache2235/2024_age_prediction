@@ -149,17 +149,17 @@ All results are saved to: `/oak/stanford/groups/menon/projects/mellache/2024_age
 
 ### **Step 4: Region Tables**
 - **Location**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/region_tables/`
-- **Individual Tables**: `{dataset_name}_region_table.csv` - One per dataset (only regions with count ≥ 289)
+- **Individual Tables**: `{dataset_name}_region_table.csv` - One per dataset (all regions with count ≥ 289)
   - Examples: `dev_region_table.csv`, `nki_region_table.csv`, `adhd200_td_region_table.csv`, etc.
-- **Overlap Tables** (regions shared across cohorts):
+- **Overlap Tables** (regions shared across cohorts - **top 20% only**):
   - `overlap_regions_TD.csv` - Overlap across TD cohorts (HCP-Dev, NKI, CMI-HBN TD, ADHD200 TD)
   - `overlap_regions_ADHD.csv` - Overlap across ADHD cohorts (CMI-HBN ADHD, ADHD200 ADHD)
   - `overlap_regions_ASD.csv` - Overlap across ASD cohorts (ABIDE ASD, Stanford ASD)
 - **Format**: CSV with columns: Brain Regions, Subdivision, (ID) Region Label, Count
 - **Count Method**: Minimum count across datasets for overlapping regions
 - **Filtering**: 
-  1. Count data already filtered to top 50% during IG processing (PERCENTILE=50)
-  2. Further filtered to only include regions with count ≥ 289 (significance threshold: 289/500 = 58%)
+  - **Individual tables**: Count ≥ 289 (significance threshold: 289/500 = 58%)
+  - **Overlap tables**: Count ≥ 289, then **top 20% of overlapping regions** (highest counts)
 
 ### **Step 5: Brain Age Plots**
 - **Location**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots/`
@@ -240,7 +240,49 @@ network_analysis:
 - **Statistics**: R², MAE, P-value (< 0.001 format), N
 - **Titles**: Clear dataset names for each subplot
 
-### **Brain-Behavior Correlation Plots**
+### **Brain-Behavior Correlation Analysis**
+
+**NKI-RS TD Analysis (`brain_behavior_nki.py`):**
+- **Purpose**: PCA-based brain-behavior correlation for NKI-RS TD cohort
+- **Data Sources**:
+  - IG CSV: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv`
+  - CAARS Behavioral: `/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data/8100_CAARS-S-S_20191009.csv`
+- **Method**: 
+  1. Load IG scores from CSV (with subject IDs)
+  2. Load CAARS behavioral data (Hyperactivity/Impulsivity, Inattention measures)
+  3. Match subjects between IG and behavioral data
+  4. Perform PCA on IG scores (default: 10 components)
+  5. Correlate PCA components with CAARS measures
+  6. Apply FDR correction (Benjamini-Hochberg)
+- **Usage**:
+```bash
+python brain_behavior_nki.py \
+  --ig_csv /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv \
+  --behavioral_file /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data/8100_CAARS-S-S_20191009.csv \
+  --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td \
+  --n_components 10
+```
+
+**CMI-HBN TD and ADHD200 TD Analysis (`run_both_td_brain_behavior.py`):**
+- **Purpose**: PCA-based brain-behavior correlation for CMI-HBN TD and ADHD200 TD
+- **Data Sources**:
+  - CMI-HBN C3SR: `/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data/C3SR.csv`
+  - ADHD200 behavioral data: Embedded in `.pklz` files
+- **Method**: 
+  1. Load imaging data (.pklz files, mean_fd < 0.5, TD only)
+  2. Merge with behavioral data (C3SR for CMI-HBN)
+  3. Load IG scores for matched subjects
+  4. Perform PCA on IG scores (default: 10 components)
+  5. Correlate PCA components with behavioral measures (HY, IN)
+  6. Apply FDR correction (Benjamini-Hochberg)
+- **Usage**:
+```bash
+# Run both CMI-HBN TD and ADHD200 TD analyses sequentially
+python run_both_td_brain_behavior.py
+```
+
+**Comprehensive Script (`comprehensive_brain_behavior_analysis.py`):**
+- **Datasets**: NKI-RS TD, ADHD-200 ADHD/TD, CMI-HBN ADHD/TD, ABIDE ASD, Stanford ASD, HCP-Dev
 - **Styling**:
   - No identity line
   - No grid
@@ -260,25 +302,27 @@ All plots follow these conventions for publication-ready figures:
 - ✅ **Seaborn styling**: White background, professional appearance
 
 ### **Shared Region Analysis Methodology**
-The pipeline uses a **top 50% percentile + significance threshold** approach for finding shared important regions:
+The pipeline uses a **top 50% percentile + significance threshold** approach, with **top 20% selection for shared regions**:
 
 1. **IG Processing**: During integrated gradients analysis, only features (ROIs) in the top 50th percentile are counted
 2. **Count Data**: Each dataset's count data already reflects only the top 50% of features
 3. **Significance Threshold**: Only regions with counts ≥ 289 (out of 500 subjects, ~58%) are included
-4. **Find Overlap**: Identify regions that appear in multiple datasets (from their top 50% and significant counts)
-5. **Minimum Count**: For shared regions, use the minimum count across datasets
-6. **Network Mapping**: Map shared regions to Yeo 17-network atlas
-7. **Radar Plots**: Visualize network-level aggregation of shared regions
+4. **Individual Tables**: All significant regions (count ≥ 289) are included
+5. **Find Overlap**: Identify regions that appear in multiple datasets (from their significant regions)
+6. **Top 20% Selection**: For overlap tables, select only the top 20% with highest minimum counts
+7. **Minimum Count**: For shared regions, use the minimum count across datasets
+8. **Network Mapping**: Map shared regions to Yeo 17-network atlas
+9. **Radar Plots**: Visualize network-level aggregation of shared regions
 
 **Example for TD cohorts:**
-- HCP-Dev: ~123 regions (top 50% of 246 ROIs) → filter to count ≥ 289
-- NKI: ~123 regions (top 50% of 246 ROIs) → filter to count ≥ 289
-- CMI-HBN TD: ~123 regions (top 50% of 246 ROIs) → filter to count ≥ 289
-- ADHD200 TD: ~123 regions (top 50% of 246 ROIs) → filter to count ≥ 289
-- **Shared**: Regions that appear in at least 2 datasets with minimum count ≥ 289
+- HCP-Dev: ~123 regions (top 50% of 246 ROIs) → filter to count ≥ 289 → **all included in individual table**
+- NKI: ~123 regions (top 50% of 246 ROIs) → filter to count ≥ 289 → **all included in individual table**
+- CMI-HBN TD: ~123 regions (top 50% of 246 ROIs) → filter to count ≥ 289 → **all included in individual table**
+- ADHD200 TD: ~123 regions (top 50% of 246 ROIs) → filter to count ≥ 289 → **all included in individual table**
+- **Overlap**: Regions that appear in at least 2 datasets → **select top 20% of overlapping regions**
 - **Radar plot**: Shows network-level aggregation of shared regions
 
-This approach ensures we focus on the most important regions (top 50% by IG scores) that are also statistically significant (≥289 counts) and consistently identified across cohorts.
+This approach ensures individual tables show all **statistically significant** regions (≥289 counts), while overlap tables focus on the **strongest shared effects** (top 20% of overlapping regions) consistently identified across cohorts.
 
 ## 📂 **Repository Structure**
 

@@ -159,11 +159,10 @@ def create_dataset_region_table_from_excel(excel_path: str,
     
     Format: Brain Regions, Subdivision, (ID) Region Label, Count
     
-    Note: The count data already reflects top 50% of features (filtered during IG processing).
-    We further filter to only include regions with counts ≥ 289 (significance threshold).
+    Note: Filters to regions with counts ≥ 289 (significance threshold).
     
     Args:
-        excel_path (str): Path to count data Excel file (already filtered to top 50%)
+        excel_path (str): Path to count data Excel file
         output_path (str): Output path for the table
         roi_labels_path (str): Path to ROI labels file for accurate mapping
         min_count (int): Minimum count threshold (default: 289, out of 500 subjects)
@@ -215,14 +214,15 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
                                          output_path: str,
                                          roi_labels_path: str,
                                          min_datasets: int = 2,
-                                         min_count: int = 289) -> pd.DataFrame:
+                                         min_count: int = 289,
+                                         top_percentile: float = 0.20) -> pd.DataFrame:
     """
     Create a table of regions shared across multiple datasets from Excel files.
     
     Format: Brain Regions, Subdivision, (ID) Region Label, Count
     For shared regions: Count = minimum count across datasets
     
-    Note: Only includes regions with counts ≥ 289 (significance threshold).
+    Note: Only includes top 20% of regions with counts ≥ 289 (significance threshold).
     
     Args:
         dataset_excel_paths (List[str]): List of paths to count data Excel files
@@ -230,6 +230,7 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
         roi_labels_path (str): Path to ROI labels file for accurate mapping
         min_datasets (int): Minimum number of datasets a region must appear in
         min_count (int): Minimum count threshold (default: 289, out of 500 subjects)
+        top_percentile (float): Top percentile to keep (default: 0.20 = top 20%)
         
     Returns:
         pd.DataFrame: Shared regions table
@@ -300,6 +301,12 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
     if table_data:
         shared_table = pd.DataFrame(table_data)
         shared_table = shared_table.sort_values('Count', ascending=False)
+        
+        # Take only top percentile (e.g., top 20%)
+        n_top = max(1, int(len(shared_table) * top_percentile))
+        shared_table = shared_table.head(n_top)
+        
+        logging.info(f"Selected top {top_percentile*100:.0f}% ({n_top} regions) from shared regions")
         
         # Save table
         shared_table.to_csv(output_path, index=False)
@@ -490,11 +497,12 @@ def create_overlap_table_from_csvs(csv_paths: List[str],
                                   roi_labels_path: str,
                                   condition_name: str,
                                   min_datasets: int = 2,
-                                  min_count: int = 289) -> pd.DataFrame:
+                                  min_count: int = 289,
+                                  top_percentile: float = 0.20) -> pd.DataFrame:
     """
     Create overlap table from converted CSV files for a specific condition.
     
-    Only includes regions with counts ≥ 289 (significance threshold).
+    Only includes top 20% of regions with counts ≥ 289 (significance threshold).
     
     Args:
         csv_paths (List[str]): List of paths to converted CSV files
@@ -503,6 +511,7 @@ def create_overlap_table_from_csvs(csv_paths: List[str],
         condition_name (str): Name of the condition (TD, ADHD, ASD)
         min_datasets (int): Minimum number of datasets a region must appear in
         min_count (int): Minimum count threshold (default: 289, out of 500 subjects)
+        top_percentile (float): Top percentile to keep (default: 0.20 = top 20%)
         
     Returns:
         pd.DataFrame: Overlap table
@@ -577,6 +586,12 @@ def create_overlap_table_from_csvs(csv_paths: List[str],
     if table_data:
         overlap_table = pd.DataFrame(table_data)
         overlap_table = overlap_table.sort_values('Count', ascending=False)
+        
+        # Take only top percentile (e.g., top 20%)
+        n_top = max(1, int(len(overlap_table) * top_percentile))
+        overlap_table = overlap_table.head(n_top)
+        
+        logging.info(f"Selected top {top_percentile*100:.0f}% ({n_top} regions) from overlapping regions")
         
         # Save table
         overlap_table.to_csv(output_path, index=False)
