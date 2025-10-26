@@ -64,10 +64,11 @@ python plot_brain_age_adhd_cohorts.py \
 python plot_brain_age_asd_cohorts.py \
   --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots
 
-# Step 6 (Optional): Run brain-behavior correlation analysis
-python comprehensive_brain_behavior_analysis.py --dataset nki_rs_td
-python comprehensive_brain_behavior_analysis.py --dataset adhd200_adhd
-python comprehensive_brain_behavior_analysis.py --dataset abide_asd
+# Step 6 (Optional): Run brain-behavior correlation analysis for TD cohorts
+# Test each cohort individually with dedicated scripts:
+bash run_nki_brain_behavior_only.sh
+bash run_adhd200_td_brain_behavior_only.sh
+bash run_cmihbn_td_brain_behavior_only.sh
 
 # Optional: Analyze shared TD regions with high counts
 # (Install tabulate for pretty tables: pip install tabulate)
