@@ -350,6 +350,12 @@ def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, dataset
     # Scatter plot
     ax.scatter(y_actual, y_pred, alpha=0.6, s=50, color='#1f77b4', edgecolors='#1f77b4', linewidth=1)
     
+    # Add best fit line
+    z = np.polyfit(y_actual, y_pred, 1)
+    p = np.poly1d(z)
+    x_line = np.linspace(y_actual.min(), y_actual.max(), 100)
+    ax.plot(x_line, p(x_line), 'r-', linewidth=2, alpha=0.8, label='Best fit')
+    
     # Format p-value
     if p_value < 0.001:
         p_str = "< 0.001"

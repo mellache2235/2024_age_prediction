@@ -94,36 +94,24 @@ def load_adhd200_pklz_data(pklz_file):
     
     print_info(f"Behavioral columns: {behavioral_cols}")
     
-    # Debug: Check behavioral data before conversion
+    # Convert behavioral columns to numeric (handles nested arrays/Series)
     for col in behavioral_cols:
-        non_null = td_data[col].notna().sum()
-        print_info(f"  {col}: {non_null} non-null values (before numeric conversion)")
-        print_info(f"    Data type: {td_data[col].dtype}")
-        if non_null > 0:
-            # Get actual values (not Series objects)
-            sample_vals = td_data[col].dropna().head(5).values
-            print_info(f"    Sample raw values: {sample_vals}")
-    
-    # Extract values from Series objects if needed
-    # The behavioral columns contain Series objects, not direct values
-    for col in behavioral_cols:
-        # Check if values are Series objects
-        if td_data[col].dtype == 'object':
-            first_val = td_data[col].iloc[0]
-            if isinstance(first_val, pd.Series):
-                print_info(f"  {col}: Extracting values from nested Series objects")
-                # Extract the first value from each Series object
-                td_data[col] = td_data[col].apply(lambda x: x.iloc[0] if isinstance(x, pd.Series) and len(x) > 0 else np.nan)
-    
-    # Convert behavioral columns to numeric
-    for col in behavioral_cols:
+        # Extract values from numpy arrays if needed
+        td_data[col] = td_data[col].apply(lambda x: float(x) if not isinstance(x, (pd.Series, np.ndarray)) else float(x[0]) if len(x) > 0 else np.nan)
+        
+        # Convert to numeric
         td_data[col] = pd.to_numeric(td_data[col], errors='coerce')
-        # Check after conversion
-        non_null_after = td_data[col].notna().sum()
-        print_info(f"  {col}: {non_null_after} non-null values (after numeric conversion)")
-        if non_null_after > 0:
-            sample_vals_after = td_data[col].dropna().head(5).values
-            print_info(f"    Sample numeric values: {sample_vals_after}")
+        
+        # Replace -999 (missing data code) with NaN
+        td_data[col] = td_data[col].replace(-999.0, np.nan)
+        
+        # Check data
+        non_null = td_data[col].notna().sum()
+        print_info(f"  {col}: {non_null} non-null values (after filtering -999)")
+        if non_null > 0:
+            sample_vals = td_data[col].dropna().head(5).values
+            print_info(f"    Sample values: {sample_vals}")
+            print_info(f"    Range: [{td_data[col].min():.1f}, {td_data[col].max():.1f}]")
     
     # DON'T drop rows with NaN - we'll handle each behavioral measure separately
     # Just return the data with behavioral columns (some may have NaN)
@@ -304,6 +292,12 @@ def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, dataset
     
     # Scatter plot
     ax.scatter(y_actual, y_pred, alpha=0.6, s=50, color='#1f77b4', edgecolors='#1f77b4', linewidth=1)
+    
+    # Add best fit line
+    z = np.polyfit(y_actual, y_pred, 1)
+    p = np.poly1d(z)
+    x_line = np.linspace(y_actual.min(), y_actual.max(), 100)
+    ax.plot(x_line, p(x_line), 'r-', linewidth=2, alpha=0.8, label='Best fit')
     
     # Format p-value
     if p_value < 0.001:
