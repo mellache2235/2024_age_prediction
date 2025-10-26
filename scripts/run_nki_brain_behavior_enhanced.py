@@ -394,6 +394,9 @@ def main():
     print_info(f"Output:          {OUTPUT_DIR}")
     print()
     
+    # Create output directory if it doesn't exist
+    Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+    
     try:
         # 1. Load data
         ig_df, roi_cols = load_nki_ig_scores(IG_CSV)

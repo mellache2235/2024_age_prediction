@@ -97,13 +97,22 @@ def load_adhd200_pklz_data(pklz_file):
     # Debug: Check behavioral data before conversion
     for col in behavioral_cols:
         non_null = td_data[col].notna().sum()
-        print_info(f"  {col}: {non_null} non-null values")
+        print_info(f"  {col}: {non_null} non-null values (before numeric conversion)")
+        print_info(f"    Data type: {td_data[col].dtype}")
         if non_null > 0:
-            print_info(f"    Sample values: {td_data[col].dropna().head(3).tolist()}")
+            # Get actual values (not Series objects)
+            sample_vals = td_data[col].dropna().head(5).values
+            print_info(f"    Sample raw values: {sample_vals}")
     
     # Convert behavioral columns to numeric
     for col in behavioral_cols:
         td_data[col] = pd.to_numeric(td_data[col], errors='coerce')
+        # Check after conversion
+        non_null_after = td_data[col].notna().sum()
+        print_info(f"  {col}: {non_null_after} non-null values (after numeric conversion)")
+        if non_null_after > 0:
+            sample_vals_after = td_data[col].dropna().head(5).values
+            print_info(f"    Sample numeric values: {sample_vals_after}")
     
     # DON'T drop rows with NaN - we'll handle each behavioral measure separately
     # Just return the data with behavioral columns (some may have NaN)
@@ -391,6 +400,9 @@ def main():
     print_info(f"IG CSV:     {IG_CSV}")
     print_info(f"Output:     {OUTPUT_DIR}")
     print()
+    
+    # Create output directory if it doesn't exist
+    Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
     
     try:
         # 1. Load data

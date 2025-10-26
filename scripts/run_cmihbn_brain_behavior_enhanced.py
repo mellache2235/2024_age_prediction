@@ -67,7 +67,7 @@ def load_cmihbn_pklz_data(pklz_dir, c3sr_file):
     data = data.drop_duplicates(subset='subject_id', keep='first')
     print_info(f"Total subjects after deduplication: {len(data)}")
     
-    # CMI-HBN specific filtering (similar to ADHD200)
+    # CMI-HBN specific filtering
     # Check if label column exists
     if 'label' not in data.columns:
         print_warning("No 'label' column found. Assuming all subjects are TD.")
@@ -75,27 +75,36 @@ def load_cmihbn_pklz_data(pklz_dir, c3sr_file):
     else:
         # Debug: Check label values before filtering
         print_info(f"Label column dtype: {data['label'].dtype}")
-        print_info(f"Unique label values: {data['label'].unique()[:10]}")
+        unique_labels = data['label'].unique()
+        print_info(f"Unique label values: {unique_labels}")
         print_info(f"Non-null labels: {data['label'].notna().sum()}")
         
-        # First remove 'pending' labels if they exist
-        data = data[data['label'] != 'pending']
-        print_info(f"After removing 'pending' labels: {len(data)}")
-        
-        # Convert label to numeric (handles remaining non-numeric values)
-        data['label'] = pd.to_numeric(data['label'], errors='coerce')
-        
-        # Filter out NaN labels
-        data = data[~data['label'].isna()]
-        print_info(f"Valid subjects (non-NaN labels): {len(data)}")
-        
-        # Filter out label == 99
-        data = data[data['label'] != 99]
-        print_info(f"Valid subjects (label != 99): {len(data)}")
-        
-        # Filter for TD subjects (label == 0)
-        td_data = data[data['label'] == 0]
-        print_info(f"TD subjects (label=0): {len(td_data)}")
+        # Filter for TD subjects based on label format
+        # Check if labels are strings (e.g., 'td', 'asd') or numeric (0, 1)
+        if data['label'].dtype == 'object':
+            # String labels: filter for 'td' (case-insensitive)
+            td_data = data[data['label'].str.lower() == 'td']
+            print_info(f"TD subjects (label='td'): {len(td_data)}")
+        else:
+            # Numeric labels: filter for 0
+            # First remove 'pending' labels if they exist
+            data = data[data['label'] != 'pending']
+            print_info(f"After removing 'pending' labels: {len(data)}")
+            
+            # Convert label to numeric
+            data['label'] = pd.to_numeric(data['label'], errors='coerce')
+            
+            # Filter out NaN labels
+            data = data[~data['label'].isna()]
+            print_info(f"Valid subjects (non-NaN labels): {len(data)}")
+            
+            # Filter out label == 99
+            data = data[data['label'] != 99]
+            print_info(f"Valid subjects (label != 99): {len(data)}")
+            
+            # Filter for TD subjects (label == 0)
+            td_data = data[data['label'] == 0]
+            print_info(f"TD subjects (label=0): {len(td_data)}")
     
     # Filter by mean_fd < 0.5
     td_data = td_data[td_data['mean_fd'] < 0.5]
@@ -448,6 +457,9 @@ def main():
     print_info(f"C3SR FILE:  {C3SR_FILE}")
     print_info(f"Output:     {OUTPUT_DIR}")
     print()
+    
+    # Create output directory if it doesn't exist
+    Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
     
     try:
         # 1. Load data
