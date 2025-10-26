@@ -94,13 +94,21 @@ def load_adhd200_pklz_data(pklz_file):
     
     print_info(f"Behavioral columns: {behavioral_cols}")
     
+    # Debug: Check behavioral data before conversion
+    for col in behavioral_cols:
+        non_null = td_data[col].notna().sum()
+        print_info(f"  {col}: {non_null} non-null values")
+        if non_null > 0:
+            print_info(f"    Sample values: {td_data[col].dropna().head(3).tolist()}")
+    
     # Convert behavioral columns to numeric
     for col in behavioral_cols:
         td_data[col] = pd.to_numeric(td_data[col], errors='coerce')
     
-    # Remove rows with NaN in any behavioral column
-    td_data = td_data.dropna(subset=behavioral_cols)
-    print_success(f"Final TD subjects with complete data: {len(td_data)}")
+    # DON'T drop rows with NaN - we'll handle each behavioral measure separately
+    # Just return the data with behavioral columns (some may have NaN)
+    print_success(f"Final TD subjects: {len(td_data)}")
+    print_info(f"Note: Each behavioral measure will be analyzed separately with available data")
     
     return td_data, behavioral_cols
 

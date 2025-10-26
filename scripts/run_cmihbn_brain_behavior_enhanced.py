@@ -68,13 +68,21 @@ def load_cmihbn_pklz_data(pklz_dir, c3sr_file):
     print_info(f"Total subjects after deduplication: {len(data)}")
     
     # CMI-HBN specific filtering (similar to ADHD200)
-    # First remove 'pending' labels if they exist
-    if 'label' in data.columns:
+    # Check if label column exists
+    if 'label' not in data.columns:
+        print_warning("No 'label' column found. Assuming all subjects are TD.")
+        td_data = data
+    else:
+        # Debug: Check label values before filtering
+        print_info(f"Label column dtype: {data['label'].dtype}")
+        print_info(f"Unique label values: {data['label'].unique()[:10]}")
+        print_info(f"Non-null labels: {data['label'].notna().sum()}")
+        
+        # First remove 'pending' labels if they exist
         data = data[data['label'] != 'pending']
         print_info(f"After removing 'pending' labels: {len(data)}")
-    
-    # Convert label to numeric (handles remaining non-numeric values)
-    if 'label' in data.columns:
+        
+        # Convert label to numeric (handles remaining non-numeric values)
         data['label'] = pd.to_numeric(data['label'], errors='coerce')
         
         # Filter out NaN labels
@@ -88,9 +96,6 @@ def load_cmihbn_pklz_data(pklz_dir, c3sr_file):
         # Filter for TD subjects (label == 0)
         td_data = data[data['label'] == 0]
         print_info(f"TD subjects (label=0): {len(td_data)}")
-    else:
-        print_warning("No 'label' column found. Assuming all subjects are TD.")
-        td_data = data
     
     # Filter by mean_fd < 0.5
     td_data = td_data[td_data['mean_fd'] < 0.5]
@@ -151,9 +156,15 @@ def load_cmihbn_pklz_data(pklz_dir, c3sr_file):
     for col in behavioral_cols:
         merged[col] = pd.to_numeric(merged[col], errors='coerce')
     
-    # Remove rows with NaN in any behavioral column
-    merged = merged.dropna(subset=behavioral_cols)
-    print_success(f"Final TD subjects with complete data: {len(merged)}")
+    # Debug: Check how many subjects have data for each measure
+    for col in behavioral_cols:
+        non_null = merged[col].notna().sum()
+        print_info(f"  {col}: {non_null} non-null values")
+    
+    # DON'T drop rows with NaN - we'll handle each behavioral measure separately
+    # Just return the data with behavioral columns (some may have NaN)
+    print_success(f"Final TD subjects: {len(merged)}")
+    print_info(f"Note: Each behavioral measure will be analyzed separately with available data")
     
     return merged, behavioral_cols
 
