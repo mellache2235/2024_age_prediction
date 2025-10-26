@@ -118,11 +118,14 @@ def load_pklz_td_data(pklz_path: str, dataset_name: str) -> pd.DataFrame:
     if 'site' in data.columns:
         data['site'] = data['site'].astype('str')
     
-    # Convert label to int (for CMI-HBN and ADHD200)
+    # Convert DX to numeric (for ADHD200)
+    if 'DX' in data.columns:
+        data['DX'] = pd.to_numeric(data['DX'], errors='coerce')
+    
+    # Convert label to numeric (for CMI-HBN and ADHD200)
     if 'label' in data.columns:
-        # Convert to string first, then handle non-numeric values
-        data['label'] = data['label'].astype(str)
-        # Replace 'pending' or other non-numeric values with NaN, then convert to float
+        # Use pd.to_numeric directly (handles both numeric and string values)
+        # errors='coerce' will convert 'pending', 'nan' strings to NaN
         data['label'] = pd.to_numeric(data['label'], errors='coerce')
     
     # Remove duplicates
@@ -133,7 +136,12 @@ def load_pklz_td_data(pklz_path: str, dataset_name: str) -> pd.DataFrame:
     
     # Filter for TD subjects
     if 'DX' in data.columns:
-        df_td = data[data['DX'] == 0].copy()
+        # Remove subjects with NaN DX
+        df_valid = data[data['DX'].notna()].copy()
+        print_info(f"Valid subjects (non-NaN DX): {len(df_valid)}")
+        
+        # Filter for TD (DX == 0)
+        df_td = df_valid[df_valid['DX'] == 0].copy()
     elif 'label' in data.columns:
         # Remove subjects with NaN labels (e.g., 'pending' or 'nan' converted to NaN)
         df_valid = data[data['label'].notna()].copy()

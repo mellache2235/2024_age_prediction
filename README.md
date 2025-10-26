@@ -70,6 +70,12 @@ bash run_nki_brain_behavior_only.sh
 bash run_adhd200_td_brain_behavior_only.sh
 bash run_cmihbn_td_brain_behavior_only.sh
 
+# Step 7 (Optional): Enhance brain-behavior results with plots and PC analysis
+# Run after Step 6 to add elbow plots, scatter plots, and PC loadings
+python brain_behavior_enhanced.py \
+  --results_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior \
+  --dataset nki_rs_td
+
 # Optional: Analyze shared TD regions with high counts
 # (Install tabulate for pretty tables: pip install tabulate)
 python analyze_td_shared_regions.py --threshold 450
@@ -303,25 +309,51 @@ bash run_cmihbn_td_brain_behavior_only.sh
 1. Load IG scores from CSV (with subject IDs)
 2. Load behavioral data (CAARS for NKI, embedded for ADHD200, C3SR for CMI-HBN)
 3. Match subjects between IG and behavioral data
-4. Perform PCA on IG scores (default: 10 components)
-5. Correlate PCA components with behavioral measures
-6. Apply FDR correction (Benjamini-Hochberg)
-7. Save results to CSV files
+4. Perform PCA on IG scores (10 components default, or optimal via elbow method)
+5. Use each PC as a feature for brain-behavior correlation
+6. Calculate Spearman correlations between PCs and behavioral measures
+7. Apply FDR correction (Benjamini-Hochberg)
+8. Create scatter plots for significant correlations
+9. Generate PC loading reports (top contributing brain regions per PC)
+10. Save results to CSV files and PNG plots
 
 **Expected Output Files:**
 - **NKI-RS TD**: 
-  - `nki_A_TOTAL_INATTENTION_MEMORY_PROBLEMS_pca_correlations.csv`
-  - `nki_B_TOTAL_HYPERACTIVITY_RESTLESSNESS_pca_correlations.csv`
-  - `nki_A_T-SCORE_INATTENTION_MEMORY_PROBLEMS_pca_correlations.csv`
-  - `nki_B_T-SCORE_HYPERACTIVITY_RESTLESSNESS_pca_correlations.csv`
+  - CSVs: `nki_<behavioral_measure>_pca_correlations.csv` (4 files for CAARS measures)
+  - Plots: `nki_PC{X}_vs_<behavioral_measure>.png` (scatter plots for significant PCs)
+  - Elbow: `nki_pca_elbow_plot.png`
+  - Loadings: `nki_pc_loadings.csv`
 - **ADHD200 TD**: 
-  - `adhd200_td_Hyper_Impulsive_pca_correlations.csv`
-  - `adhd200_td_Inattentive_pca_correlations.csv`
+  - CSVs: `adhd200_td_Hyper_Impulsive_pca_correlations.csv`, `adhd200_td_Inattentive_pca_correlations.csv`
+  - Plots: `adhd200_td_PC{X}_vs_{HY,IN}.png`
+  - Elbow: `adhd200_td_pca_elbow_plot.png`
+  - Loadings: `adhd200_td_pc_loadings.csv`
 - **CMI-HBN TD**: 
-  - `cmihbn_td_C3SR_HY_T_pca_correlations.csv`
-  - `cmihbn_td_C3SR_IN_T_pca_correlations.csv`
+  - CSVs: `cmihbn_td_C3SR_HY_T_pca_correlations.csv`, `cmihbn_td_C3SR_IN_T_pca_correlations.csv`
+  - Plots: `cmihbn_td_PC{X}_vs_{HY,IN}.png`
+  - Elbow: `cmihbn_td_pca_elbow_plot.png`
+  - Loadings: `cmihbn_td_pc_loadings.csv`
 
-Each CSV contains: Component (PC1-PC10), Correlation_r, P_value, P_value_corrected (FDR), Significant (True/False)
+**CSV Format**: Component (PC1-PC10), Correlation_r (Spearman), P_value, P_value_corrected (FDR), Significant (True/False)
+
+**Plot Features**: Scatter plot with regression line, Spearman ρ and p-value in bottom-right corner, no grid, no top/right spines
+
+**PC Loadings Format**: PC, Top_Region_1, Loading_1, Top_Region_2, Loading_2, ..., Top_Region_10, Loading_10
+
+**Enhanced Analysis Script (`brain_behavior_enhanced.py`):**
+- **Purpose**: Post-processing script to add visualizations and PC analysis to existing results
+- **Features**:
+  - Elbow plot for optimal PC selection (variance explained vs. number of PCs)
+  - Scatter plots for each significant PC-behavioral correlation (Spearman ρ)
+  - PC loadings showing top 10 contributing brain regions per PC
+  - Publication-ready plots (no grid, no top/right spines, statistics in bottom-right)
+- **Usage**: Run after completing Step 6 brain-behavior analysis
+```bash
+# Run for each dataset
+python brain_behavior_enhanced.py --results_dir /oak/.../results/brain_behavior --dataset nki_rs_td
+python brain_behavior_enhanced.py --results_dir /oak/.../results/brain_behavior --dataset adhd200_td
+python brain_behavior_enhanced.py --results_dir /oak/.../results/brain_behavior --dataset cmihbn_td
+```
 
 **Comprehensive Script (`comprehensive_brain_behavior_analysis.py`):**
 - **Datasets**: NKI-RS TD, ADHD-200 ADHD/TD, CMI-HBN ADHD/TD, ABIDE ASD, Stanford ASD, HCP-Dev
