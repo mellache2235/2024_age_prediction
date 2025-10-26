@@ -9,7 +9,7 @@ echo "==========================================================================
 echo ""
 
 # Full HPC paths
-PKLZ_FILE="/oak/stanford/groups/menon/projects/wdcai/2019_ADHD_NN/data/imaging/timeseries/ADHD200/restfmri/timeseries/group_level/brainnetome/normz/adhd200_run-rest_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs.pklz"
+PKLZ_FILE="/oak/stanford/groups/menon/deriveddata/public/adhd200/restfmri/timeseries/group_level/brainnetome/normz/adhd200_run-rest_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs.pklz"
 IG_CSV="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/adhd200_td_count_data.csv"
 OUTPUT_DIR="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_td"
 
@@ -19,7 +19,7 @@ echo "   IG CSV: $IG_CSV"
 echo "   Output: $OUTPUT_DIR"
 echo ""
 echo "ℹ️  Script will:"
-echo "   • Load .pklz file with imaging + behavioral data"
+echo "   • Load single .pklz file with imaging + behavioral data"
 echo "   • Filter for TD subjects (DX/label == 0)"
 echo "   • Filter for quality (mean_fd < 0.5)"
 echo "   • Handle NaNs in Hyper/Impulsive and Inattentive columns"

@@ -74,18 +74,26 @@ def load_pklz_td_data(pklz_path: str, dataset_name: str) -> pd.DataFrame:
     path_obj = Path(pklz_path)
     
     if path_obj.is_dir():
-        # CMI-HBN: Load multiple run1 files from directory
-        print_info(f"Loading multiple run1 files from directory...")
+        # Load multiple .pklz files from directory
+        print_info(f"Loading multiple .pklz files from directory...")
         from os import listdir
         from os.path import isfile, join
         
         files = [f for f in listdir(pklz_path) if isfile(join(pklz_path, f))]
-        run1_files = [f for f in files if 'run1' in f]
         
-        print_info(f"Found {len(run1_files)} run1 files")
+        # For CMI-HBN: Load only run1 files
+        # For ADHD200: Load all .pklz files
+        if 'cmihbn' in dataset_name.lower():
+            pklz_files = [f for f in files if 'run1' in f and f.endswith('.pklz')]
+            print_info(f"CMI-HBN: Loading run1 files only")
+        else:
+            pklz_files = [f for f in files if f.endswith('.pklz')]
+            print_info(f"ADHD200: Loading all .pklz files")
+        
+        print_info(f"Found {len(pklz_files)} .pklz files")
         
         data = None
-        for i, filename in enumerate(run1_files):
+        for i, filename in enumerate(pklz_files):
             file_path = join(pklz_path, filename)
             file_data = np.load(file_path, allow_pickle=True)
             
@@ -95,10 +103,10 @@ def load_pklz_td_data(pklz_path: str, dataset_name: str) -> pd.DataFrame:
                 data = pd.concat([data, file_data], ignore_index=True)
         
         if data is None:
-            print_error("No run1 files found in directory")
+            print_error("No .pklz files found in directory")
             return pd.DataFrame()
         
-        print_info(f"Loaded {len(data)} total subjects from {len(run1_files)} files")
+        print_info(f"Loaded {len(data)} total subjects from {len(pklz_files)} files")
     else:
         # ADHD200: Load single file
         print_info(f"Loading single file: {path_obj.name}")

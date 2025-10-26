@@ -321,6 +321,13 @@ def main():
                 print_error(f"Could not convert {col} to numeric: {e}")
                 continue
             
+            # Convert to numpy array if it's a Series
+            if isinstance(behavioral_scores, pd.Series):
+                behavioral_scores = behavioral_scores.values
+            
+            # Ensure it's a numpy array
+            behavioral_scores = np.array(behavioral_scores, dtype=float)
+            
             # Remove NaNs
             valid_mask = ~np.isnan(behavioral_scores)
             n_valid = valid_mask.sum()
@@ -337,6 +344,12 @@ def main():
                 pca_scores_filtered = pca_scores[valid_mask]
             else:
                 pca_scores_filtered = pca_scores
+            
+            # Verify lengths match
+            if len(pca_scores_filtered) != len(behavioral_scores):
+                print_error(f"Length mismatch: PCA scores={len(pca_scores_filtered)}, behavioral={len(behavioral_scores)}")
+                print()
+                continue
             
             results = correlate_with_behavior(pca_scores_filtered, behavioral_scores, col)
             

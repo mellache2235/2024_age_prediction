@@ -266,7 +266,7 @@ bash run_nki_brain_behavior_only.sh
 **2. ADHD200 TD (`run_adhd200_td_brain_behavior_only.sh`):**
 - **Script**: `brain_behavior_td_simple.py`
 - **Data Sources**:
-  - PKLZ File: `/oak/stanford/groups/menon/projects/wdcai/2019_ADHD_NN/data/imaging/timeseries/ADHD200/restfmri/timeseries/group_level/brainnetome/normz/adhd200_run-rest_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs.pklz` (⚠️ **WITHOUT** `_nn` suffix)
+  - PKLZ File: `/oak/stanford/groups/menon/deriveddata/public/adhd200/restfmri/timeseries/group_level/brainnetome/normz/adhd200_run-rest_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs.pklz` (⚠️ **WITHOUT** `_nn` suffix)
   - IG CSV: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/adhd200_td_count_data.csv`
   - Behavioral: Embedded in .pklz file (Hyper/Impulsive, Inattentive columns)
 - **Features**:
@@ -283,7 +283,7 @@ bash run_adhd200_td_brain_behavior_only.sh
 **3. CMI-HBN TD (`run_cmihbn_td_brain_behavior_only.sh`):**
 - **Script**: `brain_behavior_td_simple.py`
 - **Data Sources**:
-  - PKLZ Directory: `/oak/stanford/groups/menon/projects/wdcai/2019_ADHD_NN/data/imaging/timeseries/CMIHBN/restfmri/timeseries/group_level/brainnetome/normz/` (⚠️ **Directory**, not single file)
+  - PKLZ Directory: `/oak/stanford/groups/menon/deriveddata/public/cmihbn/restfmri/timeseries/group_level/brainnetome/normz/` (⚠️ **Directory**, not single file)
   - IG CSV: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/count_data/cmihbn_td_count_data.csv`
   - C3SR Behavioral: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/prepare_data/cmihbn/behavior/` (auto-detects Conners CSV)
 - **Features**:
