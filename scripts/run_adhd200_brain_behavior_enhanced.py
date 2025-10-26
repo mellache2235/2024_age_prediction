@@ -371,10 +371,10 @@ def save_results(results_list, pc_loadings_dict, output_dir):
         {
             'Behavioral_Measure': r['behavioral_measure'],
             'N_Subjects': r['n_subjects'],
+            'N_Features': r['n_features'],
             'Spearman_Rho': r['spearman_rho'],
             'P_Value': r['p_value'],
-            'R2_Mean': r['r2_mean'],
-            'R2_Std': r['r2_std']
+            'R2': r['r2']
         }
         for r in results_list if r is not None
     ])

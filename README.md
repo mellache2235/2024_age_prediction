@@ -386,28 +386,45 @@ Three standalone scripts with all paths pre-configured (no arguments needed):
 **What these scripts do:**
 1. Load IG scores and behavioral data
 2. Merge datasets by subject ID
-3. Perform PCA with up to 50 components
+3. Perform PCA with up to 50 components on **all subjects**
 4. Create **elbow plot** to determine optimal number of PCs (80% variance threshold)
-5. Use optimal PCs in **linear regression** to predict behavioral scores
-6. Calculate **Spearman ρ** between predicted and actual behavioral scores
+5. Fit **linear regression** on **all data** (no train/test split) using optimal PCs
+6. Calculate **Spearman ρ** and **R²** between predicted and actual behavioral scores
 7. Create **scatter plots** for each behavioral measure (with ρ and p-value)
 8. Rank **PC importance** (absolute regression coefficients)
 9. Extract **PC loadings** (top 10 brain regions per PC)
 10. Save all results to CSV files and PNG plots
 
+**Analysis approach:**
+- **Descriptive analysis**: Fits on entire dataset (no cross-validation)
+- **Goal**: Describe how well brain PCs explain behavioral variance in the sample
+- **Metrics**: Spearman ρ (correlation), R² (variance explained), both on all data
+- **NaN handling**: Each behavioral measure analyzed separately with available subjects
+
 **Console output includes:**
 - Data loading progress with subject counts
+- Behavioral data availability (non-null counts per measure)
 - PCA variance explained by components
 - Optimal number of PCs selected (80% threshold)
-- **Spearman correlation results** (ρ and p-value) for each behavioral measure
+- **N subjects** and **N features (PCs)** used for each measure
+- **Spearman ρ** and **p-value** for each behavioral measure
+- **R²** (variance explained) for each behavioral measure
 - File save confirmations with filenames
 
 **Output files:**
 - `elbow_plot.png` - Scree plot and cumulative variance
-- `scatter_{behavioral_measure}.png` - Predicted vs actual (one per measure)
-- `linear_regression_results.csv` - Summary table with ρ, p-value, R², N subjects
+- `scatter_{behavioral_measure}.png` - Predicted vs actual (one per measure, title = dataset name)
+- `linear_regression_results.csv` - Summary table with behavioral measure, N subjects, N features, ρ, p-value, R²
 - `pc_importance_{behavioral_measure}.csv` - PC rankings (one per measure)
 - `PC{N}_loadings.csv` - Top 10 brain regions per PC
+
+**Combined visualization** (`plot_brain_behavior_td_cohorts.py`):
+- Creates 3-panel subplot figures comparing all TD cohorts
+- `hyperactivity_td_cohorts.png` - NKI-RS TD, ADHD200 TD, CMI-HBN TD side-by-side
+- `inattention_td_cohorts.png` - NKI-RS TD, ADHD200 TD, CMI-HBN TD side-by-side
+- Each panel shows scatter plot with N, ρ, p-value, R² annotations
+- Output: `.../brain_behavior/combined_plots/`
+- **Usage**: `python plot_brain_behavior_td_cohorts.py` (run after individual analyses)
 
 **Comprehensive Script (`comprehensive_brain_behavior_analysis.py`):**
 - **Datasets**: NKI-RS TD, ADHD-200 ADHD/TD, CMI-HBN ADHD/TD, ABIDE ASD, Stanford ASD, HCP-Dev
