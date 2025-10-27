@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as font_manager
+import matplotlib.backends.backend_pdf as pdf
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from scipy.stats import pearsonr
@@ -159,34 +160,33 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
             else:
                 p_text = f"= {p:.3f}"
             
-            # Add statistics text in bottom right corner (matching brain-behavior style)
+            # Add statistics text in bottom right corner (NO bounding box)
             ax.text(0.95, 0.05,
-                    f"$\mathit{{R}}^2 = {r_squared:.3f}$\n"
-                    f"$\mathit{{MAE}} = {mae:.2f}$ years\n"
-                    f"$\mathit{{P}}$ {p_text}\n"
+                    f"$R^2$ = {r_squared:.3f}\n"
+                    f"MAE = {mae:.2f} years\n"
+                    f"P {p_text}\n"
                     f"N = {len(actual_ages)}",
                     transform=ax.transAxes, fontsize=14, 
-                    verticalalignment='bottom', horizontalalignment='right',
-                    bbox=dict(boxstyle='round', facecolor='white', alpha=0.9, edgecolor='black', linewidth=1))
+                    verticalalignment='bottom', horizontalalignment='right')
             
             # Customize subplot
             ax.set_xlabel('Chronological Age (years)', fontsize=14, fontweight='normal')
             ax.set_ylabel('Predicted Brain Age (years)', fontsize=14, fontweight='normal')
             ax.set_title(dataset_name, fontsize=16, fontweight='bold', pad=15)
             
-            # Clean style with all spines visible
+            # Clean style - NO top/right spines
             ax.grid(False)
-            ax.spines['top'].set_visible(True)
-            ax.spines['right'].set_visible(True)
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
             ax.spines['left'].set_linewidth(1.5)
-            ax.spines['right'].set_linewidth(1.5)
-            ax.spines['top'].set_linewidth(1.5)
             ax.spines['bottom'].set_linewidth(1.5)
-            ax.tick_params(axis='both', which='major', labelsize=12, direction='out', length=6, width=1.5)
             
-            # Add tick marks
-            ax.tick_params(axis='both', which='major', labelsize=9, 
-                          direction='out', length=4, width=1)
+            # Ensure all ticks are present on both axes
+            ax.minorticks_on()
+            ax.tick_params(axis='both', which='major', labelsize=12, direction='out', 
+                          length=6, width=1.5, top=False, right=False)
+            ax.tick_params(axis='both', which='minor', direction='out', 
+                          length=3, width=1, top=False, right=False)
             
             # Collect data for overall statistics
             all_actual.extend(actual_ages)
@@ -225,8 +225,12 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
     plt.tight_layout()
     plt.subplots_adjust(top=0.93)
     
-    # Save the plot in PNG format only
+    # Save the plot in PNG and AI formats
     save_figure(fig, output_path, formats=['png'])
+    
+    # Save as .ai file
+    ai_path = output_path.replace('.png', '.ai')
+    pdf.FigureCanvas(fig).print_pdf(ai_path)
     logging.info(f"Combined TD cohorts plot saved to: {output_path}")
     logging.info(f"Overall TD cohorts - R²: {overall_r_squared:.3f}, MAE: {overall_mae:.2f} years, r: {overall_r:.3f}, p: {overall_p:.3f}, N: {len(all_actual)}")
 

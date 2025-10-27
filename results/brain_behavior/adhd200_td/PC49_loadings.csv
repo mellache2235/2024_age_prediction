@@ -1,11 +1,11 @@
 Brain_Region,Loading
-"A10l, lateral area10,Right",0.3062265624612119
-"A10l, lateral area10,Left",0.23074975531188316
-"A44d,dorsal area 44,Left",0.1913857683499816
-"lPFtha, lateral pre-frontal thalamus,Left",0.18592780695106956
-"IFS, inferior frontal sulcus,Right",0.168740822634231
-"A9/46v, ventral area 9/46 ,Right",0.15976671785745108
-"A46, area 46,Right",0.1543560338631394
-"A6dl, dorsolateral area 6,Left",0.14947355077696264
-"IFJ, inferior frontal junction,Left",0.14584479086772012
-"A10m, medial area 10,Left",0.1427067349374373
+"cHipp, caudal hippocampus,Right",0.19949999717783576
+"A12/47l, lateral area 12/47,Right",0.18460751724781546
+"A44v, ventral area 44,Left",0.18303773448343366
+"A4ul, area 4(upper limb region),Right",0.16627516560482808
+"A20cl, caudolateral of area 20,Left",0.16295660235441653
+"A44d,dorsal area 44,Left",0.15965084500197027
+"TI, area TI(temporal agranular insular cortex),Right",0.15955700058021746
+"cCunG, caudal cuneus gyrus,Left",0.15666251060421205
+"A4hf, area 4(head and face region),Left",0.14426828811727477
+"A13, area 13,Left",0.13678350615629245

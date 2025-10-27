@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as font_manager
+import matplotlib.backends.backend_pdf as pdf
 import seaborn as sns
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
@@ -348,11 +349,10 @@ def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, dataset
     else:
         p_str = f"= {p_value:.3f}"
     
-    # Add statistics text (bottom right, matching brain age style)
+    # Add statistics text (bottom right, NO bounding box)
     stats_text = f"R = {rho:.3f}\nP {p_str}"
     ax.text(0.95, 0.05, stats_text, transform=ax.transAxes,
-            fontsize=14, verticalalignment='bottom', horizontalalignment='right',
-            bbox=dict(boxstyle='round', facecolor='white', alpha=0.9, edgecolor='black', linewidth=1))
+            fontsize=14, verticalalignment='bottom', horizontalalignment='right')
     
     # Labels and title
     ax.set_xlabel('Observed Behavioral Score', fontsize=14, fontweight='normal')
@@ -362,22 +362,31 @@ def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, dataset
     title = dataset_name.replace('_', '-').upper()
     ax.set_title(title, fontsize=16, fontweight='bold', pad=15)
     
-    # Styling - clean minimal style
+    # Styling - clean minimal style, NO top/right spines
     ax.grid(False)
-    ax.spines['top'].set_visible(True)
-    ax.spines['right'].set_visible(True)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
     ax.spines['left'].set_linewidth(1.5)
-    ax.spines['right'].set_linewidth(1.5)
-    ax.spines['top'].set_linewidth(1.5)
     ax.spines['bottom'].set_linewidth(1.5)
-    ax.tick_params(axis='both', which='major', labelsize=12, direction='out', length=6, width=1.5)
+    
+    # Ensure all ticks are present on both axes
+    ax.minorticks_on()
+    ax.tick_params(axis='both', which='major', labelsize=12, direction='out', 
+                  length=6, width=1.5, top=False, right=False)
+    ax.tick_params(axis='both', which='minor', direction='out', 
+                  length=3, width=1, top=False, right=False)
     
     plt.tight_layout()
     
-    # Save
+    # Save PNG and AI
     safe_name = behavioral_name.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
     output_path = Path(output_dir) / f'scatter_{safe_name}.png'
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    
+    # Save as .ai file
+    ai_path = Path(output_dir) / f'scatter_{safe_name}.ai'
+    pdf.FigureCanvas(fig).print_pdf(str(ai_path))
+    
     plt.close()
 
 

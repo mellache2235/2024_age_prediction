@@ -116,8 +116,9 @@ python network_analysis_yeo.py --process_all
 # Creates radar plots using minimum overlap count for TD, ADHD, and ASD
 python network_analysis_yeo.py --process_shared
 
-# Step 4: Create region tables (individual + shared + overlap)
+# Step 4: Create region tables (individual + shared + diverse subsets)
 # Generates CSV tables with brain regions and counts
+# Includes diverse subsets for manuscript tables (max 30 regions, max 3 per network)
 python create_region_tables.py \
   --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml \
   --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/region_tables
@@ -167,6 +168,10 @@ python plot_pc_loadings_heatmap.py --dataset cmihbn_td
 # Step 6c (Optional): Create combined 3-panel plots for hyperactivity and inattention
 python plot_brain_behavior_td_cohorts.py
 
+# Step 7 (Optional): Cosine similarity analysis
+# Compares feature importance maps across TD, ADHD, and ASD cohorts
+python cosine_similarity_analysis.py
+
 # Optional: Analyze shared TD regions with high counts
 # (Install tabulate for pretty tables: pip install tabulate)
 python analyze_td_shared_regions.py --threshold 450
@@ -189,7 +194,8 @@ python analyze_td_shared_regions.py --threshold 450
 
 2. **Region Tables** (Step 4) - CSV files:
    - Individual: `results/region_tables/{dataset_name}_region_table.csv` (8 files)
-   - Overlap: `results/region_tables/overlap_regions_{TD,ADHD,ASD}.csv` (3 files)
+   - Shared (full): `results/region_tables/shared_regions_{TD,ADHD,ASD}.csv` (3 files - all consistently identified regions)
+   - Shared (diverse subsets): `results/region_tables/shared_regions_{TD,ADHD,ASD}_diverse_subset.csv` (3 files - for manuscript tables)
 
 3. **Brain Age Plots** (Step 5) - PNG files:
    - Location: `results/brain_age_plots/`
@@ -206,6 +212,11 @@ python analyze_td_shared_regions.py --threshold 450
    - Combined 3-panel plots: `results/brain_behavior/combined_plots/`
      - `hyperactivity_combined.png` (NKI, ADHD200, CMI-HBN)
      - `inattention_combined.png` (NKI, ADHD200, CMI-HBN)
+
+5. **Cosine Similarity Analysis** (Step 7, optional) - CSV and PNG files:
+   - Location: `results/cosine_similarity/`
+   - `cosine_similarity_results.csv` - Similarity values and ranges
+   - `cosine_similarity_heatmap.png` - 3x3 heatmap (TD, ADHD, ASD)
 
 **To download files from HPC:**
 ```bash
@@ -254,15 +265,35 @@ All results are saved to: `/oak/stanford/groups/menon/projects/mellache/2024_age
 - **Location**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/region_tables/`
 - **Individual Tables**: `{dataset_name}_region_table.csv` - One per dataset (all regions with count ≥ 289)
   - Examples: `dev_region_table.csv`, `nki_region_table.csv`, `adhd200_td_region_table.csv`, etc.
-- **Overlap Tables** (regions shared across cohorts - **top 20% only**):
-  - `overlap_regions_TD.csv` - Overlap across TD cohorts (HCP-Dev, NKI, CMI-HBN TD, ADHD200 TD)
-  - `overlap_regions_ADHD.csv` - Overlap across ADHD cohorts (CMI-HBN ADHD, ADHD200 ADHD)
-  - `overlap_regions_ASD.csv` - Overlap across ASD cohorts (ABIDE ASD, Stanford ASD)
+- **Shared Region Tables** (regions consistently identified across cohorts):
+  - **Full tables** (all consistently identified regions):
+    - `shared_regions_TD.csv` - TD cohorts (HCP-Dev, NKI, CMI-HBN TD, ADHD200 TD)
+    - `shared_regions_ADHD.csv` - ADHD cohorts (CMI-HBN ADHD, ADHD200 ADHD)
+    - `shared_regions_ASD.csv` - ASD cohorts (ABIDE ASD, Stanford ASD)
+  - **Diverse subset tables** (for manuscript - network-diverse representation):
+    - `shared_regions_TD_diverse_subset.csv` - Max 30 regions, max 3 per brain area
+    - `shared_regions_ADHD_diverse_subset.csv` - Max 30 regions, max 3 per brain area
+    - `shared_regions_ASD_diverse_subset.csv` - Max 30 regions, max 3 per brain area
 - **Format**: CSV with columns: Brain Regions, Subdivision, (ID) Region Label, Count
-- **Count Method**: Minimum count across datasets for overlapping regions
+- **Count Method**: Minimum count across datasets for shared regions
 - **Filtering**: 
   - **Individual tables**: Count ≥ 289 (significance threshold: 289/500 = 58%)
-  - **Overlap tables**: Count ≥ 289, then **top 20% of overlapping regions** (highest counts)
+  - **Shared tables (full)**: Count ≥ 289, appearing in ≥2 datasets within cohort group
+  - **Diverse subsets**: Selected from full shared tables to ensure network diversity (avoids repetition of same regions like MTG×4, PFC×6)
+
+#### **Using Diverse Subset Tables for Manuscript**
+
+The diverse subset tables are designed for manuscript reporting and ensure representation across different brain networks. These tables:
+
+- **Limit repetition**: Maximum 3 regions per brain area (e.g., prevents listing MTG 4 times, PFC 6 times)
+- **Prioritize high counts**: Regions are selected in descending order by count
+- **Ensure diversity**: Represents multiple functional networks (default mode, salience, frontoparietal, etc.)
+- **Manageable length**: Maximum 30 regions per table (suitable for Word document tables)
+
+**Manuscript text template:**
+> "Results revealed that key nodes within the [default mode network/salience network/frontoparietal network] play a critical role (**Table X**). These regions demonstrated remarkable consistency across both the [HCP-Dev/NKI/etc.] cohorts, with cosine similarity between feature importance maps ranging from X.XX to X.XX. Notably, consistently identified regions included [list top regions from diverse subset table]. At the network level, the [network name] emerged as shared functional substrates that reliably captured [normative brain development/aging patterns in ADHD/ASD population] (**Figure Y**)."
+
+**For manuscript tables**, use the `*_diverse_subset.csv` files which provide a curated, network-diverse selection of the most important regions.
 
 ### **Step 5: Brain Age Plots**
 - **Location**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots/`
@@ -285,6 +316,23 @@ All results are saved to: `/oak/stanford/groups/menon/projects/mellache/2024_age
   - `pc_loadings_heatmap.png` - Brain region loadings on first 3 PCs
   - `linear_regression_results.csv` - Statistics (N, ρ, p-value, R²)
   - `pc_loadings_top_regions.csv` - Top brain regions per PC
+
+### **Step 7: Cosine Similarity Analysis (Optional)**
+- **Location**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/cosine_similarity/`
+- **Purpose**: Quantify similarity of brain feature importance maps across TD, ADHD, and ASD cohorts
+- **Method**: 
+  - Computes cosine similarity between mean feature maps (IG scores)
+  - Provides both pooled group-level similarities and pairwise dataset ranges
+  - Reports min, max, mean, and std across all pairwise comparisons
+- **Cohorts analyzed**:
+  - TD (pooled): HCP-Dev, NKI, CMI-HBN TD, ADHD200 TD
+  - ADHD (pooled): ADHD200 ADHD, CMI-HBN ADHD
+  - ASD (pooled): ABIDE ASD, Stanford ASD
+- **Files**:
+  - `cosine_similarity_results.csv` - Numerical results with ranges
+  - `cosine_similarity_heatmap.png` - 3x3 similarity matrix visualization
+- **Usage**: `python cosine_similarity_analysis.py` (no arguments needed)
+- **Output**: Console report with manuscript-ready text for similarity ranges
 
 ## 🔧 **Configuration**
 
@@ -550,8 +598,8 @@ Three standalone scripts with all paths pre-configured (no arguments needed):
 ### **General Plotting Conventions**
 All plots follow these conventions for publication-ready figures:
 - ✅ **Font**: Arial (loaded from HPC path)
-- ✅ **Clean aesthetics**: No grid, all spines visible with 1.5 width
-- ✅ **Tick marks**: Visible on all axes (direction='out', length=6, width=1.5, fontsize=12)
+- ✅ **Clean aesthetics**: No grid, NO top/right spines (only left/bottom visible)
+- ✅ **Tick marks**: Visible on left/bottom axes (direction='out', length=6, width=1.5, fontsize=12)
 - ✅ **Consistent colors**: 
   - Data points: #5A6FA8 (darker blue/purple)
   - Best fit line: #D32F2F (red)
@@ -560,11 +608,12 @@ All plots follow these conventions for publication-ready figures:
 - ✅ **Clear labels**: 
   - Axis labels: fontsize=14, normal weight
   - Titles: fontsize=16, bold, pad=15
-- ✅ **Statistics placement**: Bottom-right corner with white background box (black border, fontsize=14)
+- ✅ **Statistics placement**: Bottom-right corner, NO bounding box, fontsize=14
 - ✅ **P-value format**: "P < 0.001" for very small p-values (using "P" not "p")
 - ✅ **Correlation format**: "R = 0.XXX" (using "R" for Spearman ρ)
+- ✅ **MAE format**: "MAE = X.XX years" (for brain age plots)
 - ✅ **File format**: PNG only (no PDF or SVG)
-- ✅ **Professional appearance**: Matches brain age prediction plot style
+- ✅ **Professional appearance**: Clean, minimal style for publication
 
 ### **Shared Region Analysis Methodology**
 The pipeline uses a **top 50% percentile + significance threshold** approach, with **top 20% selection for shared regions**:

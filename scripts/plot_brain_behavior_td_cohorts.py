@@ -17,8 +17,7 @@ from pathlib import Path
 import sys
 
 # Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from utils import logging_utils
+sys.path.insert(0, str(Path(__file__).parent.parent / 'utils'))
 from logging_utils import (print_section_header, print_step, print_success, 
                            print_warning, print_error, print_info)
 

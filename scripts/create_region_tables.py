@@ -215,14 +215,15 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
                                          roi_labels_path: str,
                                          min_datasets: int = 2,
                                          min_count: int = 289,
-                                         top_percentile: float = 0.20) -> pd.DataFrame:
+                                         top_percentile: float = None) -> pd.DataFrame:
     """
     Create a table of regions shared across multiple datasets from Excel files.
     
     Format: Brain Regions, Subdivision, (ID) Region Label, Count
     For shared regions: Count = minimum count across datasets
     
-    Note: Only includes top 20% of regions with counts ≥ 289 (significance threshold).
+    Note: Includes ALL consistently identified regions (appearing in ≥min_datasets) 
+    with counts ≥ 289 (significance threshold). No percentile cutoff applied.
     
     Args:
         dataset_excel_paths (List[str]): List of paths to count data Excel files
@@ -230,7 +231,7 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
         roi_labels_path (str): Path to ROI labels file for accurate mapping
         min_datasets (int): Minimum number of datasets a region must appear in
         min_count (int): Minimum count threshold (default: 289, out of 500 subjects)
-        top_percentile (float): Top percentile to keep (default: 0.20 = top 20%)
+        top_percentile (float): DEPRECATED - kept for backward compatibility, not used
         
     Returns:
         pd.DataFrame: Shared regions table
@@ -302,15 +303,13 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
         shared_table = pd.DataFrame(table_data)
         shared_table = shared_table.sort_values('Count', ascending=False)
         
-        # Take only top percentile (e.g., top 20%)
-        n_top = max(1, int(len(shared_table) * top_percentile))
-        shared_table = shared_table.head(n_top)
-        
-        logging.info(f"Selected top {top_percentile*100:.0f}% ({n_top} regions) from shared regions")
+        # NO PERCENTILE CUTOFF - Include ALL consistently identified regions
+        # This captures all regions that appear in ≥min_datasets with count ≥min_count
+        logging.info(f"Including ALL {len(shared_table)} consistently identified regions (no percentile cutoff)")
         
         # Save table
         shared_table.to_csv(output_path, index=False)
-        logging.info(f"Created shared region table: {len(shared_table)} regions (count ≥ {min_count}) shared across datasets, saved to {output_path}")
+        logging.info(f"Created shared region table: {len(shared_table)} regions (count ≥ {min_count}) shared across ≥{min_datasets} datasets, saved to {output_path}")
     else:
         # Create empty table with proper columns
         shared_table = pd.DataFrame(columns=['Brain Regions', 'Subdivision', '(ID) Region Label', 'Count'])
@@ -318,6 +317,64 @@ def create_shared_region_table_from_excel(dataset_excel_paths: List[str],
         logging.warning(f"No shared regions found with count ≥ {min_count}. Created empty table at {output_path}")
     
     return shared_table
+
+
+def create_diverse_subset_table(full_table: pd.DataFrame, 
+                                output_path: str,
+                                max_regions: int = 30,
+                                max_per_network: int = 3) -> pd.DataFrame:
+    """
+    Create a diverse subset of regions for Word document display.
+    
+    Ensures representation across different brain regions/networks by limiting
+    how many times the same brain region can appear.
+    
+    Args:
+        full_table: Full region table
+        output_path: Output path for subset table
+        max_regions: Maximum number of regions to include (default: 30)
+        max_per_network: Maximum regions per brain area (default: 3)
+        
+    Returns:
+        pd.DataFrame: Diverse subset table
+    """
+    if full_table.empty:
+        return full_table
+    
+    # Group by Brain Regions to ensure diversity
+    diverse_regions = []
+    brain_region_counts = {}
+    
+    # Sort by count (descending) to prioritize high-count regions
+    sorted_table = full_table.sort_values('Count', ascending=False)
+    
+    for _, row in sorted_table.iterrows():
+        brain_region = row['Brain Regions']
+        
+        # Count how many times this brain region has been included
+        if brain_region not in brain_region_counts:
+            brain_region_counts[brain_region] = 0
+        
+        # Only include if we haven't exceeded the limit for this brain region
+        if brain_region_counts[brain_region] < max_per_network:
+            diverse_regions.append(row)
+            brain_region_counts[brain_region] += 1
+        
+        # Stop if we've reached max_regions
+        if len(diverse_regions) >= max_regions:
+            break
+    
+    # Create diverse subset table
+    diverse_table = pd.DataFrame(diverse_regions)
+    
+    # Save
+    diverse_table.to_csv(output_path, index=False)
+    
+    # Log diversity statistics
+    logging.info(f"Created diverse subset: {len(diverse_table)} regions from {len(brain_region_counts)} different brain areas")
+    logging.info(f"Brain areas represented: {', '.join(brain_region_counts.keys())}")
+    
+    return diverse_table
 
 
 def create_all_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.DataFrame]:
@@ -381,6 +438,10 @@ def create_all_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.Data
         table = create_shared_region_table_from_excel(td_paths, output_path, roi_labels_path, min_datasets=2)
         if not table.empty:
             tables["shared_TD"] = table
+            # Create diverse subset for Word document
+            diverse_path = os.path.join(output_dir, "shared_regions_TD_diverse_subset.csv")
+            diverse_table = create_diverse_subset_table(table, diverse_path, max_regions=30, max_per_network=3)
+            tables["shared_TD_diverse"] = diverse_table
     
     # Shared among ADHD cohorts
     adhd_datasets = ['adhd200_adhd', 'cmihbn_adhd']
@@ -391,6 +452,10 @@ def create_all_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.Data
         table = create_shared_region_table_from_excel(adhd_paths, output_path, roi_labels_path, min_datasets=2)
         if not table.empty:
             tables["shared_ADHD"] = table
+            # Create diverse subset for Word document
+            diverse_path = os.path.join(output_dir, "shared_regions_ADHD_diverse_subset.csv")
+            diverse_table = create_diverse_subset_table(table, diverse_path, max_regions=30, max_per_network=3)
+            tables["shared_ADHD_diverse"] = diverse_table
     
     # Shared among ASD cohorts
     asd_datasets = ['abide_asd', 'stanford_asd']
@@ -401,6 +466,10 @@ def create_all_region_tables(config: Dict, output_dir: str) -> Dict[str, pd.Data
         table = create_shared_region_table_from_excel(asd_paths, output_path, roi_labels_path, min_datasets=2)
         if not table.empty:
             tables["shared_ASD"] = table
+            # Create diverse subset for Word document
+            diverse_path = os.path.join(output_dir, "shared_regions_ASD_diverse_subset.csv")
+            diverse_table = create_diverse_subset_table(table, diverse_path, max_regions=30, max_per_network=3)
+            tables["shared_ASD_diverse"] = diverse_table
     
     # Shared among all cohorts
     all_paths = [path for path in count_data_paths.values() if path and os.path.exists(path)]
@@ -498,11 +567,12 @@ def create_overlap_table_from_csvs(csv_paths: List[str],
                                   condition_name: str,
                                   min_datasets: int = 2,
                                   min_count: int = 289,
-                                  top_percentile: float = 0.20) -> pd.DataFrame:
+                                  top_percentile: float = None) -> pd.DataFrame:
     """
     Create overlap table from converted CSV files for a specific condition.
     
-    Only includes top 20% of regions with counts ≥ 289 (significance threshold).
+    Includes ALL consistently identified regions with counts ≥ 289 (significance threshold).
+    No percentile cutoff applied.
     
     Args:
         csv_paths (List[str]): List of paths to converted CSV files
@@ -587,11 +657,8 @@ def create_overlap_table_from_csvs(csv_paths: List[str],
         overlap_table = pd.DataFrame(table_data)
         overlap_table = overlap_table.sort_values('Count', ascending=False)
         
-        # Take only top percentile (e.g., top 20%)
-        n_top = max(1, int(len(overlap_table) * top_percentile))
-        overlap_table = overlap_table.head(n_top)
-        
-        logging.info(f"Selected top {top_percentile*100:.0f}% ({n_top} regions) from overlapping regions")
+        # NO PERCENTILE CUTOFF - Include ALL consistently identified regions
+        logging.info(f"Including ALL {len(overlap_table)} consistently identified regions (no percentile cutoff)")
         
         # Save table
         overlap_table.to_csv(output_path, index=False)

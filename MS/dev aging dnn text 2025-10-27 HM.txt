@@ -1,0 +1,216 @@
+Dynamic functional brain age prediction reveals developmental signatures in ADHD and Autism using explainable AI 
+
+
+HM, YZ, WC, SR, VM
+
+Abstract 
+
+Understanding individual differences in brain development is crucial for early identification of developmental disorders. While brain age prediction has emerged as a valuable tool, most studies rely on structural MRI or static functional connectivity measures, overlooking the dynamic nature of brain function. Here, we developed a novel AI-based approach using dynamic functional MRI data to estimate brain age and identify developmental biomarkers. Our spatiotemporal deep neural network achieved robust age prediction in both HCP-Development discovery cohort (r2 = 0.82, MAE = 1.40 years) and three independent validation cohorts (r2 > 0.73, MAE < 1.56 years). Explainable AI analysis revealed consistent contributions from default mode network nodes and frontal regions across cohorts. Application to clinical populations showed systematic brain age deviations in both ADHD (MAE = 1.32-1.40 years) and autism (MAE = 0.97-1.09 years). Brain fingerprints derived from our model showed strong correlations with clinical measures, including ADHD hyperactivity (rs = 0.645) and ADOS scores (rs = 0.525). Notably, these relationships were stronger than those with simple brain age gap measures, suggesting our approach captures more nuanced aspects of neurodevelopment. These findings demonstrate the utility of dynamic functional measures for understanding brain development and their potential for identifying developmental disorders.
+
+
+Introduction
+Understanding individual differences in brain development is crucial for identifying developmental delays and disorders early, potentially leading to more effective interventions. The human brain undergoes complex structural and functional changes throughout development, with particularly dramatic alterations occurring during childhood and adolescence. These developmental trajectories show considerable individual variation, making it challenging to identify atypical development that may signal increased risk for neurodevelopmental disorders.
+The concept of brain ageÑa measure derived from neuroimaging data that estimates an individual's biological brain ageÑhas emerged as a promising biomarker for brain health and development?Ð?. The difference between estimated brain age and chronological age, known as the brain age gap, has proven valuable for identifying deviations from typical developmental trajectories. Previous studies have demonstrated that brain age gaps can predict cognitive performance, mental health outcomes, and neurodevelopmental disorders?Ð?.
+However, most brain age prediction studies have relied primarily on structural MRI data, which captures anatomical features but overlooks the rich functional information available in the brain's dynamic activity patterns. The few studies that have utilized functional MRI (fMRI) data have typically employed static functional connectivity measures, computing correlations between brain regions averaged over entire scanning sessions. This approach fails to capture the dynamic nature of brain functionÑthe moment-to-moment changes in neural activity patterns that may be crucial for understanding brain development?Ð?.
+Recent advances in artificial intelligence, particularly in processing temporal data, offer new opportunities to leverage the full richness of fMRI data?Ð?. Deep learning models capable of capturing spatiotemporal patterns have shown promise in various neuroimaging applications, but their potential for brain age prediction from fMRI time series remains largely unexplored. These models could potentially identify developmental biomarkers that are invisible to conventional analysis approaches.
+Furthermore, while previous brain age studies have focused primarily on prediction accuracy, there is a growing need for interpretable models that can identify which brain regions and patterns drive age prediction. This interpretability is crucial for validating models' biological plausibility and potentially discovering new developmental biomarkers. The emergence of explainable AI (xAI) techniques offers new possibilities for understanding how deep learning models make predictions, potentially revealing important insights about brain development?Ð??.
+To address these limitations and opportunities, we developed a novel AI-based approach using fMRI time series to estimate brain age and relate it to clinical measures. We built a normative aging model that learns brain maturation patterns using resting-state fMRI from healthy individuals between the ages of 6 to 21, encompassing the primary developmental period. This model serves as a baseline for analyzing aging trajectories in Attention Deficit Hyperactivity Disorder (ADHD) and Autism Spectrum Disorder (ASD), both common childhood-onset disorders, by quantifying deviations from healthy aging patterns.
+Our approach offers several key innovations. First, we utilize a compact deep learning architecture that processes the full spatiotemporal complexity of fMRI time series while maintaining computational efficiency. Second, we employ xAI techniques to identify brain regions most crucial for age prediction. Third, we validate our model across multiple independent datasets, demonstrating its generalizability. Finally, we relate brain age predictions to clinical measures, establishing the model's potential utility for understanding neurodevelopmental disorders.
+This study aims to address three primary questions: (1) Can dynamic fMRI data improve brain age prediction compared to traditional approaches? (2) Which brain regions are most important for predicting brain age across development? (3) How do deviations from typical brain aging relate to clinical symptoms in individuals with neurodevelopmental disorders?
+Results 
+
+Brain age prediction performance in typically developing individuals
+
+The foundation of our study rests on demonstrating that dynamic fMRI data can accurately predict brain age. To establish the validity of our approach, we developed and validated a 1D-CNN model across multiple independent datasets of typically developing (TD) individuals, focusing particularly on its prediction accuracy and generalizability.
+
+In the HCP-Development discovery cohort (NTD = 632), our 1D-CNN model achieved robust prediction accuracy (r2 = 0.823, p < 0.001; Figure 1A; Table 1) with a mean absolute error (MAE) of 1.40 years. To assess generalizability, we applied the trained HCP-Development model to multiple independent datasets. The model maintained strong performance across typically developing samples from the NKI-RS ( NTD = 369; r2 = 0.847, MAE = 1.43 years, p < 0.001; Figure 1B), CMI-HBN (NTD = 117; r2 = 0.793, MAE = 1.25 years, p < 0.001; Figure 1C) and ADHD-200 (NTD = 289; r2 = 0.738, MAE = 1.55 years, p < 0.001; Figure 1D) cohorts (Table 1), demonstrating robust cross-dataset generalization in brain age prediction.
+
+Brain age prediction performance in clinical populations 
+
+To evaluate the clinical utility of our approach, we first assessed the performance of the normative model in clinical populations, specifically individuals diagnosed with ADHD or ASD. We then quantified individual deviations from normative trajectories to understand disorder-specific patterns.
+
+ADHD. The model demonstrated consistent predictive performance across two multisite ADHD cohorts: ADHD-200 (N = 201; r2 = 0.703, MAE = 1.40 years, p < 0.001) and CMI-HBN (N = 654; r2 = 0.749, MAE = 1.32 years, p < 0.001) (Figure 2; Table 1). To further characterize atypical developmental trajectories, we computed the brain age gap (BAG)Ñdefined as the difference between predicted brain age and chronological ageÑfor each individual. In the ADHD-200 cohort, the mean BAG was -0.58 years, showing significant difference from typically developing (TD) individual [YZ1][HM2](mean BAGTD = 0; p = 0.0009), and indicating delayed brain maturation in the ADHD group. [YZ3][HM4]In contrast, the CMI-HBN cohort exhibited a significantly mean BAG of 0.03 years compared to TD individuals[YZ5][HM6] (mean BAGTD = 0; p = 0.839).
+
+ASD. The model demonstrated consistent predictive performance across two ASD cohorts: ABIDE (N = 353; r2 = 0.903, MAE = 0.97 years, p < 0.001) and Stanford (N = 154; r2 = 0.673, MAE = 1.09 years, p < 0.001) (Figure 3; Table 1). The mean BAG was -0.102 years in the ABIDE cohort, showing no significant difference[YZ7][HM8] from TD individuals [YZ9](mean BAGTD = 0; p = 0.273), and -0.411 years in the Stanford cohort, showing a significant difference[YZ10] from TD individuals [YZ11](mean BAGTD = 0; p = 0.003). Additionally, there is no significant difference in mean BAG between ADHD (-0.105 years) and ASD (-0.190 years) groups (p = 0.314).[YZ12][HM13][HM14]
+
+These results demonstrate that our normative model generalizes robustly to clinical populations. However, the overall BAGÑa widely used index of maturational deviationÑdid not differ significantly between clinical and TD individuals in most cohorts, nor between ADHD and ASD groups. This highlights the limitation of BAG as a summary biomarker for characterizing neurodevelopmental disorders and suggests that region-specific or multivariate patterns of brain features may better reflect disorder-specific alterations.
+
+Identification of brain features underlying age prediction
+
+To assess the biological plausibility of our model, we identified brain regions and functional networks that robustly contributed most to age prediction across multiple independent cohorts using Integrated Gradients algorithm and consensus analysis, providing insight into developmental biomarkers.
+
+Typically Developing Population. Results revealed that key nodes [YZ15]within the default mode network and frontal regions play a critical role in capturing signatures of normative brain development (Figure 4). These regions [YZ16][HM17]demonstrated remarkable consistency across both the HCP-Development discovery cohort and three independent validation cohorts, with cosine similarity between feature importance maps ranging from 0.914 to 0.948 [YZ19]. Notably, consistently identified regions included the bilateral inferior parietal lobule, frontal pole, hippocampus, insula, and superior parietal lobule (Table 3). At the network level, the default mode network, executive control network, and memory network emerged as shared functional substrates that reliably captured normative aging patterns across both the discovery and validation cohorts (Figure 7).[YZ20]
+
+ADHD Population. Results revealed that key nodes within the default mode network, medial temporal lobe, frontal and parietal regions play a critical role (Figure 5). These regions demonstrated remarkable consistency across the two ADHD cohorts, with a cosine similarity of 0.835 between ADHD-200 and CMI-HBN feature maps[YZ21][HM22]. Notably, consistently identified regions included the medial prefrontal cortex, anterior cingulate, middle frontal gyrus, precentral gyrus, hippocampal and parahippocampal regions, parietal regions, and visual cortex[YZ23] (Table 4). At the network level, the default mode network, memory network, and central executive control network emerged as shared functional substrates that reliably captured aging patterns in ADHD population (Figure 8).[YZ24]
+
+ASD Population. Results revealed that key nodes within the default mode network, medial temporal lobe, frontal and parietal regions play a critical role (Figure 6). These regions demonstrated remarkable consistency across the two ASD cohorts, with a cosine similarity of 0.719 between ABIDE and Stanford feature maps. Notably, consistently identified regions included the medial prefrontal cortex, posterior cingulate, precuneus, dorsolateral prefrontal regions, parietal regions, an hippocampal and parahippocampal regions[YZ25] (Table 5). At the network level, the default mode network, memory network, and central executive control network emerged as shared functional substrates that reliably captured aging patterns in ASD population (Figure 9).[YZ26]
+
+Across populations[YZ27]. To investigate disorder-specific and shared neural patterns, we compared feature important maps between typically developing (TD) and clinical populations, as well as between ADHD and ASD groups. Cosine similarity analyses revealed a similarity of 0.946 between TD (pooled across HCP-Development, NKI-RS, CMI-HBN TD, and ADHD-200 TD) and individuals with ADHD (pooled across ADHD-200 and CMI-HBN), and 0.661 between TD and individuals with ASD (pooled across ABIDE and Stanford). A cosine similarity of 0.683 was observed between ADHD and ASD feature maps. For completeness, pairwise dataset comparisons showed ranges of 0.8385Ð0.9354 (TD vs ADHD), 0.4100Ð0.5676 (TD vs ASD), and 0.4493Ð0.6172 (ADHD vs ASD).
+
+These results indicate that while there is a substantial overlap in brain regions contributing to age prediction across populations, meaningful disorder-specific patterns also emerge. Notably, the medial prefrontal cortex, posterior cingulate/precuneus, and parahippocampal/entorhinal cortex regions were consistently identified as top contributors to brain age prediction across all populations, suggesting they serve as core hubs of normative and atypical neurodevelopment. Relative to the TD group, the lateral orbitofrontal cortex and precentral gyrus regions emerged as robust and unique top contributors to age prediction in ADHD, whereas the medial prefrontal A9m  and the dorsomedial parieto-occipital sulcus regions were specifically linked to ASD-related developmental trajectories. In the direct comparison between ADHD and ASD, the inferior parietal lobule and parahippocampal/entorhinal cortex regions were shared top contributors across both disorders, while the lateral orbitofrontal cortex was uniquely associated with ADHD and the medial prefrontal cortex uniquely with ASD.
+
+At the network level, the default mode, central executive, and memory networks consistently emerged as shared functional substrates underlying brain maturation across both typically developing and clinical populations. In contrast, ADHD showed selective elevations in the salience/ventral-attention and somatomotor networks, whereas ASD exhibited a medial-default-mode bias together with dorsal-attention and visual networks
+
+Brain fingerprints predict symptom severity in typically developing and clinical populations
+
+Understanding the relationship between brain features and clinical measures is crucial for demonstrating clinical relevance. We examined these associations in both typical and atypical development using individual brain fingerprints as inputs to principal component regression to predict clinical metrics brain ROIs[YZ28][HM29]. 
+
+Typically Developing Population[YZ30]. Our analysis revealed a significant correlation [YZ31][YZ32][HM33]between brain fingerprints and multiple clinical measures associated with ADHD in the NKI-RS cohort: hyperactivity (N = 79, rs = 0.645, p < 0.001), and inattention (N = 79, rs = 0.669, p < 0.001) (Figure 7; Table 2). In ADHD-200 TD subset, we found significant correlations with hyperactivity (N = 101, rs = 0.277, p = 0.005). In CMI-HBN TD subset, no significant correlations were found.
+
+ADHD Population. Our analysis revealed a significant correlation between brain fingerprints and multiple clinical measures associated with ADHD: hyperactivity (ADHD-200: N = 138, rs = 0.397, p < 0.001; CMI-HBN: N = 346, rs = 0.391, p < 0.001), and inattention (ADHD-200: N = 138, rs = 0.392, p < 0.001; CMI-HBN: N = 346, rs = 0.411, p < 0.001) (Figure 8; Table 2). 
+
+ASD Population. In the ABIDE cohort, our analysis revealed a significant correlation between brain fingerprints and ADOS measures: total score (N = 129, rs = 0.525, p < 0.001), social score (N = 129, rs = 0.490, p < 0.001), and communication score (N = 129, rs = 0.528, p < 0.001) (Figure 9A-9C; Table 2). In the Stanford cohort, our analysis revealed a significant correlation between fingerprints and SRS total score (N = ???, rs = 0.308, p = 0.002) (Figure 9D; Table 2)
+
+Brain age gap does not predict symptom severity 
+
+As we did not observe significant group differences in brain age gap (BAG) between clinical populations and typically developing individuals, nor between ADHD and ASD groups, we further examined whether individual differences in BAG were associated with clinical symptom severity. However, no significant correlations were found between BAG and clinical measures in either ADHD or ASD cohorts. These together with our findings that brain fingerprints showed significant associates with clinical symptoms, these results suggest that BAG, as a summary metric, may lack the sensitivity to capture disorder-specific neural alterations, which may be better reflected in localized or multivariate patterns of brain features.
+
+Comparison to conventional machine learning approaches
+
+Our DNN model consistently outperformed conventional machine learning methods trained on the same normative HCP-Development cohort across all independent typically developing and clinical datasets (Table 3), highlighting its advantage for capturing complex patterns in fMRI data and demonstrating its robustness for neuroimaging applications.
+
+Discussion 
+
+Our study demonstrates that dynamic functional MRI data, when analyzed with advanced AI techniques, can effectively predict brain age and reveal important insights about neurodevelopment. Through the application of a novel spatiotemporal deep learning approach, we have identified robust brain-based markers of development and their relationship to clinical symptoms.
+
+The high accuracy of our brain age prediction model (r2 = 0.823 in the discovery cohort) suggests that dynamic functional patterns contain rich information about developmental status. Notably, our model maintained strong performance across multiple independent datasets (r2 = 0.839 in NKI-RS, r2 = 0.780 in CMI-HBN), demonstrating its robust generalizability. This performance compares favorably with previous structural MRI-based approaches, which typically achieve correlations between 0.5 and 0.7, suggesting that dynamic functional features may provide additional valuable information about developmental status.
+
+Our explainable AI analysis identified key brain regions contributing to age prediction, prominently featuring nodes of the default mode network (DMN) and frontal areas. The consistency of these regions across independent cohorts (cosine similarity = 0.859) suggests their fundamental role in neurodevelopment. These findings align with previous research showing that the DMN undergoes significant maturation during childhood and adolescence, but extends this knowledge by highlighting the importance of these regions' dynamic activity patterns, rather than just their static connectivity.
+
+The application of our model to clinical populations revealed several important insights. While prediction accuracy remained robust in ADHD and ASD populations, we observed systematic deviations in brain age estimates, with mean brain age gaps of -0.589 to 0.03 years in ADHD and -0.411 to -0.102 years in ASD. There were no significant differentiation in brain age gap between ADHD and ASD (p = 0.28). The lack of direct correlation between brain age gap and behavioral measures suggests that developmental differences in these disorders may be more nuanced than simple maturational delays.
+
+The strong associations we found between brain fingerprints and clinical measures (correlations ranging from 0.34 to 0.51) demonstrate the potential clinical utility of our approach. Particularly notable are the robust correlations with ADOS scores in ASD (rs = 0.525 for ADOS Total) and hyperactivity measures in ADHD (rs = 0.397), suggesting that our model captures functionally relevant aspects of brain development. These relationships held across different datasets and clinical measures, supporting their reliability.
+
+Several limitations of our study should be noted. First, our cross-sectional design[VM34] limits causal inference about developmental trajectories; longitudinal studies will be crucial for validating our findings. Second, while we focused on resting-state fMRI, incorporating task-based fMRI might provide additional insights about developmental changes in brain function.
+
+Our findings have several important implications for both research and clinical practice. From a research perspective, they highlight the importance of considering brain function dynamically rather than statically, and demonstrate the utility of explainable AI approaches for understanding complex developmental processes. Clinically, our results suggest potential new approaches for monitoring neurodevelopment and identifying risk for developmental disorders.
+
+Future work should focus on several key areas. Longitudinal studies will be crucial for validating the predictive value of brain age estimates for clinical outcomes. Investigation of sex differences in developmental trajectories could provide important insights about disorder prevalence disparities. Integration of structural and functional measures might provide more comprehensive developmental biomarkers. Finally, extension to other neurodevelopmental disorders could help identify disorder-specific versus shared developmental alterations.
+
+In conclusion, our study demonstrates the power of combining dynamic fMRI data with advanced AI techniques for understanding brain development. The robust performance of our model across datasets and populations, coupled with its ability to reveal meaningful brain-behavior relationships, suggests promising applications in both research and clinical settings. As we continue to refine these methods and extend their application, they may provide valuable tools for early identification and monitoring of neurodevelopmental disorders.
+
+Methods[YZ35]
+
+Participants 
+
+Discovery and validation cohorts of typically developing individuals. We used the HCP-Development Cohort20 (N = 632; ages 8-22 years) as the discovery cohort for model development. To assess the modelÕs generalizability, we validated model performance on typically developing individual from three independent validation cohorts: NKI-RS21 (N = 369; ages 6-21 years), CMI-HBN22 (N = 117; ages 6-21 years), and ADHD-20023 (N = 289; ages 7-21 years).
+ 
+ADHD cohorts. We validated our normative modelÕs performance on individuals diagnosed with ADHD from two independent cohorts: CMI-HBN (N = 654; ages 6-21 years) and ADHD-200 (N = 201, ages 7-21 years).
+
+ASD cohorts. We validated our normative modelÕs performance on individuals diagnosed with ASD from two independent cohorts: ABIDE24,25 (N = 353; ages 6-21 years) and Stanford 26,27,28 (N = 368; ages 7-18 years). 
+
+Demographic and clinical measures
+
+Age and sex data were collected for each individual. We utilize ADHD measures from ConnorÕs 3rd Edition Self-Report (C3SR) Scale for ADHD-200 and Strengths and Weaknesses of ADHD symptoms (SWAN) for CMI-HBN, specifically hyperactivity/impulsivity and inattention. We utilize ASD measures from Autism Diagnostic Observation Schedule (ADOS) and Social Responsiveness Scale (SRS), including communication, social and total/overall scores. 
+
+Functional MRI data acquisition, processing and quality control
+
+Resting-state fMRI (rsfMRI) was collected for each subject and timeseries extracted. rsfMRI preprocessed using SPM12 software package and in-house MATLAB scripts? É
+
+Data input
+
+We used the Brainnetome Atlas29, which provides 210 cortical and 36 subcortical parcellations, and computed average resting state fMRI timeseries across voxels in each region of interest (ROI). Each subjectÕs fMRI timeseries is structured as # of ROIs x # of timesteps. For HCP-Development cohort, # of timesteps is 478. For NKI-RS sample, # of timesteps is 900 (720 seconds). For ADHD-200 cohort, # of timesteps is 174. For CMI-HBN cohort, # of timesteps is xxx. For ABIDE cohort, # of timesteps is 180 (360 seconds). For Stanford cohort, # of timesteps is 180 (360 seconds).
+
+stDNN architecture and training
+
+Resting-state fMRI data was provided as input to a one-dimensional convolutional neural network (1D-CNN) to predict brain age. We use a compact model that has significantly fewer parameters than traditional brain age models and achieve equivalent performance, and is less prone to overfitting. As brain age calculation is most validated through external data, our model allows for better generalization and captures complex aging patterns in a more efficient manner. The core of our stDNN model consists of two 1D CNN layers. The input to the 1D-CNN is each subjectÕs # of ROI x # of timesteps matrix. The first CNN layer transforms the input spatiotemporally to 32 x # of timesteps with a temporal kernel size of F = 5 and stride = 1. We then introduce batch normalization, PReLU nonlinear operation, and a ÒmaxpoolÓ layer which reduces the # of timesteps by half. The second CNN layer transforms the output of the first CNN layer spatiotemporally to 32 x (# of timesteps / 2), again followed by batch normalization, PReLU nonlinear operation, and another ÒmaxpoolÓ layer which results in an output of size 32 x (# of timesteps / 4). We introduce dropout of 0.5 after each ÒmaxpoolÓ operation. We introduce a Òtemporal averagingÓ operation which averages temporal features for each filter, the output passed to a single output neuron for age prediction in a fully connected layer.
+
+Model evaluation and comparison
+
+Brain age accuracy is measured via R-squared. The model was evaluated using five-fold cross validation. Brain age gap is calculated as the difference between predicted brain age and chronological age for each individual. 
+
+Identifying brain features underlying age prediction
+
+Brain ROIs most contributive to age prediction were identified using Integrated Gradients30, an explainable AI (xAI) method. We identify robust features through consensus analysis using repeated cross-validation. We trained 500 stDNN models, applied Integrated Gradients to obtain ÔscoresÕ for each brain region, identified the top 50% of features, and aggregated this subset across all subjects. A binomial test was performed to identify consistent features.
+
+Brain-behavior analysis[YZ36][YZ37]
+
+Brain-behavior analysis was performed using PCA to reduce dimensionality and address multicollinearity of feature/ROI IG scores computed; the number of components that explained 80% of variance were used as features for ordinary least squared regression. The accuracy of behavior predictions was evaluated using spearman correlation.
+
+Bias Correction
+In brain age studies, the brain age gap is often correlated with chronological age3,15,16,19. This bias arises because models tend to overestimate age in younger individuals and underestimate it in older ones. To correct for this, we applied a linear adjustment directly to brain age.
+Using only typically developing participants from the clinical cohorts (ADHD-200, ABIDE, Stanford, CMI-HBN), we fit a linear regression of brain age gap on chronological age:
+BAG = ?? + ??áAge + ?.
+The fitted offset (?? + ??áAge) was then subtracted from each subjectÕs predicted age:
+Corrected Predicted Age = Predicted Age ? (?? + ??áAge).
+We estimate the offset on TDs to preserve the essence of the normative model and avoid contaminating the correction with disorder-related deviations. This procedure removes the dependence of the brain age gap on chronological age, yielding unbiased estimates that preserve meaningful individual differences.
+
+
+
+References[YZ38]
+
+1. Lee, J., Burkett, B. J., Min, H.-K., É & Jones, D. T. Deep learning-based brain age prediction in normal aging and dementia. Nat Aging 2, 412Ð424, doi:10.1038/s43587-022-00219-7 (2022).
+2. Scheffler, F., Ipser, J., Pancholi, D., É & Stein, D. J. Mega-analysis of the brain-age gap in substance use disorder: An ENIGMA Addiction working group study. Addiction 119(11), 1937Ð1946, doi:10.1111/add.16621 (2024).
+3. Smith, S. M., Vidaurre, D., Alfaro-Almagro, F., Nichols, T. E., & Miller, K. L. Estimation of brain age delta from brain imaging. Neuroimage 200, 528Ð539, doi:10.1016/j.neuroimage.2019.06.017 (2019).
+4. Ryali, S., Supekar, K., Chen, T., Kochalka, J., Cai, W., Nicholas, J., Padmanabhan, A., & Menon, V. Temporal Dynamics and Developmental Maturation of Salience, Default and Central-Executive Network Interactions Revealed by Variational Bayes Hidden Markov Modeling. PLoS Comput Biol 12(9), e1005138, doi:10.1371/journal.pcbi.1005138 (2016).
+5. Supekar, K., Cai, W., Krishnadas, R., Palaniyappan, L., & Menon, V. Dysregulated Brain Dynamics in a Triple-Network Saliency Model of Schizophrenia and Its Relation to Psychosis. Biol Psychiatry 85(1), 60Ð69, doi:10.1016/j.biopsych.2018.07.020 (2019).
+6. Taghia, J., Cai, W., Ryali, S., Kochalka, J., Nicholas, J., Chen, T., & Menon, V. Uncovering hidden brain state dynamics that regulate performance and decision-making during cognition. Nat Commun 9, 2505, doi:10.1038/s41467-018-04723-6 (2018).
+7. Van De Ville, D., Farouj, Y., Preti, M. G., LiŽgeois, R., & Amico, E. When makes you unique: Temporality of the human brain fingerprint. Sci Adv 7(42), eabj0751, doi:10.1126/sciadv.abj0751 (2021).
+8. Finn, E. S., Shen, X., Scheinost, D., Rosenberg, M. D., Huang, J., Chun, M. M., Papademetris, X., & Constable, R. T. Functional connectome fingerprinting: identifying individuals using patterns of brain connectivity. Nat Neurosci 18, 1664Ð1671, doi:10.1038/nn.4135 (2015).
+9. Lundberg, S., & Lee, S.-I. A Unified Approach to Interpreting Model Predictions. arXiv:1705.07874 (2017).
+10. Selvaraju, R. R., Cogswell, M., Das, A., Vedantam, R., Parikh, D., & Batra, D. Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization. In Proc. ICCV, 618Ð626, doi:10.1109/ICCV.2017.74 (2017).
+11. Simonyan, K., Vedaldi, A., & Zisserman, A. Deep Inside Convolutional Networks: Visualising Image Classification Models and Saliency Maps. arXiv:1312.6034 (2013).
+12. Springenberg, J. T., Dosovitskiy, A., Brox, T., & Riedmiller, M. Striving for Simplicity: The All Convolutional Net. arXiv:1412.6806 (2014).
+13. Abdulai-Saiku, S., Gupta, S., Wang, D., É & Dubal, D. B. The maternal X chromosome affects cognition and brain ageing in female mice. Nature 638, 152Ð159, doi:10.1038/s41586-024-08457-y (2025).
+14. Cai, W., Chen, T., Szegletes, L., Supekar, K., & Menon, V. Aberrant Time-Varying Cross-Network Interactions in Children With Attention-Deficit/Hyperactivity Disorder and the Relation to Attention Deficits. Biol Psychiatry Cogn Neurosci Neuroimaging 3, 263Ð273, doi:10.1016/j.bpsc.2017.10.005 (2018).
+15. Le, T. T., Kuplicki, R. T., McKinney, B. A., Yeh, H.-W., Thompson, W. K., & Paulus, M. P. A Nonlinear Simulation Framework Supports Adjusting for Age When Analyzing BrainAGE. Front Aging Neurosci 10, 317, doi:10.3389/fnagi.2018.00317 (2018).
+16. Liang, H., Zhang, F., & Niu, X. Investigating systematic bias in brain age estimation with application to post-traumatic stress disorders. Hum Brain Mapp 40(11), 3143Ð3152, doi:10.1002/hbm.24588 (2019).
+17. Ryali, S., Zhang, Y., de Los Angeles, C., Supekar, K., & Menon, V. Deep learning models reveal replicable, generalizable, and behaviorally relevant sex differences in human functional brain organization. Proc Natl Acad Sci USA 121(9), e2310012121, doi:10.1073/pnas.2310012121 (2024).
+18. Supekar, K., Ryali, S., Yuan, R., Kumar, D., de Los Angeles, C., & Menon, V. Robust, Generalizable, and Interpretable Artificial Intelligence-Derived Brain Fingerprints of Autism and Social Communication Symptom Severity. Biol Psychiatry 92(8), 643Ð653, doi:10.1016/j.biopsych.2022.02.011 (2022).
+19. Zhang, B., Zhang, S., Feng, J., & Zhang, S. Age-level bias correction in brain age prediction. NeuroImage: Clinical 38, 103319, doi:10.1016/j.nicl.2023.103319 (2023).
+20. Somerville, L. H. et al. The Lifespan Human Connectome Project in Development: A large-scale study of brain connectivity development in 5-21 year olds. Neuroimage 183, 456-468, doi:10.1016/j.neuroimage.2018.08.050 (2018).
+21. Nooner, K. B. et al. The NKI-Rockland Sample: A Model for Accelerating the Pace of Discovery Science in Psychiatry. Front Neurosci 6, 152, doi:10.3389/fnins.2012.00152 (2012).
+22. Alexander, L. M., Escalera, J., Ai, L., et al. An open resource for transdiagnostic research in pediatric mental health and learning disorders. Sci Data 4, 170181, doi:10.1038/sdata.2017.181 (2017).
+23. Bellec, P., Chu, C., Chouinard-Decorte, F., Benhajali, Y., Margulies, D. S., & Craddock, R. C. The Neuro Bureau ADHD-200 Preprocessed repository. NeuroImage 144 (Part B), 275Ð286, doi:10.1016/j.neuroimage.2016.06.034 (2017).
+24. Di Martino, A. et al. The autism brain imaging data exchange: towards a large-scale evaluation of the intrinsic brain architecture in autism. Mol Psychiatry 19, 659-667, doi:10.1038/mp.2013.78 (2014).
+25. Di Martino, A. et al. Enhancing studies of the connectome in autism using the autism brain imaging data exchange II. Sci Data 4, 170010, doi:10.1038/sdata.2017.10 (2017).
+26. Abrams, D. A. et al. Underconnectivity between voice-selective cortex and reward circuitry in children with autism. Proc Natl Acad Sci U S A 110, 12060-12065, doi:10.1073/pnas.1302982110 (2013).
+27. Abrams, D. A. et al. Impaired voice processing in reward and salience circuits predicts social communication in children with autism. eLife 8, e39906 (2019).
+28. Lynch, C. J. et al. Default mode network in childhood autism: posteromedial cortex heterogeneity and relationship with social deficits. Biol Psychiatry 74, 212-219, doi:10.1016/j.biopsych.2012.12.013 (2013).
+29. Fan, L. et al. The Human Brainnetome Atlas: A New Brain Atlas Based on Connectional Architecture. Cereb Cortex 26, 3508-3526, doi:10.1093/cercor/bhw157 (2016).
+30. Sundararajan, M., Taly, A., & Yan, Q. Axiomatic Attribution for Deep Networks. In Proc. ICML (PMLR 70), 3319Ð3328 (2017). arXiv:1703.01365.
+
+[YZ1]TD from the ADHD-200?
+[HM2R1]yes
+[YZ3]@Hari: it's unclear to me whether you compared ADHD BAG versus 0 (expected TD trajectory) or versus TD BAG derived from a baseline TD sample (e.g., ADHD TD)? I believe the latter (BAG ADHD/ASD vs BAG TD) is the more commonly used approach in recent studies as it controls for model biases by providing a TD BAG baseline. 
+[HM4R3]ADHD-200 ADHD samples vs ADHD-200 TD sample is how BAG comparison done
+[YZ5]TD from CMI-HBN?
+[HM6R5]Correct
+[YZ7]Can you also check BAG variance given that clinical population is more heterogenous in nature
+[HM8R7]No significant difference in variance
+[YZ9]@Hari: report TD values here. As there is no TD samples from the same cohort,  maybe compare to TD from the HCP-Development/NKI-RS?
+[YZ10]Can you also check BAG variance given that clinical population is more heterogenous in nature
+[YZ11]@Hari: report TD values here. As there is no TD samples from the same cohort,  maybe compare to TD from the HCP-Development/NKI-RS?
+[YZ12]@Hari: did you do 4 comparisons (i.e., 2 ADHD x 2 ASD cohorts)? Report p range here, e.g. ps > 0.28
+[HM13R12]Would Pooling ADHD and ASD sets together suffice?
+[HM14R12]pooled
+[YZ15]It would be helpful to make a table to show regions consistently identified as top contributors across cohorts. Make a table for each population separately (i.e., TD, ADHD, ASD)
+[YZ16]used whole-brain maps or just top regions when computing cosine similarity?
+[HM17R16]Tried both methods, using top regions gave stronger similarity
+[YZ18]@Hari: get cosine similarity between discovery and three validation cohorts and report the range here
+[YZ19]@Hari: get cosine similarity between discovery and three validation cohorts and report the range here
+[YZ20]@Hari: the current results and figures were derived using HCP-Dev and NKI-RS only. Is there a good reason for not using TD from CMI-HBN and ADHD-200 for this analysis, especially given that the CMI-HBN and ADHD-200 were used as validation cohorts when assessing model performance? If no good reason, I suggest to add results for CMI-HBN TD and ADHD-200 TD, and when identifying consensus features, use all four cohorts (HCP-Dev, NKI-RS, CMI-HBN, and ADHD-200)
+[YZ21]IG maps or consensus maps were used for this computation?
+[HM22R21]Consensus
+[YZ23]@Hari: From the figure, I saw parietal regions, SFG/MFG regions, and visual cortex. Please add all those regions.. 
+[YZ24]@Hari: I assume you did network analysis using network values (i.e., averaged across nodes within each specific network). Please add radar plots to show network results.
+[YZ25]Please check anatomical labels and update the list.
+[YZ26]@Hari: I assume you did network analysis using network values (i.e., averaged across nodes within each specific network). Please add radar plots to show network results.
+[YZ27]@Hari: Once you have the recommended tables and network radar plots done, the regions (XXX placeholder) will become clear. 
+[YZ28]not sure whether whole-brain ROIs or top X% ROIs were used.
+[HM29R28]whole-brain ROIs
+[YZ30]@Hari: Why examining brain-behavioral relationship in NKI-RS only? Are there significant associations in CMI-HBN TD and ADHD-200 TD as well?
+[YZ31]How this was derived? By correlating predicted and actual clinical measures? Or it's the coefficient of the first regressor (PC1)? Need to add details in methods section.
+[YZ32R31]Need to add details on how the subset used in brain-behavioral analysis were derived. Same issue for clinical populations.
+[HM33R31]based on individuals with data available
+[VM34]Address using ABCD? 
+[YZ35]@Hari: Many details are missing... I added section titles, please add as much details as you can for each section.
+[YZ36]Please also add details regarding how subsets used in this analysis were derived
+[YZ37R36]See also my other comments regarding this analysis. Details are missing
+[YZ38]add references using endnote
+
+
+
+10
+
+
