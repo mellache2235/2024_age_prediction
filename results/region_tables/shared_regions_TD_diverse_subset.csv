@@ -1,0 +1,31 @@
+Brain Regions,Subdivision,(ID) Region Label,Count
+Middle Temporal Gyrus,"A35/36c, caudal area 35/36","(112), PhG_R_6_2",490
+Prefrontal Cortex,"A8vl, ventrolateral area 8","(24), MFG_R_7_5",487
+Thalamus,"Otha, occipital thalamus","(241), Tha_L_8_6",487
+"PCC, Precuneus","A5m, medial area 5(PEm)","(149), Pcun_L_4_2",486
+Prefrontal Cortex,"IFJ, inferior frontal junction","(17), MFG_L_7_2",486
+Precentral Gyrus,"A4hf, area 4(head and face region)","(54), PrG_R_6_1",478
+Inferior Temporal Gyrus,"A37vm, ventromedial area37","(92), ITG_R_7_2",474
+Striatum,"dCa, dorsal caudate","(227), Str_L_6_5",472
+Prefrontal Cortex,"IFS, inferior frontal sulcus","(32), IFG_R_6_2",468
+Middle Temporal Gyrus,"A28/34, area 28/34 (EC, entorhinal cortex)","(115), PhG_L_6_4",467
+Middle Temporal Gyrus,"A35/36c, caudal area 35/36","(111), PhG_L_6_2",464
+Inferior Temporal Gyrus,"A20r, rostral area 20","(94), ITG_R_7_3",458
+Inferior Parietal Lobe,"A39rd, rostrodorsal area 39(Hip3)","(138), IPL_R_6_2",450
+Inferior Parietal Lobe,"A39c, caudal area 39(PGp)","(135), IPL_L_6_1",450
+Thalamus,"Otha, occipital thalamus","(242), Tha_R_8_6",438
+Precentral Gyrus,"A4t, area 4(trunk region)","(60), PrG_R_6_4",430
+Thalamus,"rTtha, rostral Temporal thalamus","(238), Tha_R_8_4",418
+Superior Temporal Gyrus,"A38l, lateral area 38","(78), STG_R_6_5",406
+Superior Parietal Lobule,"A7ip, intraparietal area 7(hIP3)","(126), SPL_R_5_1",404
+"PCC, Precuneus","dmPOS, dorsomeidal parietooccipital  sulcus(PEr)","(151), Pcun_L_4_3",398
+Striatum,"dlPu, dorsolateral putamen","(230), Str_R_6_6",391
+Precentral Gyrus,"A4t, area 4(trunk region)","(59), PrG_L_6_4",390
+Paracentral Lobule,"A4ll, area 4, (lower limb region)","(67), PCL_L_2_2",383
+Cingulate Gyrus,"A23v, ventral area 23","(182), CG_R_7_4",378
+Striatum,"dlPu, dorsolateral putamen","(229), Str_L_6_6",376
+Inferior Temporal Gyrus,"A37vl, ventrolatral area37","(108), FuG_R_3_3",375
+Superior Parietal Lobule,"A7pc, postcentral area 7","(130), SPL_R_5_3",372
+Postcentral Gyrus,"A2, area 2","(160), PoG_R_4_3",364
+Cingulate Gyrus,"A23v, ventral area 23","(181), CG_L_7_4",362
+"PCC, Precuneus","dmPOS, dorsomeidal parietooccipital  sulcus(PEr)","(152), Pcun_R_4_3",351

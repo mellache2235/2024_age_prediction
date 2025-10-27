@@ -1,11 +1,11 @@
 Brain_Region,Loading
-"A44d,dorsal area 44,Left",0.24673888667137697
-"A6vl, ventrolateral area 6,Right",0.21277545390639388
-"A44v, ventral area 44,Left",0.21276739431659686
-"A44op, opercular area 44,Left",0.16931875931552434
-"A9l, lateral area 9,Right",0.16168407446550598
-"IFS, inferior frontal sulcus,Right",0.15247989347750895
-"G, hypergranular insula,Right",0.14790323502713373
-"A23c, caudal area 23,Right",0.14639662119677294
-"rCunG, rostral cuneus gyrus,Right",0.14253272090243638
-"IFS, inferior frontal sulcus,Left",0.13241830522271034
+"A2, area 2,Left",0.21760498731005778
+"A9l, lateral area 9,Left",0.17679858867494683
+"GP, globus pallidus,Right",0.17594440646093887
+"cpSTS, caudoposterior superior temporal sulcus,Right",0.16319776261494967
+"A1/2/3ll, area1/2/3 (lower limb region),Right",0.14546694097565707
+"A28/34, area 28/34 (EC, entorhinal cortex),Left",0.14045625347040486
+"PPtha, posterior parietal thalamus,Left",0.13985271729132284
+"A6vl, ventrolateral area 6,Left",0.12760614550748767
+"mPMtha, pre-motor thalamus,Right",0.12545538774248252
+"A4tl, area 4(tongue and larynx region),Left",0.12532234463462746

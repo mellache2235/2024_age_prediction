@@ -12,9 +12,19 @@ Each panel shows predicted vs actual behavioral scores for one cohort
 
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as font_manager
+import matplotlib.backends.backend_pdf as pdf
 import numpy as np
 from pathlib import Path
 import sys
+import os
+
+# Set Arial font
+font_path = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/clustering_analysis/arial.ttf'
+if os.path.exists(font_path):
+    font_manager.fontManager.addfont(font_path)
+    prop = font_manager.FontProperties(fname=font_path)
+    plt.rcParams['font.family'] = prop.get_name()
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / 'utils'))
@@ -66,6 +76,22 @@ def find_scatter_plot(cohort_dir, measure_names):
         matches = list(cohort_dir.glob(pattern))
         if matches:
             return matches[0]
+    
+    # If not found, try a more flexible search (any scatter plot with similar keywords)
+    # For hyperactivity: look for files with "hyper" or "impuls"
+    # For inattention: look for files with "inatt"
+    all_scatters = list(cohort_dir.glob("scatter_*.png"))
+    for scatter_file in all_scatters:
+        filename_lower = scatter_file.stem.lower()
+        for measure in measure_names:
+            measure_lower = measure.lower()
+            # Check if key parts of the measure name are in the filename
+            if 'hyper' in measure_lower or 'impuls' in measure_lower:
+                if 'hyper' in filename_lower or 'impuls' in filename_lower:
+                    return scatter_file
+            elif 'inatt' in measure_lower:
+                if 'inatt' in filename_lower:
+                    return scatter_file
     
     return None
 
@@ -148,11 +174,16 @@ def create_combined_plot(measure_type, cohort_data, output_path):
     
     plt.tight_layout(rect=[0, 0.03, 1, 0.96])
     
-    # Save
+    # Save PNG and AI
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    
+    # Save as .ai file
+    ai_path = str(output_path).replace('.png', '.ai')
+    pdf.FigureCanvas(fig).print_pdf(ai_path)
+    
     plt.close()
     
-    print_success(f"Saved: {output_path.name}")
+    print_success(f"Saved: {output_path.name} and {Path(ai_path).name}")
 
 
 # ============================================================================

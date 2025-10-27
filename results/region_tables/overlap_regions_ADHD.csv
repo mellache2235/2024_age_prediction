@@ -14,3 +14,66 @@ Middle Temporal Gyrus,"A28/34, area 28/34 (EC, entorhinal cortex)","(116), PhG_R
 Prefrontal Cortex,"A11l, lateral area 11","(45), OrG_L_6_3",466
 Prefrontal Cortex,"IFJ, inferior frontal junction","(17), MFG_L_7_2",466
 Striatum,"dCa, dorsal caudate","(227), Str_L_6_5",465
+Inferior Parietal Lobe,"A39rd, rostrodorsal area 39(Hip3)","(138), IPL_R_6_2",462
+Precentral Gyrus,"A4t, area 4(trunk region)","(60), PrG_R_6_4",458
+Inferior Parietal Lobe,"A39c, caudal area 39(PGp)","(135), IPL_L_6_1",453
+Middle Temporal Gyrus,"mAmyg, medial amyg","(211), Amyg_L_2_1",450
+Striatum,"dlPu, dorsolateral putamen","(230), Str_R_6_6",449
+Superior Temporal Gyrus,"A38l, lateral area 38","(78), STG_R_6_5",442
+"PCC, Precuneus","dmPOS, dorsomeidal parietooccipital  sulcus(PEr)","(151), Pcun_L_4_3",434
+Inferior Temporal Gyrus,"A37vm, ventromedial area37","(92), ITG_R_7_2",434
+Thalamus,"Otha, occipital thalamus","(241), Tha_L_8_6",428
+Thalamus,"rTtha, rostral Temporal thalamus","(238), Tha_R_8_4",420
+Precentral Gyrus,"A4ul, area 4(upper limb region)","(57), PrG_L_6_3",417
+Middle Temporal Gyrus,"mAmyg, medial amyg","(212), Amyg_R_2_1",414
+Striatum,"GP, globus pallidus","(222), Str_R_6_2",408
+Inferior Parietal Lobe,"A40rd, rostrodorsal area 40(PFt)","(139), IPL_L_6_3",404
+Striatum,"dCa, dorsal caudate","(228), Str_R_6_5",403
+Superior Parietal Lobule,"A7ip, intraparietal area 7(hIP3)","(126), SPL_R_5_1",398
+Inferior Temporal Gyrus,"A20r, rostral area 20","(93), ITG_L_7_3",398
+Precentral Gyrus,"A4t, area 4(trunk region)","(59), PrG_L_6_4",394
+Superior Parietal Lobule,"A7pc, postcentral area 7","(130), SPL_R_5_3",394
+Postcentral Gyrus,"A2, area 2","(160), PoG_R_4_3",392
+Paracentral Lobule,"A4ll, area 4, (lower limb region)","(67), PCL_L_2_2",389
+Prefrontal Cortex,"A6vl, ventrolateral area 6","(25), MFG_L_7_6",388
+Prefrontal Cortex,"A9l, lateral area 9","(6), SFG_R_7_3",384
+Prefrontal Cortex,"A45c, caudal area 45","(34), IFG_R_6_3",384
+Inferior Temporal Gyrus,"A37vl, ventrolatral area37","(108), FuG_R_3_3",382
+Postcentral Gyrus,"A1/2/3ulhf, area 1/2/3(upper limb, head and face region)","(155), PoG_L_4_1",371
+Precentral Gyrus,"A4hf, area 4(head and face region)","(53), PrG_L_6_1",367
+Prefrontal Cortex,"A9l, lateral area 9","(5), SFG_L_7_3",365
+Prefrontal Cortex,"A9m,medial area 9","(12), SFG_R_7_6",363
+Striatum,"dlPu, dorsolateral putamen","(229), Str_L_6_6",362
+Prefrontal Cortex,"A6dl, dorsolateral area 6","(7), SFG_L_7_4",361
+Prefrontal Cortex,"A11m, medial area 11","(48), OrG_R_6_4",360
+Thalamus,"mPMtha, pre-motor thalamus","(233), Tha_L_8_2",359
+Inferior Temporal Gyrus,"A20il, intermediate lateral area 20","(96), ITG_R_7_4",358
+"PCC, Precuneus","A5m, medial area 5(PEm)","(150), Pcun_R_4_2",355
+Thalamus,"cTtha, caudal Temporal thalamus","(243), Tha_L_8_7",354
+Striatum,"vmPu, ventromedial putamen","(226), Str_R_6_4",354
+Cingulate Gyrus,"A23d, dorsal area 23","(176), CG_R_7_1",350
+Middle Temporal Gyrus,"rHipp, rostral hipp","(216), Hipp_R_2_1",349
+"PCC, Precuneus","dmPOS, dorsomeidal parietooccipital  sulcus(PEr)","(152), Pcun_R_4_3",344
+"PCC, Precuneus","cLinG, caudal lingual gyrus","(190), Cun_R_5_1",344
+Postcentral Gyrus,"A2, area 2","(159), PoG_L_4_3",339
+Prefrontal Cortex,"A9/46d, dorsal area 9/46","(15), MFG_L_7_1",338
+"PCC, Precuneus","A7m, medial area 7(PEp)","(147), Pcun_L_4_1",336
+Prefrontal Cortex,"A44d,dorsal area 44","(30), IFG_R_6_1",333
+Cingulate Gyrus,"A23c, caudal area 24","(185), CG_L_7_6",328
+Inferior Temporal Gyrus,"A37vm, ventromedial area37","(91), ITG_L_7_2",322
+Prefrontal Cortex,"IFJ, inferior frontal junction","(18), MFG_R_7_2",320
+Cingulate Gyrus,"A23v, ventral area 23","(182), CG_R_7_4",318
+Occipital Gyrus,"OPC, occipital polar cortex","(204), OcG_R_4_3",317
+Thalamus,"PPtha, posterior parietal thalamus","(240), Tha_R_8_5",310
+Precentral Gyrus,"A4ul, area 4(upper limb region)","(58), PrG_R_6_3",309
+Inferior Temporal Gyrus,"A20cv, caudoventral of area 20","(101), ITG_L_7_7",307
+Prefrontal Cortex,"A8m, medial area 8","(2), SFG_R_7_1",304
+Occipital Gyrus,"mOccG, middle occipital gyrus","(200), OcG_R_4_1",302
+Prefrontal Cortex,"A12/47o, orbital area 12/47","(44), OrG_R_6_2",297
+Postcentral Gyrus,"A1/2/3tru, area1/2/3(trunk region)","(161), PoG_L_4_4",297
+Cingulate Gyrus,"A23v, ventral area 23","(181), CG_L_7_4",296
+Superior Temporal Gyrus,"A38m, medial area 38","(69), STG_L_6_1",295
+Middle Temporal Gyrus,"cHipp, caudal hipp","(218), Hipp_R_2_2",295
+Cingulate Gyrus,"A24rv, rostroventral area 24","(177), CG_L_7_2",295
+Prefrontal Cortex,"A8m, medial area 8","(1), SFG_L_7_1",292
+Inferior Temporal Gyrus,"A20rv, rostroventral area 20","(104), FuG_R_3_1",292

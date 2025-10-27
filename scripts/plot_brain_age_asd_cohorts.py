@@ -12,11 +12,20 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as font_manager
+import matplotlib.backends.backend_pdf as pdf
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from scipy.stats import pearsonr
 from sklearn.metrics import r2_score, mean_absolute_error
 import logging
+
+# Set Arial font
+font_path = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/clustering_analysis/arial.ttf'
+if os.path.exists(font_path):
+    font_manager.fontManager.addfont(font_path)
+    prop = font_manager.FontProperties(fname=font_path)
+    plt.rcParams['font.family'] = prop.get_name()
 
 # Add utils to path
 sys.path.append(str(Path(__file__).parent.parent / 'utils'))

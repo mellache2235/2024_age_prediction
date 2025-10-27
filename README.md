@@ -164,35 +164,58 @@ python plot_brain_age_adhd_cohorts.py \
 python plot_brain_age_asd_cohorts.py \
   --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots
 
-# Step 6 (Optional): Brain-behavior correlation analysis for TD cohorts
+# Step 6 (Optional): Brain-behavior correlation analysis
 
-# Option A: Quick analysis (CSV results only)
-bash run_nki_brain_behavior_only.sh
-bash run_adhd200_td_brain_behavior_only.sh
-bash run_cmihbn_td_brain_behavior_only.sh
-
-# Option B: Full analysis with plots (recommended) - NO ARGUMENTS NEEDED
+# ============================================================================
+# TD COHORTS - Brain-behavior analysis
+# ============================================================================
+# Full analysis with plots (recommended) - NO ARGUMENTS NEEDED
 # All paths are pre-configured in the scripts. Just run:
+
 python run_nki_brain_behavior_enhanced.py
-python run_adhd200_brain_behavior_enhanced.py
+python run_adhd200_brain_behavior_enhanced.py  # NYU site only, outliers removed
 python run_cmihbn_brain_behavior_enhanced.py
 
 # Each script does everything in one go:
 #   - Loads data and performs PCA with elbow method
 #   - Uses ALL PCs in linear regression to predict behavioral scores
 #   - Calculates Spearman correlation (predicted vs actual behavior)
-#   - Creates scatter plots, elbow plots
+#   - Creates scatter plots (.png and .ai), elbow plots
 #   - Ranks PC importance (which PCs contribute most)
 #   - Shows top brain regions per PC
 
-# Step 6b (Optional): Create PC loadings heatmaps
-# Shows which brain regions load most strongly on first 3 PCs
+# Create PC loadings heatmaps (shows which brain regions load on first 3 PCs)
 python plot_pc_loadings_heatmap.py --dataset nki_rs_td
 python plot_pc_loadings_heatmap.py --dataset adhd200_td
 python plot_pc_loadings_heatmap.py --dataset cmihbn_td
 
-# Step 6c (Optional): Create combined 3-panel plots for hyperactivity and inattention
+# Create combined 3-panel plots for hyperactivity and inattention across TD cohorts
 python plot_brain_behavior_td_cohorts.py
+
+# ============================================================================
+# ADHD COHORTS - Brain-behavior analysis
+# ============================================================================
+# Full analysis with plots (recommended) - NO ARGUMENTS NEEDED
+# All paths are pre-configured in the scripts. Just run:
+
+python run_adhd200_adhd_brain_behavior_enhanced.py  # NYU site only, outliers removed
+python run_cmihbn_adhd_brain_behavior_enhanced.py
+
+# Each script does everything in one go:
+#   - Filters for ADHD subjects (label=1)
+#   - Loads data and performs PCA with elbow method
+#   - Uses ALL PCs in linear regression to predict behavioral scores
+#   - Calculates Spearman correlation (predicted vs actual behavior)
+#   - Creates scatter plots (.png and .ai), elbow plots
+#   - Ranks PC importance (which PCs contribute most)
+#   - Shows top brain regions per PC
+
+# Create PC loadings heatmaps (shows which brain regions load on first 3 PCs)
+python plot_pc_loadings_heatmap.py --dataset adhd200_adhd
+python plot_pc_loadings_heatmap.py --dataset cmihbn_adhd
+
+# Create combined 3-panel plots for hyperactivity and inattention across ADHD cohorts
+python plot_brain_behavior_adhd_cohorts.py  # (TO BE CREATED)
 
 # Step 7 (Optional): Cosine similarity analysis
 # Compares feature importance maps across TD, ADHD, and ASD cohorts
@@ -230,14 +253,15 @@ python analyze_td_shared_regions.py --threshold 450
      - `adhd_cohorts_combined_scatter.png` (1x2 subplot: CMI-HBN ADHD, ADHD200 ADHD)
      - `asd_cohorts_combined_scatter.png` (1x2 subplot: ABIDE ASD, Stanford ASD)
 
-4. **Brain-Behavior Plots** (Step 6, optional) - PNG files:
+4. **Brain-Behavior Plots** (Step 6, optional) - PNG and AI files:
    - Location: `results/brain_behavior/{dataset_name}/`
-   - Individual scatter plots: `{behavioral_measure}_scatter.png`
+   - Individual scatter plots: `scatter_{behavioral_measure}.png` / `.ai`
    - Elbow plots: `elbow_plot.png`
    - PC loadings heatmaps: `pc_loadings_heatmap.png`
-   - Combined 3-panel plots: `results/brain_behavior/combined_plots/`
-     - `hyperactivity_combined.png` (NKI, ADHD200, CMI-HBN)
-     - `inattention_combined.png` (NKI, ADHD200, CMI-HBN)
+   - Combined plots: `results/brain_behavior/combined_plots/`
+     - TD cohorts: `hyperactivity_td_cohorts.png` / `.ai`, `inattention_td_cohorts.png` / `.ai`
+     - ADHD cohorts (to be created): `hyperactivity_adhd_cohorts.png` / `.ai`, `inattention_adhd_cohorts.png` / `.ai`
+   - Datasets: nki_rs_td, adhd200_td, cmihbn_td, adhd200_adhd, cmihbn_adhd
 
 5. **Cosine Similarity Analysis** (Step 7, optional) - CSV and PNG files:
    - Location: `results/cosine_similarity/`
@@ -323,25 +347,40 @@ The diverse subset tables are designed for manuscript reporting and ensure repre
 
 ### **Step 5: Brain Age Plots**
 - **Location**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots/`
-- **Files**:
-  - `td_cohorts_combined_scatter.png` - 2x2 subplot (4 core TD datasets)
-  - `adhd_cohorts_combined_scatter.png` - 1x2 subplot (2 ADHD datasets)
-  - `asd_cohorts_combined_scatter.png` - 1x2 subplot (2 ASD datasets)
+- **Files** (both PNG and AI formats):
+  - `td_cohorts_combined_scatter.png` / `.ai` - 2x2 subplot (4 core TD datasets)
+  - `adhd_cohorts_combined_scatter.png` / `.ai` - 1x2 subplot (2 ADHD datasets)
+  - `asd_cohorts_combined_scatter.png` / `.ai` - 1x2 subplot (2 ASD datasets)
 - **Input**: .npz files in `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_predictions/npz_files/`
+- **Plot styling**: Arial font, #5A6FA8 dots, #D32F2F best fit line, no top/right spines, no bounding box around statistics
 
 ### **Step 6: Brain-Behavior Analysis (Optional)**
 - **Location**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/`
 - **Subdirectories**:
-  - `nki_rs_td/` - NKI-RS TD analysis results
-  - `adhd200_td/` - ADHD200 TD analysis results (NYU site only)
-  - `cmihbn_td/` - CMI-HBN TD analysis results
-  - `combined_plots/` - 3-panel combined plots for hyperactivity and inattention
+  - **TD Cohorts**:
+    - `nki_rs_td/` - NKI-RS TD analysis results
+    - `adhd200_td/` - ADHD200 TD analysis results (NYU site only, outliers removed)
+    - `cmihbn_td/` - CMI-HBN TD analysis results
+  - **ADHD Cohorts**:
+    - `adhd200_adhd/` - ADHD200 ADHD analysis results (NYU site only, outliers removed)
+    - `cmihbn_adhd/` - CMI-HBN ADHD analysis results
+  - **Combined plots**:
+    - `combined_plots/` - 3-panel combined plots for TD and ADHD cohorts
 - **Files per dataset**:
   - `elbow_plot.png` - PCA variance explained
-  - `{behavioral_measure}_scatter.png` - Predicted vs observed behavioral scores
+  - `scatter_{behavioral_measure}.png` - Predicted vs observed behavioral scores (PNG format)
+  - `scatter_{behavioral_measure}.ai` - Predicted vs observed behavioral scores (AI format for Illustrator)
   - `pc_loadings_heatmap.png` - Brain region loadings on first 3 PCs
   - `linear_regression_results.csv` - Statistics (N, ρ, p-value, R²)
   - `pc_loadings_top_regions.csv` - Top brain regions per PC
+- **Combined plots** (in `combined_plots/`):
+  - TD cohorts:
+    - `hyperactivity_td_cohorts.png` / `.ai` - 3-panel plot (NKI, ADHD200 TD, CMI-HBN TD)
+    - `inattention_td_cohorts.png` / `.ai` - 3-panel plot (NKI, ADHD200 TD, CMI-HBN TD)
+  - ADHD cohorts (to be created):
+    - `hyperactivity_adhd_cohorts.png` / `.ai` - 2-panel plot (ADHD200 ADHD, CMI-HBN ADHD)
+    - `inattention_adhd_cohorts.png` / `.ai` - 2-panel plot (ADHD200 ADHD, CMI-HBN ADHD)
+- **Plot styling**: Arial font, #5A6FA8 dots, #D32F2F best fit line, no top/right spines, no bounding box around statistics, major ticks only
 
 ### **Step 7: Cosine Similarity Analysis (Optional)**
 - **Location**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/cosine_similarity/`

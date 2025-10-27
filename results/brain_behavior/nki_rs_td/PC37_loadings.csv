@@ -1,11 +1,11 @@
 Brain_Region,Loading
-"A8m, medial area 8,Left",0.8819294634607646
-"A10m, medial area 10,Right",0.09414113179231039
-"cHipp, caudal hippocampus,Left",0.0898756015034613
-"A8dl, dorsolateral area 8,Left",0.08758819362992776
-"A6vl, ventrolateral area 6,Right",0.0843583845125138
-"A45r, rostral area 45,Left",0.08379322991816925
-"vmPu, ventromedial putamen,Right",0.07294879059946976
-"A22c, caudal area 22,Left",0.07119453489042084
-"A44d,dorsal area 44,Right",0.06693122261024496
-"A8m, medial area 8,Right",0.06443924050745597
+"cLinG, caudal lingual gyrus,Left",0.20885665987516466
+"A14m, medial area 14,Left",0.17654337574954
+"A40rv, rostroventral area 40(PFop),Right",0.17567059822325629
+"A37vl, ventrolateral area 37,Left",0.17193500925305344
+"dId, dorsal dysgranular insula,Right",0.16310640816057098
+"dCa, dorsal caudate,Right",0.16200333977907422
+"A20r, rostral area 20,Right",0.15943959894753085
+"A4ul, area 4(upper limb region),Left",0.15593083401580085
+"A7m, medial area 7(PEp),Left",0.1556646968658924
+"A37mv, medioventral area37,Left",0.15278216898935937
