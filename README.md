@@ -47,8 +47,32 @@ pip install numpy pandas scipy scikit-learn matplotlib seaborn openpyxl tabulate
 
 **Option 3: Install from requirements file**
 ```bash
-# If requirements.txt exists
+# Navigate to the repository on HPC
+cd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test
+
+# Upgrade pip first (important!)
+pip install --upgrade pip setuptools wheel
+
+# Install all dependencies
 pip install -r requirements.txt
+```
+
+**Troubleshooting Installation Issues:**
+
+If pandas fails to install (build errors on HPC):
+```bash
+# Use older pandas version with pre-built wheels
+pip install pandas==1.5.3
+
+# Then install other packages
+pip install numpy scipy scikit-learn matplotlib seaborn openpyxl tabulate
+```
+
+If still having issues on HPC:
+```bash
+# Force pre-built wheels only (no source builds)
+cd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test
+pip install --only-binary :all: -r requirements.txt
 ```
 
 ## 🎯 **Quick Start - Complete Workflow**
