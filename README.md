@@ -6,25 +6,35 @@ A comprehensive pipeline for brain age prediction analysis using pre-trained mod
 
 ### **Required Packages**
 
-The pipeline requires Python 3.8+ with the following packages:
+The pipeline requires Python 3.8-3.10 with the following packages:
 
 ```bash
 # Core scientific computing
-numpy
-pandas
-scipy
-scikit-learn
+numpy>=1.21.0
+pandas>=1.3.0
+scipy>=1.7.0
+scikit-learn>=1.0.0
 
 # Visualization
-matplotlib
-seaborn
+matplotlib>=3.4.0
+seaborn>=0.11.0
 
 # Data handling
-openpyxl  # For Excel file support
-tabulate  # For pretty console tables
+openpyxl>=3.0.0     # For Excel file support
+tabulate>=0.8.0     # For pretty console tables
+pyyaml>=5.4.0       # For config files
 
-# Deep learning (if using models)
-torch
+# Deep learning frameworks
+torch>=1.10.0
+torchvision>=0.11.0
+torchaudio>=0.10.0
+pytorch-lightning>=1.5.0  # For model training
+
+# Deep learning utilities
+tensorboard>=2.8.0  # For training visualization
+einops>=0.4.0       # For tensor operations
+captum>=0.5.0       # For integrated gradients (feature attribution)
+timm>=0.6.0         # PyTorch Image Models (if using transformers)
 ```
 
 ### **Installation on HPC**
@@ -41,11 +51,18 @@ source /oak/stanford/groups/menon/software/python_envs/atif_env/bin/activate
 conda create -n brain_age python=3.10
 conda activate brain_age
 
-# Install packages
-pip install numpy pandas scipy scikit-learn matplotlib seaborn openpyxl tabulate torch
+# Install PyTorch first (recommended - choose CPU or CUDA version)
+# For CPU only:
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+# For CUDA 11.8 (if GPU available):
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# Install remaining packages
+pip install numpy pandas scipy scikit-learn matplotlib seaborn openpyxl tabulate pyyaml pytorch-lightning tensorboard einops captum timm
 ```
 
-**Option 3: Install from requirements file**
+**Option 3: Install from requirements file (Recommended)**
 ```bash
 # Navigate to the repository on HPC
 cd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test
@@ -53,7 +70,10 @@ cd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test
 # Upgrade pip first (important!)
 pip install --upgrade pip setuptools wheel
 
-# Install all dependencies
+# Install PyTorch first (with appropriate CUDA version for HPC)
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# Install all remaining dependencies
 pip install -r requirements.txt
 ```
 
@@ -66,6 +86,12 @@ pip install pandas==1.5.3
 
 # Then install other packages
 pip install numpy scipy scikit-learn matplotlib seaborn openpyxl tabulate
+```
+
+If PyTorch Lightning has compatibility issues:
+```bash
+# Install specific compatible version
+pip install pytorch-lightning==1.9.5
 ```
 
 If still having issues on HPC:

@@ -14,10 +14,25 @@ seaborn>=0.11.0
 # Data handling
 openpyxl>=3.0.0
 tabulate>=0.8.0
+pyyaml>=5.4.0
 
-# Deep learning (optional - only needed if running models)
-# torch>=1.10.0
+# Deep learning frameworks
+torch>=1.10.0,<2.2.0
+torchvision>=0.11.0
+torchaudio>=0.10.0
+pytorch-lightning>=1.5.0,<2.0.0
+
+# Deep learning utilities
+tensorboard>=2.8.0
+einops>=0.4.0
+
+# Additional ML/DL tools
+captum>=0.5.0  # For integrated gradients (feature attribution)
+timm>=0.6.0    # PyTorch Image Models (if using vision transformers)
 
 # Note: If you encounter installation issues, try:
-# pip install --upgrade pip setuptools wheel
-# Then retry: pip install -r requirements.txt
+# 1. Upgrade pip: pip install --upgrade pip setuptools wheel
+# 2. Install PyTorch first (with CUDA if available):
+#    CPU only: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+#    CUDA 11.8: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# 3. Then install remaining requirements: pip install -r requirements.txt
