@@ -2,6 +2,55 @@
 
 A comprehensive pipeline for brain age prediction analysis using pre-trained models and existing data files. This repository provides tools for feature attribution, network-level analysis, brain-behavior correlations, and statistical analysis.
 
+## 📦 **Environment Setup**
+
+### **Required Packages**
+
+The pipeline requires Python 3.8+ with the following packages:
+
+```bash
+# Core scientific computing
+numpy
+pandas
+scipy
+scikit-learn
+
+# Visualization
+matplotlib
+seaborn
+
+# Data handling
+openpyxl  # For Excel file support
+tabulate  # For pretty console tables
+
+# Deep learning (if using models)
+torch
+```
+
+### **Installation on HPC**
+
+**Option 1: Use existing environment**
+```bash
+# Activate the shared environment
+source /oak/stanford/groups/menon/software/python_envs/atif_env/bin/activate
+```
+
+**Option 2: Create your own environment**
+```bash
+# Create conda environment
+conda create -n brain_age python=3.10
+conda activate brain_age
+
+# Install packages
+pip install numpy pandas scipy scikit-learn matplotlib seaborn openpyxl tabulate torch
+```
+
+**Option 3: Install from requirements file**
+```bash
+# If requirements.txt exists
+pip install -r requirements.txt
+```
+
 ## 🎯 **Quick Start - Complete Workflow**
 
 ### **Option 1: Run Everything at Once (Recommended)**

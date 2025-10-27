@@ -113,13 +113,26 @@ def load_adhd200_pklz_data(pklz_file):
         # Replace -999 (missing data code) with NaN
         td_data[col] = td_data[col].replace(-999.0, np.nan)
         
-        # Check data
+        # Check data before standardization
         non_null = td_data[col].notna().sum()
         print_info(f"  {col}: {non_null} non-null values (after filtering -999)")
         if non_null > 0:
             sample_vals = td_data[col].dropna().head(5).values
-            print_info(f"    Sample values: {sample_vals}")
-            print_info(f"    Range: [{td_data[col].min():.1f}, {td_data[col].max():.1f}]")
+            print_info(f"    Raw range: [{td_data[col].min():.1f}, {td_data[col].max():.1f}]")
+    
+    # IMPORTANT: Standardize behavioral scores within each site
+    # NYU and Peking use different scales, so we need to z-score within site
+    if 'site' in td_data.columns:
+        print_info(f"Standardizing behavioral scores within each site (NYU, Peking use different scales)")
+        for col in behavioral_cols:
+            # Group by site and z-score within each site
+            td_data[col] = td_data.groupby('site')[col].transform(
+                lambda x: (x - x.mean()) / x.std() if x.std() > 0 else x
+            )
+            non_null = td_data[col].notna().sum()
+            print_info(f"  {col} (z-scored): {non_null} values, range: [{td_data[col].min():.2f}, {td_data[col].max():.2f}]")
+    else:
+        print_warning("No 'site' column found - cannot standardize within site")
     
     # DON'T drop rows with NaN - we'll handle each behavioral measure separately
     # Just return the data with behavioral columns (some may have NaN)
