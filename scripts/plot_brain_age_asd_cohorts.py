@@ -123,11 +123,11 @@ def plot_combined_asd_cohorts(npz_files_dir: str, output_path: str,
             r_squared = r ** 2
             mae = mean_absolute_error(actual_ages, predicted_ages)
             
-            # Plot scatter with blue color and blue edge
+            # Plot scatter with specific blue color (#5A6FA8)
             ax.scatter(actual_ages, predicted_ages, 
-                      color='#1f77b4', 
-                      edgecolors='#1f77b4',
-                      alpha=0.7, s=50, linewidth=0.5)
+                      color='#5A6FA8', 
+                      edgecolors='#5A6FA8',
+                      alpha=0.7, s=80, linewidth=1)
             
             # Set axis limits with padding to prevent dots from being cut off
             min_age = min(min(actual_ages), min(predicted_ages))
@@ -138,10 +138,10 @@ def plot_combined_asd_cohorts(npz_files_dir: str, output_path: str,
             ax.set_xlim(lims)
             ax.set_ylim(lims)
             
-            # Add regression line
+            # Add regression line (red, matching brain-behavior plots)
             z = np.polyfit(actual_ages, predicted_ages, 1)
             p_line = np.poly1d(z)
-            ax.plot(lims, p_line(lims), 'k-', alpha=0.8, linewidth=2)
+            ax.plot(lims, p_line(lims), color='#D32F2F', alpha=0.9, linewidth=2.5)
             
             # Format p-value (short form)
             if p < 0.001:
@@ -149,29 +149,30 @@ def plot_combined_asd_cohorts(npz_files_dir: str, output_path: str,
             else:
                 p_text = f"= {p:.3f}"
             
-            # Add statistics text in bottom right corner
+            # Add statistics text in bottom right corner (NO bounding box)
             ax.text(0.95, 0.05,
-                    f"$\mathit{{R}}^2 = {r_squared:.3f}$\n"
-                    f"$\mathit{{MAE}} = {mae:.2f}$ years\n"
-                    f"$\mathit{{P}}$ {p_text}\n"
+                    f"$R^2$ = {r_squared:.3f}\n"
+                    f"MAE = {mae:.2f} years\n"
+                    f"P {p_text}\n"
                     f"N = {len(actual_ages)}",
-                    transform=ax.transAxes, fontsize=11, 
-                    verticalalignment='bottom', horizontalalignment='right',
-                    bbox=dict(boxstyle='round', facecolor='white', alpha=0.9))
+                    transform=ax.transAxes, fontsize=14, 
+                    verticalalignment='bottom', horizontalalignment='right')
             
             # Customize subplot
-            ax.set_xlabel('Chronological Age (years)', fontsize=11, fontweight='bold')
-            ax.set_ylabel('Predicted Brain Age (years)', fontsize=11, fontweight='bold')
-            ax.set_title(dataset_name, fontsize=13, fontweight='bold', pad=15)
+            ax.set_xlabel('Chronological Age (years)', fontsize=14, fontweight='normal')
+            ax.set_ylabel('Predicted Brain Age (years)', fontsize=14, fontweight='normal')
+            ax.set_title(dataset_name, fontsize=16, fontweight='bold', pad=15)
             
-            # Remove grid and spines
+            # Clean style - NO top/right spines
             ax.grid(False)
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
+            ax.spines['left'].set_linewidth(1.5)
+            ax.spines['bottom'].set_linewidth(1.5)
             
-            # Add tick marks
-            ax.tick_params(axis='both', which='major', labelsize=10, 
-                          direction='out', length=4, width=1)
+            # Tick styling - major ticks only (no minor ticks)
+            ax.tick_params(axis='both', which='major', labelsize=12, direction='out', 
+                          length=6, width=1.5, top=False, right=False)
             
             # Collect data for overall statistics
             all_actual.extend(actual_ages)
@@ -210,9 +211,15 @@ def plot_combined_asd_cohorts(npz_files_dir: str, output_path: str,
     plt.tight_layout()
     plt.subplots_adjust(top=0.90)
     
-    # Save the plot in PNG format only
+    # Save the plot in PNG and AI formats
     save_figure(fig, output_path, formats=['png'])
+    
+    # Save as .ai file
+    ai_path = output_path.replace('.png', '.ai')
+    pdf.FigureCanvas(fig).print_pdf(ai_path)
+    
     logging.info(f"Combined ASD cohorts plot saved to: {output_path}")
+    logging.info(f"AI file saved to: {ai_path}")
     logging.info(f"Overall ASD cohorts - R²: {overall_r_squared:.3f}, MAE: {overall_mae:.2f} years, r: {overall_r:.3f}, p: {overall_p:.3f}, N: {len(all_actual)}")
 
 

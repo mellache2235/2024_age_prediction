@@ -647,9 +647,13 @@ Three standalone scripts with all paths pre-configured (no arguments needed):
 - Creates 3-panel subplot figures comparing all TD cohorts
 - `hyperactivity_combined.png` - NKI-RS TD, ADHD200 TD, CMI-HBN TD side-by-side
 - `inattention_combined.png` - NKI-RS TD, ADHD200 TD, CMI-HBN TD side-by-side
-- Each panel shows scatter plot with N, ρ, p-value, R² annotations
-- Output: `.../brain_behavior/combined_plots/`
-- **Usage**: `python plot_brain_behavior_td_cohorts.py` (run after individual analyses)
+
+**Custom 1x3 visualization** (`plot_brain_behavior_custom_1x3.py`):
+- Creates custom 1x3 subplot: NKI HY, NKI IN, ADHD200 TD HY
+- Minimal whitespace between subplots for compact presentation
+- Each panel shows scatter plot with ρ, p-value, MAE annotations
+- Output: `.../brain_behavior/combined_plots/custom_1x3_nki_adhd200_hyperactivity_inattention.png` and `.ai`
+- **Usage**: `python plot_brain_behavior_custom_1x3.py` (run after individual analyses)
 
 **Comprehensive Script (`comprehensive_brain_behavior_analysis.py`):**
 - **Datasets**: NKI-RS TD, ADHD-200 ADHD/TD, CMI-HBN ADHD/TD, ABIDE ASD, Stanford ASD, HCP-Dev

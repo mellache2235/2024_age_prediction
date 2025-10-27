@@ -390,12 +390,9 @@ def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, dataset
     ax.spines['left'].set_linewidth(1.5)
     ax.spines['bottom'].set_linewidth(1.5)
     
-    # Ensure all ticks are present on both axes
-    ax.minorticks_on()
+    # Tick styling - major ticks only (no minor ticks)
     ax.tick_params(axis='both', which='major', labelsize=12, direction='out', 
                   length=6, width=1.5, top=False, right=False)
-    ax.tick_params(axis='both', which='minor', direction='out', 
-                  length=3, width=1, top=False, right=False)
     
     plt.tight_layout()
     

@@ -16,7 +16,16 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as font_manager
+import matplotlib.backends.backend_pdf as pdf
 import logging
+
+# Set Arial font
+font_path = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/clustering_analysis/arial.ttf'
+if os.path.exists(font_path):
+    font_manager.fontManager.addfont(font_path)
+    prop = font_manager.FontProperties(fname=font_path)
+    plt.rcParams['font.family'] = prop.get_name()
 
 # Add utils to path
 sys.path.append(str(Path(__file__).parent.parent / 'utils'))
@@ -31,10 +40,10 @@ def create_polar_area_plot(network_data: pd.DataFrame,
                           output_path: str,
                           title: str = "Network Analysis",
                           max_value: Optional[float] = None,
-                          fill_color: str = 'lightblue',
-                          line_color: str = 'darkblue',
-                          line_width: float = 2.0,
-                          alpha: float = 0.3,
+                          fill_color: str = '#4ECDC4',  # Modern teal/cyan
+                          line_color: str = '#1A535C',  # Dark teal
+                          line_width: float = 2.5,
+                          alpha: float = 0.6,
                           figsize: Tuple[int, int] = (10, 10),
                           use_total: bool = False) -> None:
     """
@@ -125,31 +134,41 @@ def create_polar_area_plot(network_data: pd.DataFrame,
     angles_closed = np.concatenate((angles, [angles[0]]))
     values_closed = np.concatenate((normalized_values, [normalized_values[0]]))
     
-    # Create the filled polar area plot
-    ax.fill(angles_closed, values_closed, color=fill_color, alpha=alpha, linewidth=0)
+    # Set background color for better contrast
+    ax.set_facecolor('#F8F9FA')  # Light gray background
+    fig.patch.set_facecolor('white')
     
-    # Add connecting lines
-    ax.plot(angles_closed, values_closed, color=line_color, linewidth=line_width, marker='o', 
-            markersize=6, markerfacecolor=line_color, markeredgecolor='white', markeredgewidth=1)
+    # Create the filled polar area plot with gradient effect
+    ax.fill(angles_closed, values_closed, color=fill_color, alpha=alpha, linewidth=0, zorder=2)
+    
+    # Add connecting lines with improved styling
+    ax.plot(angles_closed, values_closed, color=line_color, linewidth=line_width, 
+            marker='o', markersize=8, markerfacecolor=line_color, 
+            markeredgecolor='white', markeredgewidth=2, zorder=3)
     
     # Customize the plot
     ax.set_ylim(0, 1.0)  # Normalized scale
     
-    # Set network labels
+    # Add subtle radial grid lines for reference
+    ax.set_yticks([0.25, 0.5, 0.75, 1.0])
+    ax.set_yticklabels([])  # Hide labels but keep grid
+    ax.grid(True, axis='y', linestyle='--', linewidth=0.5, alpha=0.3, color='gray', zorder=1)
+    ax.grid(False, axis='x')  # No angular grid
+    
+    # Set network labels with better styling
     ax.set_xticks(angles)
-    ax.set_xticklabels(networks, fontsize=10, fontweight='bold', color='black')
+    ax.set_xticklabels(networks, fontsize=11, fontweight='normal', color='#2C3E50')
     
-    # Remove grid
-    ax.grid(False)
-    ax.set_theta_zero_location('N')  # Start from top (North)
-    ax.set_theta_direction(-1)  # Clockwise direction
+    # Start from top (North) and go clockwise
+    ax.set_theta_zero_location('N')
+    ax.set_theta_direction(-1)
     
-    # Remove radial tick labels and ticks for cleaner look
-    ax.set_yticks([])
-    ax.set_yticklabels([])
+    # Style the spines (circular border)
+    ax.spines['polar'].set_color('#CCCCCC')
+    ax.spines['polar'].set_linewidth(1.5)
     
-    # Add title
-    plt.title(title, fontsize=14, fontweight='bold', pad=20)
+    # Add title with better styling
+    plt.title(title, fontsize=16, fontweight='bold', pad=25, color='#2C3E50')
     
     # Adjust layout
     plt.tight_layout()
