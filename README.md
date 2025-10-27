@@ -158,6 +158,15 @@ python run_cmihbn_brain_behavior_enhanced.py
 #   - Ranks PC importance (which PCs contribute most)
 #   - Shows top brain regions per PC
 
+# Step 6b (Optional): Create PC loadings heatmaps
+# Shows which brain regions load most strongly on first 3 PCs
+python plot_pc_loadings_heatmap.py --dataset nki_rs_td
+python plot_pc_loadings_heatmap.py --dataset adhd200_td
+python plot_pc_loadings_heatmap.py --dataset cmihbn_td
+
+# Step 6c (Optional): Create combined 3-panel plots for hyperactivity and inattention
+python plot_brain_behavior_td_cohorts.py
+
 # Optional: Analyze shared TD regions with high counts
 # (Install tabulate for pretty tables: pip install tabulate)
 python analyze_td_shared_regions.py --threshold 450
@@ -190,8 +199,13 @@ python analyze_td_shared_regions.py --threshold 450
      - `asd_cohorts_combined_scatter.png` (1x2 subplot: ABIDE ASD, Stanford ASD)
 
 4. **Brain-Behavior Plots** (Step 6, optional) - PNG files:
-   - Location: `results/brain_behavior_analysis/{dataset_name}/`
-   - Various correlation and scatter plots (if Step 6 is run)
+   - Location: `results/brain_behavior/{dataset_name}/`
+   - Individual scatter plots: `{behavioral_measure}_scatter.png`
+   - Elbow plots: `elbow_plot.png`
+   - PC loadings heatmaps: `pc_loadings_heatmap.png`
+   - Combined 3-panel plots: `results/brain_behavior/combined_plots/`
+     - `hyperactivity_combined.png` (NKI, ADHD200, CMI-HBN)
+     - `inattention_combined.png` (NKI, ADHD200, CMI-HBN)
 
 **To download files from HPC:**
 ```bash
@@ -259,8 +273,18 @@ All results are saved to: `/oak/stanford/groups/menon/projects/mellache/2024_age
 - **Input**: .npz files in `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_predictions/npz_files/`
 
 ### **Step 6: Brain-Behavior Analysis (Optional)**
-- **Location**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior_analysis/`
-- **Files**: Correlation results with FDR correction, scatter plots, correlation matrices
+- **Location**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/`
+- **Subdirectories**:
+  - `nki_rs_td/` - NKI-RS TD analysis results
+  - `adhd200_td/` - ADHD200 TD analysis results (NYU site only)
+  - `cmihbn_td/` - CMI-HBN TD analysis results
+  - `combined_plots/` - 3-panel combined plots for hyperactivity and inattention
+- **Files per dataset**:
+  - `elbow_plot.png` - PCA variance explained
+  - `{behavioral_measure}_scatter.png` - Predicted vs observed behavioral scores
+  - `pc_loadings_heatmap.png` - Brain region loadings on first 3 PCs
+  - `linear_regression_results.csv` - Statistics (N, ρ, p-value, R²)
+  - `pc_loadings_top_regions.csv` - Top brain regions per PC
 
 ## 🔧 **Configuration**
 
@@ -446,6 +470,8 @@ Three standalone scripts with all paths pre-configured (no arguments needed):
   - PKLZ: `/oak/stanford/groups/menon/deriveddata/public/adhd200/restfmri/timeseries/group_level/brainnetome/normz/adhd200_run-rest_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs.pklz`
   - IG CSV: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/adhd200_td_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv`
   - Output: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_td`
+- **Site filtering**: **NYU site only** (to avoid scale differences between NYU and Peking)
+- **Outlier removal**: Removes values >3 SD from mean
 - **Usage**: `python run_adhd200_brain_behavior_enhanced.py`
 
 **3. CMI-HBN TD** (`run_cmihbn_brain_behavior_enhanced.py`):
@@ -491,10 +517,23 @@ Three standalone scripts with all paths pre-configured (no arguments needed):
 - `pc_importance_{behavioral_measure}.csv` - PC rankings (one per measure)
 - `PC{N}_loadings.csv` - Top 10 brain regions per PC
 
+**PC loadings heatmap** (`plot_pc_loadings_heatmap.py`):
+- Creates heatmap showing which brain regions load most strongly on first 3 PCs
+- Similar to cognitive measure loadings, but for brain ROIs
+- Red-blue colormap (red = positive loading, blue = negative loading)
+- Shows top 15 regions (default) with highest absolute loadings
+- Includes variance explained by each PC
+- Output: `pc_loadings_heatmap.png` and `pc_loadings_top_regions.csv`
+- **Usage**: 
+  - `python plot_pc_loadings_heatmap.py --dataset nki_rs_td`
+  - `python plot_pc_loadings_heatmap.py --dataset adhd200_td`
+  - `python plot_pc_loadings_heatmap.py --dataset cmihbn_td`
+  - Optional: `--n_top 20` to show more regions
+
 **Combined visualization** (`plot_brain_behavior_td_cohorts.py`):
 - Creates 3-panel subplot figures comparing all TD cohorts
-- `hyperactivity_td_cohorts.png` - NKI-RS TD, ADHD200 TD, CMI-HBN TD side-by-side
-- `inattention_td_cohorts.png` - NKI-RS TD, ADHD200 TD, CMI-HBN TD side-by-side
+- `hyperactivity_combined.png` - NKI-RS TD, ADHD200 TD, CMI-HBN TD side-by-side
+- `inattention_combined.png` - NKI-RS TD, ADHD200 TD, CMI-HBN TD side-by-side
 - Each panel shows scatter plot with N, ρ, p-value, R² annotations
 - Output: `.../brain_behavior/combined_plots/`
 - **Usage**: `python plot_brain_behavior_td_cohorts.py` (run after individual analyses)
@@ -510,14 +549,22 @@ Three standalone scripts with all paths pre-configured (no arguments needed):
 
 ### **General Plotting Conventions**
 All plots follow these conventions for publication-ready figures:
-- ✅ **Clean aesthetics**: No grid, no top/right spines
-- ✅ **Tick marks**: Visible tick marks on bottom and left axes (direction='out', length=4)
-- ✅ **Consistent colors**: Blue (#1f77b4) for data points
-- ✅ **Clear labels**: Bold axis labels and titles
-- ✅ **Statistics placement**: Bottom-right corner with white background box
-- ✅ **P-value format**: "< 0.001" for very small p-values
+- ✅ **Font**: Arial (loaded from HPC path)
+- ✅ **Clean aesthetics**: No grid, all spines visible with 1.5 width
+- ✅ **Tick marks**: Visible on all axes (direction='out', length=6, width=1.5, fontsize=12)
+- ✅ **Consistent colors**: 
+  - Data points: #5A6FA8 (darker blue/purple)
+  - Best fit line: #D32F2F (red)
+  - Alpha: 0.7 for dots, 0.9 for lines
+  - Dot size: 80
+- ✅ **Clear labels**: 
+  - Axis labels: fontsize=14, normal weight
+  - Titles: fontsize=16, bold, pad=15
+- ✅ **Statistics placement**: Bottom-right corner with white background box (black border, fontsize=14)
+- ✅ **P-value format**: "P < 0.001" for very small p-values (using "P" not "p")
+- ✅ **Correlation format**: "R = 0.XXX" (using "R" for Spearman ρ)
 - ✅ **File format**: PNG only (no PDF or SVG)
-- ✅ **Seaborn styling**: White background, professional appearance
+- ✅ **Professional appearance**: Matches brain age prediction plot style
 
 ### **Shared Region Analysis Methodology**
 The pipeline uses a **top 50% percentile + significance threshold** approach, with **top 20% selection for shared regions**:

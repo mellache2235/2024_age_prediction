@@ -12,6 +12,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as font_manager
 import seaborn as sns
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
@@ -20,6 +21,12 @@ from sklearn.model_selection import cross_val_score
 from scipy.stats import spearmanr
 import warnings
 warnings.filterwarnings('ignore')
+
+# Set Arial font
+font_path = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/clustering_analysis/arial.ttf'
+font_manager.fontManager.addfont(font_path)
+prop = font_manager.FontProperties(fname=font_path)
+plt.rcParams['font.family'] = prop.get_name()
 
 # Add utils to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'utils'))
@@ -347,14 +354,14 @@ def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, dataset
     """Create scatter plot of predicted vs actual behavioral scores."""
     fig, ax = plt.subplots(figsize=(6, 6))
     
-    # Scatter plot
-    ax.scatter(y_actual, y_pred, alpha=0.6, s=50, color='#1f77b4', edgecolors='#1f77b4', linewidth=1)
+    # Scatter plot - match brain age plot colors (darker blue/purple)
+    ax.scatter(y_actual, y_pred, alpha=0.7, s=80, color='#5A6FA8', edgecolors='#5A6FA8', linewidth=1)
     
-    # Add best fit line
+    # Add best fit line - match brain age plot (red)
     z = np.polyfit(y_actual, y_pred, 1)
     p = np.poly1d(z)
     x_line = np.linspace(y_actual.min(), y_actual.max(), 100)
-    ax.plot(x_line, p(x_line), 'r-', linewidth=2, alpha=0.8, label='Best fit')
+    ax.plot(x_line, p(x_line), color='#D32F2F', linewidth=2.5, alpha=0.9)
     
     # Format p-value
     if p_value < 0.001:
@@ -362,25 +369,29 @@ def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, dataset
     else:
         p_str = f"= {p_value:.3f}"
     
-    # Add statistics text
-    stats_text = f"ρ = {rho:.3f}\np {p_str}"
+    # Add statistics text (bottom right, matching brain age style)
+    stats_text = f"R = {rho:.3f}\nP {p_str}"
     ax.text(0.95, 0.05, stats_text, transform=ax.transAxes,
-            fontsize=10, verticalalignment='bottom', horizontalalignment='right',
-            bbox=dict(boxstyle='round', facecolor='white', alpha=0.8, edgecolor='gray'))
+            fontsize=14, verticalalignment='bottom', horizontalalignment='right',
+            bbox=dict(boxstyle='round', facecolor='white', alpha=0.9, edgecolor='black', linewidth=1))
     
     # Labels and title
-    ax.set_xlabel('Actual Behavioral Score', fontsize=11)
-    ax.set_ylabel('Predicted Behavioral Score', fontsize=11)
+    ax.set_xlabel('Observed Behavioral Score', fontsize=14, fontweight='normal')
+    ax.set_ylabel('Predicted Behavioral Score', fontsize=14, fontweight='normal')
     
     # Use dataset name as title (e.g., "CMIHBN-TD")
     title = dataset_name.replace('_', '-').upper()
-    ax.set_title(title, fontsize=12, fontweight='bold')
+    ax.set_title(title, fontsize=16, fontweight='bold', pad=15)
     
-    # Styling
+    # Styling - clean minimal style
     ax.grid(False)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.tick_params(axis='both', which='major', labelsize=10, direction='out', length=4, width=1)
+    ax.spines['top'].set_visible(True)
+    ax.spines['right'].set_visible(True)
+    ax.spines['left'].set_linewidth(1.5)
+    ax.spines['right'].set_linewidth(1.5)
+    ax.spines['top'].set_linewidth(1.5)
+    ax.spines['bottom'].set_linewidth(1.5)
+    ax.tick_params(axis='both', which='major', labelsize=12, direction='out', length=6, width=1.5)
     
     plt.tight_layout()
     

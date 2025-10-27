@@ -1,11 +1,11 @@
 Brain_Region,Loading
-"A7pc, postcentral area 7,Right",0.22911743895715972
-"A6dl, dorsolateral area 6,Right",0.17932982475814865
-"A9m,medial area 9,Right",0.17581666008186828
-"A20il, intermediate lateral area 20,Right",0.15541492759111736
-"mPMtha, pre-motor thalamus,Left",0.13368066239974497
-"A9l, lateral area 9,Right",0.13090379641670438
-"TI, area TI(temporal agranular insular cortex),Left",0.1299066446952607
-"A8dl, dorsolateral area 8,Left",0.12859360202799308
-"mPFtha, medial pre-frontal thalamus,Right",0.12829383576900752
-"NAC, nucleus accumbens,Left",0.1278186285858204
+"A6dl, dorsolateral area 6,Left",0.2490505106975704
+"A9m,medial area 9,Right",0.20670806730415484
+"A44d,dorsal area 44,Left",0.20403941579426577
+"A8dl, dorsolateral area 8,Left",0.17487689090130018
+"A44v, ventral area 44,Left",0.16041797836919217
+"TH, area TH (medial PPHC),Left",0.15555511105323025
+"A9m,medial area 9,Left",0.1478053034915387
+"mOccG, middle occipital gyrus,Right",0.13528407373061502
+"vCa, ventral caudate,Right",0.1311737960946614
+"A38l, lateral area 38,Left",0.12742165664906016

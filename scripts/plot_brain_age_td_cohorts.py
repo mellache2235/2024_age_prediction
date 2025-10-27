@@ -11,11 +11,21 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as font_manager
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from scipy.stats import pearsonr
 from sklearn.metrics import r2_score, mean_absolute_error
 import logging
+
+# Set Arial font
+font_path = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/clustering_analysis/arial.ttf'
+if os.path.exists(font_path):
+    font_manager.fontManager.addfont(font_path)
+    prop = font_manager.FontProperties(fname=font_path)
+    plt.rcParams['font.family'] = prop.get_name()
+else:
+    print(f"Warning: Arial font not found at {font_path}, using default font")
 
 # Add utils to path
 sys.path.append(str(Path(__file__).parent.parent / 'utils'))
@@ -123,11 +133,11 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
             r_squared = r ** 2
             mae = mean_absolute_error(actual_ages, predicted_ages)
             
-            # Plot scatter with blue color and blue edge
+            # Plot scatter with darker blue/purple color (matching brain-behavior plots)
             ax.scatter(actual_ages, predicted_ages, 
-                      color='#1f77b4', 
-                      edgecolors='#1f77b4',
-                      alpha=0.7, s=50, linewidth=0.5)
+                      color='#5A6FA8', 
+                      edgecolors='#5A6FA8',
+                      alpha=0.7, s=80, linewidth=1)
             
             # Set axis limits with padding to prevent dots from being cut off
             min_age = min(min(actual_ages), min(predicted_ages))
@@ -138,10 +148,10 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
             ax.set_xlim(lims)
             ax.set_ylim(lims)
             
-            # Add regression line
+            # Add regression line (red, matching brain-behavior plots)
             z = np.polyfit(actual_ages, predicted_ages, 1)
             p_line = np.poly1d(z)
-            ax.plot(lims, p_line(lims), 'k-', alpha=0.8, linewidth=2)
+            ax.plot(lims, p_line(lims), color='#D32F2F', alpha=0.9, linewidth=2.5)
             
             # Format p-value (short form)
             if p < 0.001:
@@ -149,25 +159,30 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
             else:
                 p_text = f"= {p:.3f}"
             
-            # Add statistics text in bottom right corner
+            # Add statistics text in bottom right corner (matching brain-behavior style)
             ax.text(0.95, 0.05,
                     f"$\mathit{{R}}^2 = {r_squared:.3f}$\n"
                     f"$\mathit{{MAE}} = {mae:.2f}$ years\n"
                     f"$\mathit{{P}}$ {p_text}\n"
                     f"N = {len(actual_ages)}",
-                    transform=ax.transAxes, fontsize=10, 
+                    transform=ax.transAxes, fontsize=14, 
                     verticalalignment='bottom', horizontalalignment='right',
-                    bbox=dict(boxstyle='round', facecolor='white', alpha=0.9))
+                    bbox=dict(boxstyle='round', facecolor='white', alpha=0.9, edgecolor='black', linewidth=1))
             
             # Customize subplot
-            ax.set_xlabel('Chronological Age (years)', fontsize=10, fontweight='bold')
-            ax.set_ylabel('Predicted Brain Age (years)', fontsize=10, fontweight='bold')
-            ax.set_title(dataset_name, fontsize=12, fontweight='bold', pad=10)
+            ax.set_xlabel('Chronological Age (years)', fontsize=14, fontweight='normal')
+            ax.set_ylabel('Predicted Brain Age (years)', fontsize=14, fontweight='normal')
+            ax.set_title(dataset_name, fontsize=16, fontweight='bold', pad=15)
             
-            # Remove grid and spines
+            # Clean style with all spines visible
             ax.grid(False)
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(True)
+            ax.spines['right'].set_visible(True)
+            ax.spines['left'].set_linewidth(1.5)
+            ax.spines['right'].set_linewidth(1.5)
+            ax.spines['top'].set_linewidth(1.5)
+            ax.spines['bottom'].set_linewidth(1.5)
+            ax.tick_params(axis='both', which='major', labelsize=12, direction='out', length=6, width=1.5)
             
             # Add tick marks
             ax.tick_params(axis='both', which='major', labelsize=9, 
