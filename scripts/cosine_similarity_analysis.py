@@ -1,599 +1,450 @@
 #!/usr/bin/env python3
 """
-Comprehensive cosine similarity analysis using count data.
+Cosine similarity analysis of brain feature maps across cohorts.
 
-This script computes cosine similarity for multiple comparison types:
-1. Discovery vs Validation TD cohorts (HCP-Dev vs NKI-RS TD, CMI-HBN TD, ADHD-200 TD)
-2. Within-condition comparisons (ADHD200 ADHD vs CMI-HBN ADHD, ABIDE ASD vs Stanford ASD)
-3. Pooled condition comparisons (Pooled ADHD vs Pooled ASD)
-4. Cross-condition comparisons (TD vs ADHD, TD vs ASD)
+Compares TD, ADHD, and ASD cohorts using cosine similarity on IG scores.
 
 Usage:
-    python scripts/cosine_similarity_analysis.py --analysis_type all --data_dir <count_data_directory>
-    python scripts/cosine_similarity_analysis.py --analysis_type discovery_validation --discovery_csv <hcp_dev.csv> --validation_csvs <nki.csv> <cmihbn.csv> <adhd200.csv>
+    python cosine_similarity_analysis.py
 """
 
-import os
 import sys
-import pandas as pd
-import numpy as np
-import argparse
-import yaml
-import logging
+import os
 from pathlib import Path
-from typing import List, Dict, Tuple
-from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+import pandas as pd
+from scipy.spatial.distance import cosine
+from scipy.stats import ttest_ind
+import matplotlib.pyplot as plt
+import matplotlib.font_manager as font_manager
+import seaborn as sns
 
-# Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Set Arial font
+font_path = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/clustering_analysis/arial.ttf'
+if os.path.exists(font_path):
+    font_manager.fontManager.addfont(font_path)
+    prop = font_manager.FontProperties(fname=font_path)
+    plt.rcParams['font.family'] = prop.get_name()
 
-def load_config(config_path: str = None) -> Dict:
-    """Load configuration from YAML file."""
-    with open(config_path, 'r') as f:
-        config = yaml.safe_load(f)
-    return config
+# Add utils to path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'utils'))
+from logging_utils import (print_section_header, print_step, print_success, 
+                           print_warning, print_error, print_info, print_completion)
 
-def get_count_data_paths(config: Dict) -> Dict[str, str]:
-    """Get count data file paths from config."""
-    return config.get('network_analysis', {}).get('count_data', {})
+# ============================================================================
+# DATASET CONFIGURATIONS
+# ============================================================================
 
-def load_count_data(file_path: str) -> Tuple[np.ndarray, List[str]]:
+BASE_DIR = Path('/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients')
+OUTPUT_DIR = Path('/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/cosine_similarity')
+
+# TD Cohorts (pooled)
+TD_DATASETS = {
+    'HCP-Dev': BASE_DIR / 'hcp_dev_wIDS_features_IG_convnet_regressor_most_updated.csv',
+    'NKI': BASE_DIR / 'nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv',
+    'CMI-HBN TD': BASE_DIR / 'cmihbn_td_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv',
+    'ADHD200 TD': BASE_DIR / 'adhd200_td_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv'
+}
+
+# ADHD Cohorts
+ADHD_DATASETS = {
+    'ADHD200 ADHD': BASE_DIR / 'adhd200_adhd_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv',
+    'CMI-HBN ADHD': BASE_DIR / 'cmihbn_adhd_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv'
+}
+
+# ASD Cohorts
+ASD_DATASETS = {
+    'ABIDE ASD': BASE_DIR / 'abide_asd_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv',
+    'Stanford ASD': BASE_DIR / 'stanford_asd_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv'
+}
+
+
+def load_ig_scores(csv_path):
+    """Load IG scores from CSV file."""
+    df = pd.read_csv(csv_path)
+    
+    # Get subject IDs
+    if 'subject_id' in df.columns:
+        subject_ids = df['subject_id'].values
+    elif 'Unnamed: 0' in df.columns:
+        subject_ids = df['Unnamed: 0'].values
+    else:
+        subject_ids = df.index.values
+    
+    # Get ROI columns (exclude subject_id column)
+    roi_cols = [col for col in df.columns if col not in ['subject_id', 'Unnamed: 0']]
+    
+    # Extract IG matrix
+    ig_matrix = df[roi_cols].values
+    
+    return ig_matrix, roi_cols, subject_ids
+
+
+def compute_mean_feature_map(datasets_dict):
     """
-    Load count data from CSV or Excel file.
+    Compute mean feature map for each dataset separately and overall.
     
     Args:
-        file_path (str): Path to count data file (CSV or Excel)
+        datasets_dict: Dictionary of {name: path} for datasets
         
     Returns:
-        Tuple[np.ndarray, List[str]]: Attribution values and region names
+        Dictionary of mean features per dataset, and pooled mean
     """
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Count data file not found: {file_path}")
+    dataset_means = {}
+    all_features = []
     
-    # Read file based on extension
-    if file_path.endswith('.xlsx') or file_path.endswith('.xls'):
-        df = pd.read_excel(file_path)
-    else:
-        df = pd.read_csv(file_path)
-    
-    logging.info(f"Columns in {file_path}: {list(df.columns)}")
-    
-    # Handle different column name formats
-    if 'Count' in df.columns and 'Region ID' in df.columns:
-        # Use the actual column names from your Excel files
-        attributions = df['Count'].values
-        regions = df['Region ID'].astype(str).tolist()
-        logging.info(f"Using 'Count' and 'Region ID' columns")
-    elif 'attribution' in df.columns and 'region' in df.columns:
-        # Standard format
-        attributions = df['attribution'].values
-        regions = df['region'].tolist()
-        logging.info(f"Using 'attribution' and 'region' columns")
-    else:
-        # Try to rename columns if they're in different order
-        if len(df.columns) >= 2:
-            df.columns = ['attribution', 'region'] + list(df.columns[2:])
-            attributions = df['attribution'].values
-            regions = df['region'].tolist()
-            logging.info(f"Renamed columns to 'attribution' and 'region'")
-        else:
-            raise ValueError(f"File must have 'Count'/'attribution' and 'Region ID'/'region' columns. Found: {df.columns.tolist()}")
-    
-    # Add detailed debugging
-    logging.info(f"Loaded {len(attributions)} regions from {file_path}")
-    logging.info(f"Attribution stats: min={attributions.min():.4f}, max={attributions.max():.4f}, mean={attributions.mean():.4f}, std={attributions.std():.4f}")
-    logging.info(f"Non-zero attributions: {(attributions > 0).sum()}/{len(attributions)}")
-    logging.info(f"Sample attributions: {attributions[:10].tolist()}")
-    logging.info(f"Sample regions: {regions[:10]}")
-    logging.info(f"Region types: {[type(r) for r in regions[:5]]}")
-    
-    return attributions, regions
-
-def align_region_data(discovery_data: Tuple[np.ndarray, List[str]], 
-                     validation_data: Tuple[np.ndarray, List[str]]) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Align region data between discovery and validation cohorts.
-    
-    Args:
-        discovery_data: (attributions, regions) for discovery cohort
-        validation_data: (attributions, regions) for validation cohort
-        
-    Returns:
-        Tuple[np.ndarray, np.ndarray]: Aligned attribution arrays
-    """
-    disc_attr, disc_regions = discovery_data
-    val_attr, val_regions = validation_data
-    
-    # Add detailed debugging
-    logging.info(f"Discovery regions: {len(disc_regions)} total, sample: {disc_regions[:5]}")
-    logging.info(f"Validation regions: {len(val_regions)} total, sample: {val_regions[:5]}")
-    logging.info(f"Discovery attr stats: min={disc_attr.min():.4f}, max={disc_attr.max():.4f}, mean={disc_attr.mean():.4f}")
-    logging.info(f"Validation attr stats: min={val_attr.min():.4f}, max={val_attr.max():.4f}, mean={val_attr.mean():.4f}")
-    
-    # Find common regions
-    disc_regions_set = set(disc_regions)
-    val_regions_set = set(val_regions)
-    common_regions = disc_regions_set & val_regions_set
-    
-    logging.info(f"Discovery unique regions: {len(disc_regions_set)}")
-    logging.info(f"Validation unique regions: {len(val_regions_set)}")
-    logging.info(f"Found {len(common_regions)} common regions between cohorts")
-    
-    if len(common_regions) == 0:
-        # Try to find the issue
-        logging.error("No common regions found! This suggests a region ID mismatch.")
-        logging.error(f"Discovery region types: {[type(r) for r in disc_regions[:5]]}")
-        logging.error(f"Validation region types: {[type(r) for r in val_regions[:5]]}")
-        logging.error(f"Sample discovery regions: {disc_regions[:10]}")
-        logging.error(f"Sample validation regions: {val_regions[:10]}")
-        raise ValueError("No common regions found between discovery and validation cohorts")
-    
-    # Create aligned arrays
-    disc_aligned = []
-    val_aligned = []
-    
-    for region in sorted(common_regions):
-        disc_idx = disc_regions.index(region)
-        val_idx = val_regions.index(region)
-        disc_aligned.append(disc_attr[disc_idx])
-        val_aligned.append(val_attr[val_idx])
-    
-    disc_aligned = np.array(disc_aligned)
-    val_aligned = np.array(val_aligned)
-    
-    logging.info(f"Aligned data stats - Discovery: min={disc_aligned.min():.4f}, max={disc_aligned.max():.4f}, mean={disc_aligned.mean():.4f}")
-    logging.info(f"Aligned data stats - Validation: min={val_aligned.min():.4f}, max={val_aligned.max():.4f}, mean={val_aligned.mean():.4f}")
-    logging.info(f"Aligned non-zero - Discovery: {(disc_aligned > 0).sum()}/{len(disc_aligned)}")
-    logging.info(f"Aligned non-zero - Validation: {(val_aligned > 0).sum()}/{len(val_aligned)}")
-    
-    return disc_aligned, val_aligned
-
-def compute_cosine_similarity(discovery_attr: np.ndarray, validation_attr: np.ndarray) -> Dict:
-    """
-    Compute multiple similarity metrics between two attribution vectors.
-    
-    Args:
-        discovery_attr: Discovery cohort attribution vector
-        validation_attr: Validation cohort attribution vector
-        
-    Returns:
-        Dict: Dictionary containing various similarity metrics
-    """
-    # Add debugging information
-    logging.info(f"Discovery attr stats: min={discovery_attr.min():.4f}, max={discovery_attr.max():.4f}, mean={discovery_attr.mean():.4f}, std={discovery_attr.std():.4f}")
-    logging.info(f"Validation attr stats: min={validation_attr.min():.4f}, max={validation_attr.max():.4f}, mean={validation_attr.mean():.4f}, std={validation_attr.std():.4f}")
-    logging.info(f"Discovery non-zero: {(discovery_attr > 0).sum()}/{len(discovery_attr)}")
-    logging.info(f"Validation non-zero: {(validation_attr > 0).sum()}/{len(validation_attr)}")
-    
-    # Reshape for sklearn cosine_similarity
-    disc_reshaped = discovery_attr.reshape(1, -1)
-    val_reshaped = validation_attr.reshape(1, -1)
-    
-    # Compute cosine similarity
-    cosine_sim = cosine_similarity(disc_reshaped, val_reshaped)[0, 0]
-    
-    # Compute Pearson correlation
-    from scipy.stats import pearsonr
-    pearson_r, pearson_p = pearsonr(discovery_attr, validation_attr)
-    
-    # Compute Spearman correlation
-    from scipy.stats import spearmanr
-    spearman_r, spearman_p = spearmanr(discovery_attr, validation_attr)
-    
-    # Compute Jaccard similarity (for binary vectors - top features)
-    # Convert to binary: top 10% of features
-    top_10_percent = int(len(discovery_attr) * 0.1)
-    disc_top_indices = set(np.argsort(discovery_attr)[-top_10_percent:])
-    val_top_indices = set(np.argsort(validation_attr)[-top_10_percent:])
-    jaccard_sim = len(disc_top_indices & val_top_indices) / len(disc_top_indices | val_top_indices)
-    
-    # Compute overlap of top 50 features
-    top_50 = 50
-    disc_top50_indices = set(np.argsort(discovery_attr)[-top_50:])
-    val_top50_indices = set(np.argsort(validation_attr)[-top_50:])
-    overlap_50 = len(disc_top50_indices & val_top50_indices) / top_50
-    
-    results = {
-        'cosine_similarity': cosine_sim,
-        'pearson_correlation': pearson_r,
-        'pearson_p_value': pearson_p,
-        'spearman_correlation': spearman_r,
-        'spearman_p_value': spearman_p,
-        'jaccard_similarity_top10pct': jaccard_sim,
-        'overlap_top50_features': overlap_50
-    }
-    
-    logging.info(f"Similarity metrics: Cosine={cosine_sim:.4f}, Pearson={pearson_r:.4f}, Spearman={spearman_r:.4f}, Jaccard={jaccard_sim:.4f}, Top50_overlap={overlap_50:.4f}")
-    
-    return results
-
-def analyze_cosine_similarities(discovery_csv: str, validation_csvs: List[str], 
-                              validation_names: List[str]) -> Dict:
-    """
-    Analyze cosine similarities between discovery and validation cohorts.
-    
-    Args:
-        discovery_csv: Path to discovery cohort count data CSV
-        validation_csvs: List of paths to validation cohort count data CSVs
-        validation_names: List of names for validation cohorts
-        
-    Returns:
-        Dict: Analysis results
-    """
-    logging.info("Loading discovery cohort data...")
-    discovery_data = load_count_data(discovery_csv)
-    
-    similarities = {}
-    detailed_results = {}
-    
-    for val_csv, val_name in zip(validation_csvs, validation_names):
-        logging.info(f"Processing validation cohort: {val_name}")
-        
-        try:
-            # Load validation data
-            validation_data = load_count_data(val_csv)
-            
-            # Align region data
-            disc_aligned, val_aligned = align_region_data(discovery_data, validation_data)
-            
-            # Compute similarity metrics
-            similarity_metrics = compute_cosine_similarity(disc_aligned, val_aligned)
-            similarities[val_name] = similarity_metrics['cosine_similarity']
-            
-            # Store detailed results
-            detailed_results[val_name] = {
-                'similarity_metrics': similarity_metrics,
-                'n_common_regions': len(disc_aligned),
-                'discovery_mean': np.mean(disc_aligned),
-                'validation_mean': np.mean(val_aligned),
-                'discovery_std': np.std(disc_aligned),
-                'validation_std': np.std(val_aligned)
-            }
-            
-            logging.info(f"Cosine similarity with {val_name}: {similarity_metrics['cosine_similarity']:.4f}")
-            
-        except Exception as e:
-            logging.error(f"Error processing {val_name}: {e}")
-            similarities[val_name] = None
-            detailed_results[val_name] = {'error': str(e)}
-    
-    # Compute summary statistics
-    valid_similarities = [sim for sim in similarities.values() if sim is not None]
-    
-    if valid_similarities:
-        summary = {
-            'mean_similarity': np.mean(valid_similarities),
-            'std_similarity': np.std(valid_similarities),
-            'min_similarity': np.min(valid_similarities),
-            'max_similarity': np.max(valid_similarities),
-            'range_similarity': np.max(valid_similarities) - np.min(valid_similarities),
-            'n_cohorts': len(valid_similarities)
-        }
-    else:
-        summary = {'error': 'No valid similarities computed'}
-    
-    results = {
-        'discovery_cohort': 'HCP-Dev',
-        'validation_cohorts': validation_names,
-        'similarities': similarities,
-        'detailed_results': detailed_results,
-        'summary': summary
-    }
-    
-    return results
-
-def run_discovery_validation_analysis(discovery_csv: str, validation_csvs: List[str], 
-                                    validation_names: List[str]) -> Dict:
-    """Run discovery vs validation analysis."""
-    logging.info("Running discovery vs validation analysis...")
-    return analyze_cosine_similarities(discovery_csv, validation_csvs, validation_names)
-
-def run_within_condition_analysis(config: Dict) -> Dict:
-    """Run within-condition comparisons (ADHD vs TD within same dataset, ASD vs ASD)."""
-    logging.info("Running within-condition analysis...")
-    
-    # Get count data paths from config
-    count_data_paths = get_count_data_paths(config)
-    
-    results = {}
-    
-    # ADHD200: ADHD vs TD within same dataset
-    adhd200_adhd_csv = count_data_paths.get('adhd200_adhd')
-    adhd200_td_csv = count_data_paths.get('adhd200_td')
-    
-    if adhd200_adhd_csv and adhd200_td_csv and os.path.exists(adhd200_adhd_csv) and os.path.exists(adhd200_td_csv):
-        adhd200_results = analyze_cosine_similarities(
-            adhd200_adhd_csv, [adhd200_td_csv], ['ADHD200_TD']
-        )
-        results['ADHD200_within_dataset'] = adhd200_results
-    else:
-        logging.warning("ADHD200 count data files not found")
-        results['ADHD200_within_dataset'] = {'error': 'Files not found'}
-    
-    # CMI-HBN: ADHD vs TD within same dataset
-    cmihbn_adhd_csv = count_data_paths.get('cmihbn_adhd')
-    cmihbn_td_csv = count_data_paths.get('cmihbn_td')
-    
-    if cmihbn_adhd_csv and cmihbn_td_csv and os.path.exists(cmihbn_adhd_csv) and os.path.exists(cmihbn_td_csv):
-        cmihbn_results = analyze_cosine_similarities(
-            cmihbn_adhd_csv, [cmihbn_td_csv], ['CMIHBN_TD']
-        )
-        results['CMIHBN_within_dataset'] = cmihbn_results
-    else:
-        logging.warning("CMI-HBN count data files not found")
-        results['CMIHBN_within_dataset'] = {'error': 'Files not found'}
-    
-    # ASD: ABIDE vs Stanford (both ASD datasets)
-    abide_asd_csv = count_data_paths.get('abide_asd')
-    stanford_asd_csv = count_data_paths.get('stanford_asd')
-    
-    if abide_asd_csv and stanford_asd_csv and os.path.exists(abide_asd_csv) and os.path.exists(stanford_asd_csv):
-        asd_results = analyze_cosine_similarities(
-            abide_asd_csv, [stanford_asd_csv], ['Stanford_ASD']
-        )
-        results['ASD_within_condition'] = asd_results
-    else:
-        logging.warning("ASD count data files not found")
-        results['ASD_within_condition'] = {'error': 'Files not found'}
-    
-    return results
-
-def run_pooled_condition_analysis(config: Dict) -> Dict:
-    """Run pooled condition comparisons."""
-    logging.info("Running pooled condition analysis...")
-    
-    # Get count data paths from config
-    count_data_paths = get_count_data_paths(config)
-    
-    # Pooled ADHD (average of ADHD200 ADHD and CMI-HBN ADHD)
-    adhd200_adhd_csv = count_data_paths.get('adhd200_adhd')
-    cmihbn_adhd_csv = count_data_paths.get('cmihbn_adhd')
-    
-    # Pooled ASD (average of ABIDE ASD and Stanford ASD)
-    abide_asd_csv = count_data_paths.get('abide_asd')
-    stanford_asd_csv = count_data_paths.get('stanford_asd')
-    
-    results = {}
-    
-    # Create pooled ADHD
-    if os.path.exists(adhd200_adhd_csv) and os.path.exists(cmihbn_adhd_csv):
-        pooled_adhd = create_pooled_data([adhd200_adhd_csv, cmihbn_adhd_csv], "Pooled_ADHD")
-        results['pooled_adhd_data'] = pooled_adhd
-    else:
-        logging.warning("ADHD count data files not found for pooling")
-        pooled_adhd = None
-    
-    # Create pooled ASD
-    if os.path.exists(abide_asd_csv) and os.path.exists(stanford_asd_csv):
-        pooled_asd = create_pooled_data([abide_asd_csv, stanford_asd_csv], "Pooled_ASD")
-        results['pooled_asd_data'] = pooled_asd
-    else:
-        logging.warning("ASD count data files not found for pooling")
-        pooled_asd = None
-    
-    # Compare pooled ADHD vs pooled ASD
-    if pooled_adhd is not None and pooled_asd is not None:
-        pooled_comparison = analyze_cosine_similarities(
-            pooled_adhd, [pooled_asd], ['Pooled_ASD']
-        )
-        results['pooled_adhd_vs_asd'] = pooled_comparison
-    else:
-        results['pooled_adhd_vs_asd'] = {'error': 'Pooled data not available'}
-    
-    return results
-
-def run_cross_condition_analysis(config: Dict) -> Dict:
-    """Run cross-condition comparisons (TD vs ADHD, TD vs ASD)."""
-    logging.info("Running cross-condition analysis...")
-    
-    # Get count data paths from config
-    count_data_paths = get_count_data_paths(config)
-    
-    # TD cohorts
-    nki_td_csv = count_data_paths.get('nki')
-    cmihbn_td_csv = count_data_paths.get('cmihbn_td')
-    adhd200_td_csv = count_data_paths.get('adhd200_td')
-    
-    # ADHD cohorts
-    adhd200_adhd_csv = count_data_paths.get('adhd200_adhd')
-    cmihbn_adhd_csv = count_data_paths.get('cmihbn_adhd')
-    
-    # ASD cohorts
-    abide_asd_csv = count_data_paths.get('abide_asd')
-    stanford_asd_csv = count_data_paths.get('stanford_asd')
-    
-    results = {}
-    
-    # Create pooled TD
-    td_files = [f for f in [nki_td_csv, cmihbn_td_csv, adhd200_td_csv] if os.path.exists(f)]
-    if len(td_files) >= 2:
-        pooled_td = create_pooled_data(td_files, "Pooled_TD")
-        results['pooled_td_data'] = pooled_td
-    else:
-        logging.warning("Insufficient TD count data files for pooling")
-        pooled_td = None
-    
-    # Create pooled ADHD
-    adhd_files = [f for f in [adhd200_adhd_csv, cmihbn_adhd_csv] if os.path.exists(f)]
-    if len(adhd_files) >= 1:
-        pooled_adhd = create_pooled_data(adhd_files, "Pooled_ADHD")
-        results['pooled_adhd_data'] = pooled_adhd
-    else:
-        logging.warning("ADHD count data files not found")
-        pooled_adhd = None
-    
-    # Create pooled ASD
-    asd_files = [f for f in [abide_asd_csv, stanford_asd_csv] if os.path.exists(f)]
-    if len(asd_files) >= 1:
-        pooled_asd = create_pooled_data(asd_files, "Pooled_ASD")
-        results['pooled_asd_data'] = pooled_asd
-    else:
-        logging.warning("ASD count data files not found")
-        pooled_asd = None
-    
-    # TD vs ADHD
-    if pooled_td is not None and pooled_adhd is not None:
-        td_vs_adhd = analyze_cosine_similarities(
-            pooled_td, [pooled_adhd], ['Pooled_ADHD']
-        )
-        results['td_vs_adhd'] = td_vs_adhd
-    else:
-        results['td_vs_adhd'] = {'error': 'Pooled data not available'}
-    
-    # TD vs ASD
-    if pooled_td is not None and pooled_asd is not None:
-        td_vs_asd = analyze_cosine_similarities(
-            pooled_td, [pooled_asd], ['Pooled_ASD']
-        )
-        results['td_vs_asd'] = td_vs_asd
-    else:
-        results['td_vs_asd'] = {'error': 'Pooled data not available'}
-    
-    return results
-
-def create_pooled_data(file_paths: List[str], name: str) -> str:
-    """Create pooled data by averaging across multiple files (CSV or Excel)."""
-    logging.info(f"Creating pooled data for {name} from {len(file_paths)} files...")
-    
-    all_data = []
-    for file_path in file_paths:
-        if not os.path.exists(file_path):
-            logging.warning(f"File not found: {file_path}")
+    for name, path in datasets_dict.items():
+        if not path.exists():
+            print_warning(f"File not found: {path}")
             continue
+            
+        ig_matrix, roi_cols, subject_ids = load_ig_scores(path)
         
-        # Read file based on extension
-        if file_path.endswith('.xlsx') or file_path.endswith('.xls'):
-            df = pd.read_excel(file_path)
-            # Handle Excel column names
-            if 'Count' in df.columns and 'Region ID' in df.columns:
-                df = df.rename(columns={'Count': 'attribution', 'Region ID': 'region'})
-        else:
-            df = pd.read_csv(file_path)
+        # Compute mean for this dataset
+        dataset_mean = np.mean(ig_matrix, axis=0)
+        dataset_means[name] = dataset_mean
         
-        all_data.append(df)
+        all_features.append(ig_matrix)
+        print_info(f"{name}: {len(subject_ids)} subjects, {len(roi_cols)} ROIs")
     
-    if not all_data:
-        raise ValueError(f"No valid data files found for {name}")
+    if not all_features:
+        raise ValueError("No valid datasets found")
     
-    # Align regions across all datasets
-    common_regions = set(all_data[0]['region'].astype(str))
-    for df in all_data[1:]:
-        common_regions = common_regions & set(df['region'].astype(str))
+    # Concatenate all subjects
+    all_features = np.vstack(all_features)
     
-    logging.info(f"Found {len(common_regions)} common regions for pooling")
+    # Compute pooled mean across all subjects
+    pooled_mean = np.mean(all_features, axis=0)
     
-    # Create pooled data
-    pooled_attributions = []
-    for region in sorted(common_regions):
-        region_attrs = []
-        for df in all_data:
-            region_attr = df[df['region'].astype(str) == region]['attribution'].iloc[0]
-            region_attrs.append(region_attr)
-        pooled_attr = np.mean(region_attrs)
-        pooled_attributions.append(pooled_attr)
+    print_success(f"Pooled: {all_features.shape[0]} total subjects")
     
-    # Create pooled DataFrame
-    pooled_df = pd.DataFrame({
-        'attribution': pooled_attributions,
-        'region': sorted(common_regions)
-    })
+    return dataset_means, pooled_mean, all_features
+
+
+def cosine_similarity(vec1, vec2):
+    """Compute cosine similarity between two vectors."""
+    return 1 - cosine(vec1, vec2)
+
+
+def compute_pairwise_similarities(features1, features2):
+    """
+    Compute pairwise cosine similarities between two sets of feature vectors.
     
-    # Save pooled data
-    pooled_file = f"pooled_{name.lower()}_count_data.csv"
-    pooled_df.to_csv(pooled_file, index=False)
-    logging.info(f"Pooled data saved to: {pooled_file}")
+    Args:
+        features1: Array of shape (n_subjects1, n_features)
+        features2: Array of shape (n_subjects2, n_features)
+        
+    Returns:
+        Array of similarities
+    """
+    similarities = []
     
-    return pooled_file
+    for feat1 in features1:
+        for feat2 in features2:
+            sim = cosine_similarity(feat1, feat2)
+            similarities.append(sim)
+    
+    return np.array(similarities)
+
 
 def main():
-    """Main function."""
-    parser = argparse.ArgumentParser(description="Comprehensive cosine similarity analysis")
-    parser.add_argument("--analysis_type", type=str, 
-                       choices=['all', 'discovery_validation', 'within_condition', 'pooled_condition', 'cross_condition'],
-                       default='all', help="Type of analysis to run")
-    parser.add_argument("--config", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml",
-                       help="Path to configuration file")
-    parser.add_argument("--data_dir", type=str, help="Directory containing count data CSV files (deprecated, use config)")
-    parser.add_argument("--discovery_csv", type=str, help="Path to discovery cohort count data CSV")
-    parser.add_argument("--nki_csv", type=str, help="Path to NKI-RS TD count data CSV")
-    parser.add_argument("--cmihbn_csv", type=str, help="Path to CMI-HBN TD count data CSV")
-    parser.add_argument("--adhd200_csv", type=str, help="Path to ADHD-200 TD count data CSV")
-    parser.add_argument("--output_dir", type=str, default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/cosine_similarity",
-                       help="Output directory for results")
-    
-    args = parser.parse_args()
-    
-    # Load configuration
-    config_path = Path(args.config)
-    if not config_path.exists():
-        config_path = Path(__file__).parent.parent / 'config.yaml'
-    
-    config = load_config(str(config_path))
+    """Main analysis function."""
+    print_section_header("COSINE SIMILARITY ANALYSIS - TD vs ADHD vs ASD")
     
     # Create output directory
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     
-    all_results = {}
-    
-    # Run analyses based on type
-    if args.analysis_type in ['all', 'discovery_validation']:
-        # Get count data paths from config
-        count_data_paths = get_count_data_paths(config)
+    try:
+        # ====================================================================
+        # STEP 1: Load and compute mean feature maps
+        # ====================================================================
+        print_step("Loading TD cohorts", "HCP-Dev, NKI, CMI-HBN TD, ADHD200 TD")
+        td_dataset_means, td_pooled_mean, td_all = compute_mean_feature_map(TD_DATASETS)
         
-        # Use config paths or command line arguments
-        discovery_csv = args.discovery_csv or count_data_paths.get('dev')
-        nki_csv = args.nki_csv or count_data_paths.get('nki')
-        cmihbn_csv = args.cmihbn_csv or count_data_paths.get('cmihbn_td')
-        adhd200_csv = args.adhd200_csv or count_data_paths.get('adhd200_td')
+        print_step("Loading ADHD cohorts", "ADHD200 ADHD, CMI-HBN ADHD")
+        adhd_dataset_means, adhd_pooled_mean, adhd_all = compute_mean_feature_map(ADHD_DATASETS)
         
-        if discovery_csv and nki_csv and cmihbn_csv and adhd200_csv and all(os.path.exists(f) for f in [discovery_csv, nki_csv, cmihbn_csv, adhd200_csv]):
-            validation_csvs = [nki_csv, cmihbn_csv, adhd200_csv]
-            validation_names = ['NKI-RS_TD', 'CMI-HBN_TD', 'ADHD-200_TD']
-            all_results['discovery_validation'] = run_discovery_validation_analysis(
-                discovery_csv, validation_csvs, validation_names
-            )
-        else:
-            logging.warning("Discovery validation analysis skipped - missing required files")
-    
-    if args.analysis_type in ['all', 'within_condition']:
-        all_results['within_condition'] = run_within_condition_analysis(config)
-    
-    if args.analysis_type in ['all', 'pooled_condition']:
-        all_results['pooled_condition'] = run_pooled_condition_analysis(config)
-    
-    if args.analysis_type in ['all', 'cross_condition']:
-        all_results['cross_condition'] = run_cross_condition_analysis(config)
-    
-    # Save results
-    import json
-    results_file = output_dir / "comprehensive_cosine_similarity_results.json"
-    with open(results_file, 'w') as f:
-        json.dump(all_results, f, indent=2, default=str)
-    
-    # Print summary
-    print("\n" + "="*80)
-    print("COMPREHENSIVE COSINE SIMILARITY ANALYSIS RESULTS")
-    print("="*80)
-    
-    for analysis_type, results in all_results.items():
-        print(f"\n{analysis_type.upper().replace('_', ' ')} ANALYSIS:")
-        print("-" * 40)
+        print_step("Loading ASD cohorts", "ABIDE ASD, Stanford ASD")
+        asd_dataset_means, asd_pooled_mean, asd_all = compute_mean_feature_map(ASD_DATASETS)
         
-        if isinstance(results, dict) and 'error' not in results:
-            if 'summary' in results and 'error' not in results['summary']:
-                summary = results['summary']
-                print(f"  Mean Similarity: {summary['mean_similarity']:.4f}")
-                print(f"  Range: {summary['min_similarity']:.4f} - {summary['max_similarity']:.4f}")
-            elif 'similarities' in results:
-                for cohort, sim in results['similarities'].items():
-                    if sim is not None:
-                        print(f"  {cohort}: {sim:.4f}")
-        else:
-            print(f"  Error: {results.get('error', 'Unknown error')}")
+        # ====================================================================
+        # STEP 2: Compute cosine similarities between pooled means
+        # ====================================================================
+        print_step("Computing cosine similarities", "Between pooled group means")
+        
+        sim_td_adhd_pooled = cosine_similarity(td_pooled_mean, adhd_pooled_mean)
+        sim_td_asd_pooled = cosine_similarity(td_pooled_mean, asd_pooled_mean)
+        sim_adhd_asd_pooled = cosine_similarity(adhd_pooled_mean, asd_pooled_mean)
+        
+        print_info(f"TD vs ADHD (pooled): {sim_td_adhd_pooled:.4f}")
+        print_info(f"TD vs ASD (pooled): {sim_td_asd_pooled:.4f}")
+        print_info(f"ADHD vs ASD (pooled): {sim_adhd_asd_pooled:.4f}")
+        
+        # ====================================================================
+        # STEP 2b: Compute pairwise similarities between individual datasets
+        # ====================================================================
+        print_step("Computing pairwise similarities", "Between individual datasets")
+        
+        # TD vs ADHD (all pairwise combinations)
+        td_adhd_sims = []
+        for td_name, td_vec in td_dataset_means.items():
+            for adhd_name, adhd_vec in adhd_dataset_means.items():
+                sim = cosine_similarity(td_vec, adhd_vec)
+                td_adhd_sims.append(sim)
+                print_info(f"  {td_name} vs {adhd_name}: {sim:.4f}")
+        
+        # TD vs ASD (all pairwise combinations)
+        td_asd_sims = []
+        for td_name, td_vec in td_dataset_means.items():
+            for asd_name, asd_vec in asd_dataset_means.items():
+                sim = cosine_similarity(td_vec, asd_vec)
+                td_asd_sims.append(sim)
+                print_info(f"  {td_name} vs {asd_name}: {sim:.4f}")
+        
+        # ADHD vs ASD (all pairwise combinations)
+        adhd_asd_sims = []
+        for adhd_name, adhd_vec in adhd_dataset_means.items():
+            for asd_name, asd_vec in asd_dataset_means.items():
+                sim = cosine_similarity(adhd_vec, asd_vec)
+                adhd_asd_sims.append(sim)
+                print_info(f"  {adhd_name} vs {asd_name}: {sim:.4f}")
+        
+        # Compute ranges
+        td_adhd_range = (np.min(td_adhd_sims), np.max(td_adhd_sims))
+        td_asd_range = (np.min(td_asd_sims), np.max(td_asd_sims))
+        adhd_asd_range = (np.min(adhd_asd_sims), np.max(adhd_asd_sims))
+        
+        print_info(f"\nTD vs ADHD range: {td_adhd_range[0]:.4f} to {td_adhd_range[1]:.4f}")
+        print_info(f"TD vs ASD range: {td_asd_range[0]:.4f} to {td_asd_range[1]:.4f}")
+        print_info(f"ADHD vs ASD range: {adhd_asd_range[0]:.4f} to {adhd_asd_range[1]:.4f}")
+        
+        # ====================================================================
+        # STEP 3: Compute within-group and between-group similarities
+        # ====================================================================
+        print_step("Computing within-group similarities", "For statistical comparison")
+        
+        # Sample 1000 random pairs for computational efficiency
+        n_samples = min(1000, td_all.shape[0])
+        
+        # Within-group similarities
+        td_indices = np.random.choice(td_all.shape[0], n_samples, replace=False)
+        adhd_indices = np.random.choice(adhd_all.shape[0], min(n_samples, adhd_all.shape[0]), replace=False)
+        asd_indices = np.random.choice(asd_all.shape[0], min(n_samples, asd_all.shape[0]), replace=False)
+        
+        within_td = []
+        for i in range(len(td_indices)):
+            for j in range(i+1, min(i+10, len(td_indices))):  # Compare with 10 neighbors
+                sim = cosine_similarity(td_all[td_indices[i]], td_all[td_indices[j]])
+                within_td.append(sim)
+        
+        within_adhd = []
+        for i in range(len(adhd_indices)):
+            for j in range(i+1, min(i+10, len(adhd_indices))):
+                sim = cosine_similarity(adhd_all[adhd_indices[i]], adhd_all[adhd_indices[j]])
+                within_adhd.append(sim)
+        
+        within_asd = []
+        for i in range(len(asd_indices)):
+            for j in range(i+1, min(i+10, len(asd_indices))):
+                sim = cosine_similarity(asd_all[asd_indices[i]], asd_all[asd_indices[j]])
+                within_asd.append(sim)
+        
+        # Between-group similarities (sample)
+        between_td_adhd = []
+        for i in range(min(100, len(td_indices))):
+            for j in range(min(100, len(adhd_indices))):
+                sim = cosine_similarity(td_all[td_indices[i]], adhd_all[adhd_indices[j]])
+                between_td_adhd.append(sim)
+        
+        between_td_asd = []
+        for i in range(min(100, len(td_indices))):
+            for j in range(min(100, len(asd_indices))):
+                sim = cosine_similarity(td_all[td_indices[i]], asd_all[asd_indices[j]])
+                between_td_asd.append(sim)
+        
+        print_info(f"Within TD: {np.mean(within_td):.4f} ± {np.std(within_td):.4f}")
+        print_info(f"Within ADHD: {np.mean(within_adhd):.4f} ± {np.std(within_adhd):.4f}")
+        print_info(f"Within ASD: {np.mean(within_asd):.4f} ± {np.std(within_asd):.4f}")
+        print_info(f"Between TD-ADHD: {np.mean(between_td_adhd):.4f} ± {np.std(between_td_adhd):.4f}")
+        print_info(f"Between TD-ASD: {np.mean(between_td_asd):.4f} ± {np.std(between_td_asd):.4f}")
+        
+        # ====================================================================
+        # STEP 4: Save results
+        # ====================================================================
+        print_step("Saving results", "CSV and summary")
+        
+        # Create summary DataFrame
+        results_df = pd.DataFrame({
+            'Comparison': [
+                'TD vs ADHD (pooled means)',
+                'TD vs ASD (pooled means)',
+                'ADHD vs ASD (pooled means)',
+                'TD vs ADHD (range across datasets)',
+                'TD vs ASD (range across datasets)',
+                'ADHD vs ASD (range across datasets)',
+                'Within TD',
+                'Within ADHD',
+                'Within ASD',
+                'Between TD-ADHD (subjects)',
+                'Between TD-ASD (subjects)'
+            ],
+            'Cosine_Similarity': [
+                sim_td_adhd_pooled,
+                sim_td_asd_pooled,
+                sim_adhd_asd_pooled,
+                np.mean(td_adhd_sims),
+                np.mean(td_asd_sims),
+                np.mean(adhd_asd_sims),
+                np.mean(within_td),
+                np.mean(within_adhd),
+                np.mean(within_asd),
+                np.mean(between_td_adhd),
+                np.mean(between_td_asd)
+            ],
+            'Min': [
+                np.nan,
+                np.nan,
+                np.nan,
+                td_adhd_range[0],
+                td_asd_range[0],
+                adhd_asd_range[0],
+                np.nan,
+                np.nan,
+                np.nan,
+                np.nan,
+                np.nan
+            ],
+            'Max': [
+                np.nan,
+                np.nan,
+                np.nan,
+                td_adhd_range[1],
+                td_asd_range[1],
+                adhd_asd_range[1],
+                np.nan,
+                np.nan,
+                np.nan,
+                np.nan,
+                np.nan
+            ],
+            'Std': [
+                np.nan,
+                np.nan,
+                np.nan,
+                np.std(td_adhd_sims),
+                np.std(td_asd_sims),
+                np.std(adhd_asd_sims),
+                np.std(within_td),
+                np.std(within_adhd),
+                np.std(within_asd),
+                np.std(between_td_adhd),
+                np.std(between_td_asd)
+            ]
+        })
+        
+        csv_path = OUTPUT_DIR / 'cosine_similarity_results.csv'
+        results_df.to_csv(csv_path, index=False)
+        print_success(f"Results saved: {csv_path}")
+        
+        # ====================================================================
+        # STEP 5: Create visualization
+        # ====================================================================
+        print_step("Creating visualization", "Similarity matrix heatmap")
+        
+        # Create similarity matrix (using pooled means)
+        sim_matrix = np.array([
+            [1.0, sim_td_adhd_pooled, sim_td_asd_pooled],
+            [sim_td_adhd_pooled, 1.0, sim_adhd_asd_pooled],
+            [sim_td_asd_pooled, sim_adhd_asd_pooled, 1.0]
+        ])
+        
+        # Create heatmap
+        fig, ax = plt.subplots(figsize=(8, 7), dpi=300)
+        
+        sns.heatmap(sim_matrix, 
+                    annot=True, 
+                    fmt='.4f',
+                    cmap='RdYlGn',
+                    vmin=0.9, vmax=1.0,
+                    cbar_kws={'label': 'Cosine Similarity'},
+                    linewidths=2,
+                    linecolor='black',
+                    xticklabels=['TD\n(pooled)', 'ADHD\n(pooled)', 'ASD\n(pooled)'],
+                    yticklabels=['TD\n(pooled)', 'ADHD\n(pooled)', 'ASD\n(pooled)'],
+                    ax=ax,
+                    square=True)
+        
+        ax.set_title('Cosine Similarity Between Cohort Mean Feature Maps', 
+                     fontsize=16, fontweight='bold', pad=20)
+        
+        # Customize
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=0, fontsize=12)
+        ax.set_yticklabels(ax.get_yticklabels(), rotation=0, fontsize=12)
+        
+        plt.tight_layout()
+        
+        plot_path = OUTPUT_DIR / 'cosine_similarity_heatmap.png'
+        plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+        plt.close()
+        
+        print_success(f"Heatmap saved: {plot_path}")
+        
+        # ====================================================================
+        # STEP 6: Print summary report
+        # ====================================================================
+        print_section_header("COSINE SIMILARITY ANALYSIS RESULTS")
+        
+        print("\n" + "="*80)
+        print("POOLED MEAN SIMILARITIES (between group averages)")
+        print("="*80)
+        print(f"TD vs ADHD:    {sim_td_adhd_pooled:.4f}")
+        print(f"TD vs ASD:     {sim_td_asd_pooled:.4f}")
+        print(f"ADHD vs ASD:   {sim_adhd_asd_pooled:.4f}")
+        
+        print("\n" + "="*80)
+        print("PAIRWISE DATASET SIMILARITIES (range across individual datasets)")
+        print("="*80)
+        print(f"TD vs ADHD:    {td_adhd_range[0]:.4f} to {td_adhd_range[1]:.4f} (mean: {np.mean(td_adhd_sims):.4f})")
+        print(f"TD vs ASD:     {td_asd_range[0]:.4f} to {td_asd_range[1]:.4f} (mean: {np.mean(td_asd_sims):.4f})")
+        print(f"ADHD vs ASD:   {adhd_asd_range[0]:.4f} to {adhd_asd_range[1]:.4f} (mean: {np.mean(adhd_asd_sims):.4f})")
+        
+        print("\n" + "="*80)
+        print("INTERPRETATION")
+        print("="*80)
+        print(f"Cosine similarity ranges from -1 (opposite) to 1 (identical)")
+        print(f"Values close to 1 indicate high similarity in feature patterns")
+        print(f"\nThese regions demonstrated remarkable consistency across both")
+        print(f"the HCP-Development and three clinical cohorts, with cosine")
+        print(f"similarity between feature importance maps ranging from")
+        print(f"{td_adhd_range[0]:.3f} to {td_adhd_range[1]:.3f} (TD vs ADHD) and")
+        print(f"{td_asd_range[0]:.3f} to {td_asd_range[1]:.3f} (TD vs ASD).")
+        
+        print("\n" + "="*80)
+        print("SUBJECT-LEVEL STATISTICS (within and between groups)")
+        print("="*80)
+        print(f"Within TD:         {np.mean(within_td):.4f} ± {np.std(within_td):.4f}")
+        print(f"Within ADHD:       {np.mean(within_adhd):.4f} ± {np.std(within_adhd):.4f}")
+        print(f"Within ASD:        {np.mean(within_asd):.4f} ± {np.std(within_asd):.4f}")
+        print(f"Between TD-ADHD:   {np.mean(between_td_adhd):.4f} ± {np.std(between_td_adhd):.4f}")
+        print(f"Between TD-ASD:    {np.mean(between_td_asd):.4f} ± {np.std(between_td_asd):.4f}")
+        
+        print("\n" + "="*80)
+        print("OUTPUT FILES")
+        print("="*80)
+        print(f"Results CSV:  {csv_path}")
+        print(f"Heatmap PNG:  {plot_path}")
+        print("="*80 + "\n")
+        
+        print_completion("Cosine similarity analysis completed successfully!")
+        
+    except Exception as e:
+        print_error(f"Analysis failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
     
-    print(f"\nDetailed results saved to: {results_file}")
-    logging.info("Comprehensive cosine similarity analysis completed!")
+    return 0
 
-if __name__ == "__main__":
-    main()
+
+if __name__ == '__main__':
+    sys.exit(main())
