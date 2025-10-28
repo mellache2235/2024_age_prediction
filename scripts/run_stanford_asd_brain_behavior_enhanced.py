@@ -238,14 +238,49 @@ def create_elbow_plot(pca, output_dir):
     return optimal_pcs
 
 
-def perform_linear_regression(pca_scores, srs_scores, output_dir):
-    """Perform linear regression using all PCs to predict SRS total score."""
-    print_step("Linear regression for SRS Total Score", "Using all PCs as predictors")
+def perform_linear_regression_multi(pca_scores, srs_scores, behavioral_name, output_dir):
+    """Perform linear regression using all PCs to predict behavioral scores."""
+    print_step(f"Linear regression for {behavioral_name}", "Using all PCs as predictors")
+    
+    # Ensure srs_scores is a numpy array of numeric values
+    if not isinstance(srs_scores, np.ndarray):
+        srs_scores = pd.to_numeric(srs_scores, errors='coerce').values
+    else:
+        # Already a numpy array, just ensure it's numeric (convert if needed)
+        if srs_scores.dtype == object:
+            srs_scores = pd.to_numeric(pd.Series(srs_scores), errors='coerce').values
     
     # Remove NaNs
     valid_mask = ~np.isnan(srs_scores)
-    X = pca_scores[valid_mask]
-    y = srs_scores[valid_mask]
+    X_clean = pca_scores[valid_mask]
+    y_clean = srs_scores[valid_mask]
+    
+    print_info(f"Valid subjects after removing NaN: {len(y_clean)}")
+    
+    if len(y_clean) < 10:
+        print_warning(f"Insufficient valid data: {len(y_clean)} subjects")
+        return None
+    
+    # Remove outliers using IQR method
+    q1 = np.percentile(y_clean, 25)
+    q3 = np.percentile(y_clean, 75)
+    iqr = q3 - q1
+    lower_bound = q1 - 3 * iqr
+    upper_bound = q3 + 3 * iqr
+    
+    outlier_mask = (y_clean >= lower_bound) & (y_clean <= upper_bound)
+    n_outliers = len(y_clean) - outlier_mask.sum()
+    
+    if n_outliers > 0:
+        print_info(f"Removing {n_outliers} outliers (beyond Q1-3*IQR or Q3+3*IQR)")
+        print_info(f"  Score range before: [{y_clean.min():.2f}, {y_clean.max():.2f}]")
+        X = X_clean[outlier_mask]
+        y = y_clean[outlier_mask]
+        print_info(f"  Score range after: [{y.min():.2f}, {y.max():.2f}]")
+    else:
+        X = X_clean
+        y = y_clean
+        print_info(f"No outliers detected (score range: [{y.min():.2f}, {y.max():.2f}])")
     
     if len(y) < 10:
         print_warning(f"Insufficient valid data: {len(y)} subjects")
@@ -279,14 +314,14 @@ def perform_linear_regression(pca_scores, srs_scores, output_dir):
     print_info(f"R² = {r2:.3f}")
     
     # Create scatter plot
-    create_scatter_plot(y, y_pred, rho, p_value, "SRS Total Score", DATASET, output_dir)
+    create_scatter_plot(y, y_pred, rho, p_value, behavioral_name, DATASET, output_dir)
     
     # Get PC importance (absolute coefficients)
     pc_importance = np.abs(model.coef_)
     pc_ranks = np.argsort(pc_importance)[::-1]
     
     return {
-        'behavioral_measure': 'SRS_Total_Score',
+        'behavioral_measure': behavioral_name,
         'n_subjects': len(y),
         'n_features': n_features,
         'spearman_rho': rho,
@@ -360,39 +395,47 @@ def get_pc_loadings(pca, roi_cols, n_top=10):
     return pc_loadings_dict
 
 
-def save_results(results, pc_loadings_dict, output_dir):
+def save_results_multi(results_list, pc_loadings_dict, output_dir):
     """Save all results to CSV files."""
     print_step("Saving results", "Writing CSV files")
     
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    if results is None:
+    if not results_list:
         print_warning("No results to save")
         return
     
     # 1. Save regression results
-    results_df = pd.DataFrame([{
-        'Behavioral_Measure': results['behavioral_measure'],
-        'N_Subjects': results['n_subjects'],
-        'N_Features': results['n_features'],
-        'Spearman_Rho': results['spearman_rho'],
-        'P_Value': results['p_value'],
-        'R2': results['r2']
-    }])
-    results_path = output_dir / 'linear_regression_results.csv'
-    results_df.to_csv(results_path, index=False)
-    print_success(f"Regression results: {results_path.name}")
+    results_df = pd.DataFrame([
+        {
+            'Behavioral_Measure': r['behavioral_measure'],
+            'N_Subjects': r['n_subjects'],
+            'N_Features': r['n_features'],
+            'Spearman_Rho': r['spearman_rho'],
+            'P_Value': r['p_value'],
+            'R2': r['r2']
+        }
+        for r in results_list if r is not None
+    ])
     
-    # 2. Save PC importance
-    pc_importance_df = pd.DataFrame({
-        'PC': [f'PC{i+1}' for i in range(len(results['pc_importance']))],
-        'Importance': results['pc_importance'],
-        'Rank': [np.where(results['pc_ranks'] == i)[0][0] + 1 for i in range(len(results['pc_importance']))]
-    })
-    pc_imp_path = output_dir / f'pc_importance_SRS_Total_Score.csv'
-    pc_importance_df.to_csv(pc_imp_path, index=False)
-    print_success(f"PC importance: {pc_imp_path.name}")
+    if len(results_df) > 0:
+        results_path = output_dir / 'linear_regression_results.csv'
+        results_df.to_csv(results_path, index=False)
+        print_success(f"Regression results: {results_path.name}")
+    
+    # 2. Save PC importance for each behavioral measure
+    for r in results_list:
+        if r is not None:
+            pc_importance_df = pd.DataFrame({
+                'PC': [f'PC{i+1}' for i in range(len(r['pc_importance']))],
+                'Importance': r['pc_importance'],
+                'Rank': [np.where(r['pc_ranks'] == i)[0][0] + 1 for i in range(len(r['pc_importance']))]
+            })
+            safe_name = r['behavioral_measure'].replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
+            pc_imp_path = output_dir / f'pc_importance_{safe_name}.csv'
+            pc_importance_df.to_csv(pc_imp_path, index=False)
+            print_success(f"PC importance: {pc_imp_path.name}")
     
     # 3. Save PC loadings
     for pc_name, loadings in pc_loadings_dict.items():

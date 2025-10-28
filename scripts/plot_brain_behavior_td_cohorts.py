@@ -68,7 +68,8 @@ def find_scatter_plot(cohort_dir, measure_names):
     # Try each possible measure name
     for measure in measure_names:
         # Create safe filename (same logic as in the analysis scripts)
-        safe_name = measure.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '').replace(',', '')
+        # Note: Keep commas to match actual filenames
+        safe_name = measure.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
         pattern = f"scatter_{safe_name}.png"
         
         # Look for the file
