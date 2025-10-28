@@ -3,6 +3,7 @@
 Comprehensive pipeline for analyzing brain age prediction using spatiotemporal deep neural networks (stDNN) with Integrated Gradients feature attribution across TD, ADHD, and ASD cohorts.
 
 ---
+<img width="468" height="209" alt="image" src="https://github.com/user-attachments/assets/f5b32844-55aa-49b6-9cd6-44d7a2313484" />
 
 ## 🧠 Study Overview
 
