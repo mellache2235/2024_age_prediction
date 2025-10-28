@@ -37,9 +37,11 @@ See [`INSTALL.md`](INSTALL.md) for complete installation instructions.
 cd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/scripts
 
 # 1. Network Analysis
-python run_network_analysis.py
-python create_region_tables.py
-python create_polar_network_plots.py
+python network_analysis_yeo.py --process_all
+python network_analysis_yeo.py --process_shared
+python create_region_tables.py \
+  --config /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/config.yaml \
+  --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/region_tables
 
 # 2. Statistical Comparisons  
 python run_statistical_comparisons.py
@@ -88,7 +90,7 @@ results/
 
 | Purpose | Script | Output |
 |---------|--------|--------|
-| **Network Analysis** | `run_network_analysis.py` | JSON, CSV, radar plots |
+| **Network Analysis** | `network_analysis_yeo.py` | JSON, CSV, radar plots |
 | **Region Tables** | `create_region_tables.py` | CSV tables (full + diverse subsets) |
 | **Statistical Tests** | `run_statistical_comparisons.py` | 6 metrics, 12 comparisons |
 | **Brain-Behavior** | `run_optimized_brain_behavior.py --all` | Scatter plots, optimized models |
