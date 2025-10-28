@@ -208,11 +208,16 @@ def load_abide_behavioral_data(pklz_dir, sites):
             print_info(f"All columns: {list(asd_df.columns)}")
     else:
         print_info(f"ADOS behavioral measures found: {ados_cols}")
-        # Convert ADOS columns to numeric
+        # Convert ADOS columns to numeric and filter missing data codes
         for col in ados_cols:
             asd_df[col] = pd.to_numeric(asd_df[col], errors='coerce')
+            
+            # Replace missing data codes (-9999, -999, etc.) with NaN
+            asd_df.loc[asd_df[col] < 0, col] = np.nan
+            asd_df.loc[asd_df[col] > 100, col] = np.nan  # ADOS scores shouldn't be > 100
+            
             non_null = asd_df[col].notna().sum()
-            print_info(f"  {col}: {non_null} non-null values out of {len(asd_df)}")
+            print_info(f"  {col}: {non_null} non-null values out of {len(asd_df)} (after removing missing codes)")
             if non_null > 0:
                 print_info(f"    Range: [{asd_df[col].min():.2f}, {asd_df[col].max():.2f}]")
     
@@ -238,15 +243,42 @@ def merge_data(ig_df, behavioral_df):
     ig_ids = set(ig_df['subject_id'])
     behav_ids = set(behavioral_df['subject_id'])
     overlap_ids = ig_ids.intersection(behav_ids)
-    print_info(f"Overlapping subject IDs: {len(overlap_ids)}")
+    print_info(f"Overlapping subject IDs (exact match): {len(overlap_ids)}")
     
-    if len(overlap_ids) < 10:
-        print_warning(f"Very few overlapping IDs! Showing some examples:")
-        print_info(f"  First 5 IG IDs: {list(ig_df['subject_id'].head(5))}")
-        print_info(f"  First 5 Behavioral IDs: {list(behavioral_df['subject_id'].head(5))}")
-    
-    # Merge on subject_id
-    merged = pd.merge(ig_df, behavioral_df, on='subject_id', how='inner')
+    # If poor overlap, try stripping leading zeros
+    if len(overlap_ids) < 50:
+        print_warning(f"Few overlapping IDs! Trying to strip leading zeros...")
+        
+        # Create copy with stripped leading zeros for behavioral data
+        behavioral_df_stripped = behavioral_df.copy()
+        behavioral_df_stripped['subject_id_stripped'] = behavioral_df_stripped['subject_id'].str.lstrip('0')
+        
+        # Also try stripping IG IDs
+        ig_df_stripped = ig_df.copy()
+        ig_df_stripped['subject_id_stripped'] = ig_df_stripped['subject_id'].str.lstrip('0')
+        
+        print_info(f"Sample behavioral IDs after stripping: {list(behavioral_df_stripped['subject_id_stripped'].head(5))}")
+        print_info(f"Sample IG IDs after stripping: {list(ig_df_stripped['subject_id_stripped'].head(5))}")
+        
+        # Check overlap after stripping
+        overlap_stripped = set(ig_df_stripped['subject_id_stripped']).intersection(
+            set(behavioral_df_stripped['subject_id_stripped']))
+        print_info(f"Overlapping IDs after stripping zeros: {len(overlap_stripped)}")
+        
+        if len(overlap_stripped) > len(overlap_ids):
+            print_success(f"Better overlap with stripped IDs! Using stripped IDs for merge.")
+            # Merge on stripped IDs
+            merged = pd.merge(ig_df_stripped, behavioral_df_stripped, 
+                            on='subject_id_stripped', how='inner', suffixes=('_ig', '_behav'))
+            # Use IG subject_id as the primary one
+            merged['subject_id'] = merged['subject_id_ig']
+            print_info(f"Merged {len(merged)} subjects using stripped IDs")
+        else:
+            # Use original merge
+            merged = pd.merge(ig_df, behavioral_df, on='subject_id', how='inner')
+    else:
+        # Good overlap, use original merge
+        merged = pd.merge(ig_df, behavioral_df, on='subject_id', how='inner')
     
     common_subjects = len(merged)
     print_success(f"Merged: {common_subjects} subjects with both IG and behavioral data")
@@ -557,6 +589,13 @@ def main():
                     print_info(f"    Overlap with IG subjects: {len(ados_overlap)}")
                     if ados_overlap:
                         print_info(f"      Sample overlapping IDs: {ados_overlap[:5]}")
+            
+            print()
+            print_error("NO OVERLAP: Subjects with ADOS data don't match IG subjects")
+            print_info("SOLUTION: The IG predictions need to be regenerated for ABIDE ASD subjects")
+            print_info("          who have ADOS behavioral data available.")
+            print()
+            print_info("Continuing with analysis but no brain-behavior results will be generated...")
         print()
         
         # Extract IG matrix
