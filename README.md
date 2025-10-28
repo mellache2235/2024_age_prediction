@@ -63,9 +63,12 @@ python plot_pc_loadings_heatmap.py --dataset adhd200_td
 python plot_pc_loadings_heatmap.py --dataset cmihbn_td
 
 # 5. Brain Age Plots
-python plot_brain_age_td_cohorts.py
-python plot_brain_age_adhd_cohorts.py
-python plot_brain_age_asd_cohorts.py
+python plot_brain_age_td_cohorts.py \
+  --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots
+python plot_brain_age_adhd_cohorts.py \
+  --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots
+python plot_brain_age_asd_cohorts.py \
+  --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots
 ```
 
 ---

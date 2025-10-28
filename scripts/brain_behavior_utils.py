@@ -87,13 +87,29 @@ def load_ig_data(csv_path: str) -> Tuple[np.ndarray, np.ndarray, List[str]]:
     """
     df = pd.read_csv(csv_path)
     
-    subject_ids = df['subject_id'].values
-    roi_cols = [c for c in df.columns if c.startswith('ROI_')]
+    # Get subject IDs
+    if 'subject_id' in df.columns:
+        subject_ids = df['subject_id'].values
+    elif 'Unnamed: 0' in df.columns:
+        subject_ids = df['Unnamed: 0'].values
+    else:
+        subject_ids = df.index.values
+    
+    # Get ROI columns (all columns except subject_id)
+    roi_cols = [c for c in df.columns if c not in ['subject_id', 'Unnamed: 0']]
+    
+    if len(roi_cols) == 0:
+        raise ValueError(f"No ROI columns found in {csv_path}")
+    
     ig_matrix = df[roi_cols].values.astype(np.float32)  # Use float32 for efficiency
     
     # Quick validation
-    assert not df['subject_id'].duplicated().any(), "Duplicate subject IDs in IG data"
-    verify_data(ig_matrix, "IG matrix")
+    if 'subject_id' in df.columns:
+        assert not df['subject_id'].duplicated().any(), "Duplicate subject IDs in IG data"
+    
+    # Only verify if we have data
+    if ig_matrix.size > 0:
+        verify_data(ig_matrix, "IG matrix")
     
     print(f"  ✓ Loaded IG: {len(subject_ids)} subjects × {len(roi_cols)} ROIs")
     
