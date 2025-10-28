@@ -250,12 +250,21 @@ def jensen_shannon_divergence(
     mean1 = data1.mean(axis=0)
     mean2 = data2.mean(axis=0)
     
+    # Take absolute values and add small epsilon to avoid zeros
+    epsilon = 1e-10
+    mean1 = np.abs(mean1) + epsilon
+    mean2 = np.abs(mean2) + epsilon
+    
     # Normalize to probability distributions
     p1 = mean1 / mean1.sum()
     p2 = mean2 / mean2.sum()
     
     # Compute JS divergence (scipy uses base 2 by default)
     jsd = jensenshannon(p1, p2)
+    
+    # Handle potential inf/nan
+    if np.isinf(jsd) or np.isnan(jsd):
+        jsd = 1.0  # Maximum divergence
     
     return jsd
 

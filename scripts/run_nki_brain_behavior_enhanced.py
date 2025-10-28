@@ -15,9 +15,11 @@ import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf as pdf_backend
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
+from sklearn.model_selection import cross_val_score, KFold
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import r2_score, make_scorer
 from scipy.stats import spearmanr
-from sklearn.metrics import r2_score
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -39,6 +41,13 @@ DATASET = "nki_rs_td"
 IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv"
 BEHAVIORAL_DIR = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data"
 OUTPUT_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td"
+
+# ============================================================================
+# OPTIMIZATION SETTINGS (Set OPTIMIZE=True to enable)
+# ============================================================================
+OPTIMIZE = False  # Set to True for hyperparameter tuning (Ridge/Lasso/ElasticNet, optimal PCs)
+# If True: Tests multiple models, PCs, and regularization strengths
+# If False: Uses standard LinearRegression with 80% variance threshold (faster)
 
 # ============================================================================
 # HELPER FUNCTIONS

@@ -46,18 +46,19 @@ python create_region_tables.py \
 # 2. Statistical Comparisons  
 python run_statistical_comparisons.py
 
-# 3. Brain-Behavior Analysis (choose A or B)
+# 3. Brain-Behavior Analysis
 
-# Option A: Standard
+# Standard analysis (80% variance threshold, LinearRegression)
 python run_nki_brain_behavior_enhanced.py
 python run_adhd200_brain_behavior_enhanced.py
 python run_cmihbn_brain_behavior_enhanced.py
+python run_adhd200_adhd_brain_behavior_enhanced.py
+python run_cmihbn_adhd_brain_behavior_enhanced.py
 
-# Option B: Optimized (for ADHD200 and CMI-HBN datasets only)
-# Note: NKI requires individual script due to multiple behavioral files
-python run_nki_brain_behavior_enhanced.py
-python run_optimized_brain_behavior.py --dataset adhd200_td
-python run_optimized_brain_behavior.py --dataset cmihbn_td
+# To enable optimization (Ridge/Lasso/ElasticNet, grid search):
+# Edit each script and set: OPTIMIZE = True
+# This will test multiple models and PC values for higher correlations
+# (Runtime: ~10-30 min per script instead of ~2-5 min)
 
 # 4. Combined Plots
 python plot_brain_behavior_td_cohorts.py
@@ -106,12 +107,17 @@ results/
 
 ## 📖 Key Features
 
-### Optimized Brain-Behavior Analysis (RECOMMENDED)
-- **Hyperparameter tuning**: Grid search over # of PCs, model type (Linear/Ridge/Lasso/ElasticNet), regularization
-- **Cross-validated**: 5-fold CV maximizing Spearman ρ
+### Brain-Behavior Analysis
+- **Standard mode** (default): Fixed 80% variance threshold, LinearRegression, fast (~2-5 min)
+- **Optimization mode** (optional): Set `OPTIMIZE = True` in script to enable:
+  - Grid search over # of PCs (5, 10, 15, ..., n_samples-10)
+  - 4 models tested: Linear, Ridge, Lasso, ElasticNet
+  - Regularization strengths: 0.001, 0.01, 0.1, 1.0, 10.0, 100.0
+  - 5-fold CV maximizing Spearman ρ
+  - Higher correlations but slower (~10-30 min per script)
 - **Data integrity checks**: ID alignment verification, NaN detection, duplicate checks
-- **76% less code**: Single config-driven script for all datasets
-- **Higher correlations**: Regularization prevents overfitting
+- **Centralized styling**: plot_styles.py ensures 100% consistency
+- **Triple export**: PNG + TIFF + AI (publication-ready)
 
 ### Statistical Comparisons
 6 complementary metrics per comparison:
