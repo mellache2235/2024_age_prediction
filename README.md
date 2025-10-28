@@ -54,7 +54,7 @@ python run_adhd200_brain_behavior_enhanced.py
 python run_cmihbn_brain_behavior_enhanced.py
 
 # Option B: Optimized (RECOMMENDED - higher correlations)
-python run_optimized_brain_behavior.py --all
+python run_optimized_brain_behavior.py --dataset all
 
 # 4. Combined Plots
 python plot_brain_behavior_td_cohorts.py

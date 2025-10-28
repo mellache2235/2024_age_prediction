@@ -33,6 +33,9 @@ pip install pytorch-lightning==1.9.5
 # Install core scientific packages
 pip install numpy==1.23.5 pandas==1.5.3 scipy==1.10.1 scikit-learn==1.2.2
 
+# Install statistical packages
+pip install statsmodels==0.14.0
+
 # Install visualization packages
 pip install matplotlib==3.7.1 seaborn==0.12.2
 

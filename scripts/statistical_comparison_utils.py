@@ -19,10 +19,45 @@ import pandas as pd
 from scipy import stats
 from scipy.spatial.distance import jensenshannon
 from scipy.special import rel_entr
-from statsmodels.stats.multitest import multipletests
 from typing import Tuple, Dict, List, Optional
 import warnings
 warnings.filterwarnings('ignore')
+
+
+def fdr_correction(p_values, alpha=0.05):
+    """
+    Benjamini-Hochberg FDR correction (reimplemented to avoid statsmodels dependency).
+    
+    Args:
+        p_values: Array of p-values
+        alpha: FDR threshold (default: 0.05)
+    
+    Returns:
+        corrected_p_values: FDR-corrected p-values
+    """
+    p_values = np.asarray(p_values)
+    n = len(p_values)
+    
+    # Sort p-values and keep track of original indices
+    sorted_indices = np.argsort(p_values)
+    sorted_p = p_values[sorted_indices]
+    
+    # Compute adjusted p-values
+    adjusted_p = np.zeros(n)
+    
+    # Start from the largest p-value
+    adjusted_p[sorted_indices[-1]] = sorted_p[-1]
+    
+    for i in range(n-2, -1, -1):
+        adjusted_p[sorted_indices[i]] = min(
+            adjusted_p[sorted_indices[i+1]],
+            sorted_p[i] * n / (i + 1)
+        )
+    
+    # Cap at 1.0
+    adjusted_p = np.minimum(adjusted_p, 1.0)
+    
+    return adjusted_p
 
 
 # ============================================================================
@@ -282,8 +317,8 @@ def roi_wise_proportion_test(
             z_scores[i] = 0
             p_values[i] = 1.0
     
-    # FDR correction (Benjamini-Hochberg)
-    _, fdr_p_values, _, _ = multipletests(p_values, method='fdr_bh')
+    # FDR correction (Benjamini-Hochberg) using our own implementation
+    fdr_p_values = fdr_correction(p_values)
     
     return z_scores, p_values, fdr_p_values
 
