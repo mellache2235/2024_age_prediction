@@ -85,88 +85,26 @@ def load_srs_data(srs_file):
     """Load Stanford SRS behavioral data."""
     print_step("Loading SRS behavioral data", f"From {Path(srs_file).name}")
     
-    # Load SRS file - handle potential whitespace in column names
+    # Load SRS file
     srs_df = pd.read_csv(srs_file)
     
-    # Strip whitespace from column names
-    srs_df.columns = srs_df.columns.str.strip()
-    
-    print_info(f"Total rows: {len(srs_df)}")
-    print_info(f"First few columns: {list(srs_df.columns[:5])}")
-    
-    # Identify subject ID column (case-insensitive, flexible matching)
-    id_col = None
-    for col in srs_df.columns:
-        col_lower = col.lower()
-        if any(keyword in col_lower for keyword in ['record', 'subject', 'participant', 'pid']) and \
-           any(keyword in col_lower for keyword in ['id', 'pid']):
-            id_col = col
-            break
-    
-    if id_col is None:
-        print_error(f"No subject ID column found in SRS file")
-        print_info(f"All columns: {list(srs_df.columns)}")
-        raise ValueError(f"No subject ID column found in SRS file. Available columns: {list(srs_df.columns)}")
-    
-    print_info(f"Using ID column: {id_col}")
-    
     # Drop duplicates (keep last as specified)
-    srs_df = srs_df.drop_duplicates(subset=[id_col], keep='last')
+    srs_df = srs_df.drop_duplicates(subset=['record_id'], keep='last')
     
-    # Convert ID to string
-    srs_df[id_col] = srs_df[id_col].astype(str)
+    # Convert record_id to string
+    srs_df['record_id'] = srs_df['record_id'].astype(str)
     
     # Rename to subject_id for consistency
-    if id_col != 'subject_id':
-        srs_df = srs_df.rename(columns={id_col: 'subject_id'})
+    srs_df = srs_df.rename(columns={'record_id': 'subject_id'})
     
-    # Look for SRS behavioral columns
-    srs_cols = []
-    
-    # Target columns to find
-    target_cols = {
-        'srs_total_score_standard': 'srs_total_score_standard',
-        'SRS Total Score T-Score': 'srs_total_score_standard',
-        'Social Awareness (AWR) T-Score': 'social_awareness_tscore'
-    }
-    
-    # Find and rename columns
-    for original_name, standard_name in target_cols.items():
-        if original_name in srs_df.columns:
-            if original_name != standard_name:
-                srs_df = srs_df.rename(columns={original_name: standard_name})
-                print_info(f"Found and renamed '{original_name}' to '{standard_name}'")
-            else:
-                print_info(f"Found '{original_name}'")
-            srs_cols.append(standard_name)
-    
-    # If we didn't find srs_total_score_standard, try flexible matching for it
-    if 'srs_total_score_standard' not in srs_cols:
-        print_warning("'SRS Total Score T-Score' not found, searching for alternatives...")
-        for col in srs_df.columns:
-            col_lower = col.lower()
-            if 'srs' in col_lower and 'total' in col_lower and any(x in col_lower for x in ['score', 't-score', 'tscore', 't_score']):
-                srs_df = srs_df.rename(columns={col: 'srs_total_score_standard'})
-                print_info(f"Using '{col}' as SRS Total Score")
-                srs_cols.append('srs_total_score_standard')
-                break
-    
-    if not srs_cols:
-        print_error("No SRS behavioral columns found")
-        print_info(f"All columns: {list(srs_df.columns)}")
-        raise ValueError(f"No SRS behavioral columns found. Available columns: {list(srs_df.columns)}")
-    
-    # Convert all SRS columns to numeric
-    for col in srs_cols:
-        if col in srs_df.columns:
-            srs_df[col] = pd.to_numeric(srs_df[col], errors='coerce')
-            valid_scores = srs_df[col].notna().sum()
-            print_info(f"{col}: {valid_scores} valid scores (non-NaN)")
+    # Check if srs_total_score_standard exists
+    if 'srs_total_score_standard' not in srs_df.columns:
+        raise ValueError("Column 'srs_total_score_standard' not found in SRS file")
     
     print_info(f"SRS subjects: {len(srs_df)}")
-    print_info(f"SRS behavioral measures: {srs_cols}")
+    print_info(f"SRS columns: {list(srs_df.columns)}")
     
-    return srs_df, srs_cols
+    return srs_df
 
 
 def merge_data(ig_df, srs_df):
@@ -238,45 +176,14 @@ def create_elbow_plot(pca, output_dir):
     return optimal_pcs
 
 
-def perform_linear_regression_multi(pca_scores, srs_scores, behavioral_name, output_dir):
-    """Perform linear regression using all PCs to predict behavioral scores."""
-    print_step(f"Linear regression for {behavioral_name}", "Using all PCs as predictors")
-    
-    # Ensure srs_scores is a numpy array of numeric values
-    if not isinstance(srs_scores, np.ndarray):
-        srs_scores = pd.to_numeric(srs_scores, errors='coerce').values
-    else:
-        # Already a numpy array, just ensure it's numeric (convert if needed)
-        if srs_scores.dtype == object:
-            srs_scores = pd.to_numeric(pd.Series(srs_scores), errors='coerce').values
+def perform_linear_regression(pca_scores, srs_scores, output_dir):
+    """Perform linear regression using all PCs to predict SRS total score."""
+    print_step("Linear regression for SRS Total Score", "Using all PCs as predictors")
     
     # Remove NaNs
     valid_mask = ~np.isnan(srs_scores)
-    X_clean = pca_scores[valid_mask]
-    y_clean = srs_scores[valid_mask]
-    
-    print_info(f"Valid subjects after removing NaN: {len(y_clean)}")
-    
-    # Remove outliers using IQR method
-    q1 = np.percentile(y_clean, 25)
-    q3 = np.percentile(y_clean, 75)
-    iqr = q3 - q1
-    lower_bound = q1 - 3 * iqr  # 3 * IQR for outlier detection
-    upper_bound = q3 + 3 * iqr
-    
-    outlier_mask = (y_clean >= lower_bound) & (y_clean <= upper_bound)
-    n_outliers = len(y_clean) - outlier_mask.sum()
-    
-    if n_outliers > 0:
-        print_info(f"Removing {n_outliers} outliers (beyond Q1-3*IQR or Q3+3*IQR)")
-        print_info(f"  Score range before: [{y_clean.min():.2f}, {y_clean.max():.2f}]")
-        X = X_clean[outlier_mask]
-        y = y_clean[outlier_mask]
-        print_info(f"  Score range after: [{y.min():.2f}, {y.max():.2f}]")
-    else:
-        X = X_clean
-        y = y_clean
-        print_info(f"No outliers detected (score range: [{y.min():.2f}, {y.max():.2f}])")
+    X = pca_scores[valid_mask]
+    y = srs_scores[valid_mask]
     
     if len(y) < 10:
         print_warning(f"Insufficient valid data: {len(y)} subjects")
@@ -310,14 +217,14 @@ def perform_linear_regression_multi(pca_scores, srs_scores, behavioral_name, out
     print_info(f"R² = {r2:.3f}")
     
     # Create scatter plot
-    create_scatter_plot(y, y_pred, rho, p_value, behavioral_name, DATASET, output_dir)
+    create_scatter_plot(y, y_pred, rho, p_value, "SRS Total Score", DATASET, output_dir)
     
     # Get PC importance (absolute coefficients)
     pc_importance = np.abs(model.coef_)
     pc_ranks = np.argsort(pc_importance)[::-1]
     
     return {
-        'behavioral_measure': behavioral_name,
+        'behavioral_measure': 'SRS_Total_Score',
         'n_subjects': len(y),
         'n_features': n_features,
         'spearman_rho': rho,
@@ -391,47 +298,39 @@ def get_pc_loadings(pca, roi_cols, n_top=10):
     return pc_loadings_dict
 
 
-def save_results_multi(results_list, pc_loadings_dict, output_dir):
+def save_results(results, pc_loadings_dict, output_dir):
     """Save all results to CSV files."""
     print_step("Saving results", "Writing CSV files")
     
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    if not results_list:
+    if results is None:
         print_warning("No results to save")
         return
     
     # 1. Save regression results
-    results_df = pd.DataFrame([
-        {
-            'Behavioral_Measure': r['behavioral_measure'],
-            'N_Subjects': r['n_subjects'],
-            'N_Features': r['n_features'],
-            'Spearman_Rho': r['spearman_rho'],
-            'P_Value': r['p_value'],
-            'R2': r['r2']
-        }
-        for r in results_list if r is not None
-    ])
+    results_df = pd.DataFrame([{
+        'Behavioral_Measure': results['behavioral_measure'],
+        'N_Subjects': results['n_subjects'],
+        'N_Features': results['n_features'],
+        'Spearman_Rho': results['spearman_rho'],
+        'P_Value': results['p_value'],
+        'R2': results['r2']
+    }])
+    results_path = output_dir / 'linear_regression_results.csv'
+    results_df.to_csv(results_path, index=False)
+    print_success(f"Regression results: {results_path.name}")
     
-    if len(results_df) > 0:
-        results_path = output_dir / 'linear_regression_results.csv'
-        results_df.to_csv(results_path, index=False)
-        print_success(f"Regression results: {results_path.name}")
-    
-    # 2. Save PC importance for each behavioral measure
-    for r in results_list:
-        if r is not None:
-            pc_importance_df = pd.DataFrame({
-                'PC': [f'PC{i+1}' for i in range(len(r['pc_importance']))],
-                'Importance': r['pc_importance'],
-                'Rank': [np.where(r['pc_ranks'] == i)[0][0] + 1 for i in range(len(r['pc_importance']))]
-            })
-            safe_name = r['behavioral_measure'].replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
-            pc_imp_path = output_dir / f'pc_importance_{safe_name}.csv'
-            pc_importance_df.to_csv(pc_imp_path, index=False)
-            print_success(f"PC importance: {pc_imp_path.name}")
+    # 2. Save PC importance
+    pc_importance_df = pd.DataFrame({
+        'PC': [f'PC{i+1}' for i in range(len(results['pc_importance']))],
+        'Importance': results['pc_importance'],
+        'Rank': [np.where(results['pc_ranks'] == i)[0][0] + 1 for i in range(len(results['pc_importance']))]
+    })
+    pc_imp_path = output_dir / f'pc_importance_SRS_Total_Score.csv'
+    pc_importance_df.to_csv(pc_imp_path, index=False)
+    print_success(f"PC importance: {pc_imp_path.name}")
     
     # 3. Save PC loadings
     for pc_name, loadings in pc_loadings_dict.items():
@@ -459,16 +358,17 @@ def main():
     try:
         # 1. Load data
         ig_df, roi_cols = load_stanford_ig_scores(IG_CSV)
-        srs_df, srs_cols = load_srs_data(SRS_FILE)
+        srs_df = load_srs_data(SRS_FILE)
         
         # 2. Merge data
         merged_df = merge_data(ig_df, srs_df)
         
-        # Extract IG matrix
+        # Extract IG matrix and SRS scores
         ig_matrix = merged_df[roi_cols].values
+        srs_scores = merged_df['srs_total_score_standard'].values
         
         print_info(f"IG matrix shape: {ig_matrix.shape} (subjects x ROIs)")
-        print_info(f"SRS behavioral measures to analyze: {srs_cols}")
+        print_info(f"SRS scores shape: {srs_scores.shape}")
         print()
         
         # 3. Perform PCA with many components
@@ -496,34 +396,23 @@ def main():
         pc_loadings_dict = get_pc_loadings(pca, roi_cols, n_top=10)
         print()
         
-        # 6. Perform linear regression for each SRS measure
+        # 6. Perform linear regression for SRS total score
         print_section_header("LINEAR REGRESSION RESULTS")
-        results_list = []
+        print()
+        result = perform_linear_regression(pca_scores_optimal, srs_scores, OUTPUT_DIR)
         
-        for srs_col in srs_cols:
-            print()
-            print_step(f"Analyzing {srs_col}", "Predicted vs Actual Behavioral Scores")
-            
-            if srs_col not in merged_df.columns:
-                print_warning(f"Column '{srs_col}' not found in merged data - skipping")
-                continue
-            
-            srs_scores = merged_df[srs_col].values
-            result = perform_linear_regression_multi(pca_scores_optimal, srs_scores, srs_col, OUTPUT_DIR)
-            
-            if result is not None:
-                results_list.append(result)
-                # Print summary
-                if result['p_value'] < 0.001:
-                    p_display = "< 0.001"
-                else:
-                    p_display = f"= {result['p_value']:.4f}"
-                print_success(f"✓ r = {result['spearman_rho']:.3f}, p {p_display}")
+        if result is not None:
+            # Print summary
+            if result['p_value'] < 0.001:
+                p_display = "< 0.001"
+            else:
+                p_display = f"= {result['p_value']:.4f}"
+            print_success(f"✓ ρ = {result['spearman_rho']:.3f}, p {p_display}")
         
         print()
         
         # 7. Save all results
-        save_results_multi(results_list, pc_loadings_dict, OUTPUT_DIR)
+        save_results(result, pc_loadings_dict, OUTPUT_DIR)
         
         print()
         print_completion("Stanford ASD Brain-Behavior Analysis Complete!")

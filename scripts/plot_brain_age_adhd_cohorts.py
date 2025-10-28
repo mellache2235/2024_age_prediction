@@ -239,7 +239,7 @@ Examples:
         """
     )
     
-    parser.add_argument('--npz_dir', type=str, default='/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test', help='Directory containing .npz files')
+    parser.add_argument('--npz_dir', type=str, default='/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_predictions/npz_files', help='Directory containing .npz files')
     parser.add_argument('--output_dir', type=str, required=True, help='Output directory for plots')
     parser.add_argument('--title', type=str, default='ADHD Cohorts', help='Plot title')
     

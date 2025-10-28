@@ -61,15 +61,13 @@ def load_abide_ig_scores(ig_csv):
     
     # Identify subject ID column
     id_col = None
-    for col in ['subjid', 'subject_id', 'id', 'ID', 'Subject_ID']:
+    for col in ['subject_id', 'id', 'ID', 'Subject_ID']:
         if col in df.columns:
             id_col = col
             break
     
     if id_col is None:
         raise ValueError("No subject ID column found in IG CSV")
-    
-    print_info(f"Using ID column: {id_col}")
     
     # Standardize to 'subject_id'
     if id_col != 'subject_id':
@@ -94,18 +92,17 @@ def load_abide_behavioral_data(pklz_dir, sites):
     
     pklz_dir = Path(pklz_dir)
     
-    # Find all .pklz files matching the specified sites AND ending with 246ROIs.pklz
-    all_files = os.listdir(pklz_dir)
+    # Find all .pklz files matching the specified sites
+    all_files = list(pklz_dir.glob('*.pklz'))
     filtered_files = []
-    for file_name in all_files:
-        # Must contain one of the sites AND end with 246ROIs.pklz
-        if '246ROIs.pklz' in file_name and any(site in file_name for site in sites):
-            filtered_files.append(pklz_dir / file_name)
+    for file_path in all_files:
+        if any(site in file_path.name for site in sites):
+            filtered_files.append(file_path)
     
     if not filtered_files:
-        raise ValueError(f"No 246ROIs.pklz files found for sites: {sites}")
+        raise ValueError(f"No .pklz files found for sites: {sites}")
     
-    print_info(f"Found {len(filtered_files)} 246ROIs.pklz files for {len(sites)} sites")
+    print_info(f"Found {len(filtered_files)} .pklz files for {len(sites)} sites")
     
     # Load and concatenate all dataframes
     appended_data = []
@@ -125,101 +122,33 @@ def load_abide_behavioral_data(pklz_dir, sites):
     # Concatenate all data
     combined_df = pd.concat(appended_data, ignore_index=True)
     
-    # Convert label to string if not already
-    combined_df['label'] = combined_df['label'].astype(str)
+    # Convert label to int
+    combined_df['label'] = combined_df['label'].astype(int)
+    
+    # Filter for ASD subjects only (label == 1 based on create_data script)
+    # In ABIDE: 1 = ASD, 2 = TD
+    asd_df = combined_df[combined_df['label'] == 1].copy()
     
     print_info(f"Total subjects loaded: {len(combined_df)}")
-    print_info(f"Unique label values: {combined_df['label'].unique()}")
-    
-    # Filter for ASD subjects only (label == '1')
-    # In ABIDE .pklz files: '1' = ASD, '2' = TD
-    asd_df = combined_df[combined_df['label'] == '1'].copy()
-    
-    print_info(f"ASD subjects (label='1'): {len(asd_df)}")
-    
-    # Filter for developmental age (age <= 21)
-    if 'age' in asd_df.columns:
-        asd_df['age'] = pd.to_numeric(asd_df['age'], errors='coerce')
-        asd_df = asd_df[asd_df['age'] <= 21]
-        print_info(f"ASD subjects age <= 21: {len(asd_df)}")
-    
-    # Reset index
-    asd_df = asd_df.reset_index(drop=True)
-    
-    # Identify and rename subject ID column
-    id_col = None
-    for col in ['subjid', 'subject_id', 'id', 'ID', 'Subject_ID']:
-        if col in asd_df.columns:
-            id_col = col
-            break
-    
-    if id_col is None:
-        print_warning("No standard subject ID column found in .pklz data")
-        print_info(f"Available columns: {list(asd_df.columns)}")
-        raise ValueError(f"No subject ID column found in .pklz files")
-    
-    print_info(f"Using ID column from .pklz: {id_col}")
-    
-    # Standardize to subject_id
-    if id_col != 'subject_id':
-        asd_df = asd_df.rename(columns={id_col: 'subject_id'})
+    print_info(f"ASD subjects (label=1): {len(asd_df)}")
     
     # Ensure subject_id is string
     asd_df['subject_id'] = asd_df['subject_id'].astype(str)
     
-    # Check for specific ADOS columns (case-insensitive)
-    # Looking for: ados_total, ados_social, ados_comm
-    target_ados = ['ados_total', 'ados_social', 'ados_comm']
-    ados_cols = []
-    
-    print_info(f"Looking for ADOS columns: {target_ados}")
-    print_info(f"Available columns in .pklz data: {list(asd_df.columns)}")
-    
-    for target in target_ados:
-        # Try exact match (lowercase)
-        if target in asd_df.columns:
-            ados_cols.append(target)
-            print_info(f"  Found: {target}")
-        else:
-            # Try case-insensitive match
-            found = False
-            for col in asd_df.columns:
-                if col.lower() == target:
-                    ados_cols.append(col)
-                    print_info(f"  Found: {col} (matched {target})")
-                    found = True
-                    break
-            if not found:
-                print_warning(f"  NOT FOUND: {target}")
-    
-    # Check for any ADOS-related columns
-    all_ados_cols = [col for col in asd_df.columns if 'ados' in col.lower()]
+    # Check for ADOS-related columns
+    ados_cols = [col for col in asd_df.columns if 'ados' in col.lower()]
     
     if not ados_cols:
-        print_warning(f"None of the target ADOS columns found: {target_ados}")
-        if all_ados_cols:
-            print_info(f"Available ADOS columns: {all_ados_cols}")
-            # Check if any have non-null values
-            for col in all_ados_cols[:5]:  # Check first 5
-                non_null = asd_df[col].notna().sum()
-                print_info(f"  {col}: {non_null} non-null values")
-        else:
-            print_warning("No ADOS columns found in data at all")
-            print_info(f"All columns: {list(asd_df.columns)}")
-    else:
-        print_info(f"ADOS behavioral measures found: {ados_cols}")
-        # Convert ADOS columns to numeric and filter missing data codes
-        for col in ados_cols:
-            asd_df[col] = pd.to_numeric(asd_df[col], errors='coerce')
-            
-            # Replace missing data codes (-9999, -999, etc.) with NaN
-            asd_df.loc[asd_df[col] < 0, col] = np.nan
-            asd_df.loc[asd_df[col] > 100, col] = np.nan  # ADOS scores shouldn't be > 100
-            
-            non_null = asd_df[col].notna().sum()
-            print_info(f"  {col}: {non_null} non-null values out of {len(asd_df)} (after removing missing codes)")
-            if non_null > 0:
-                print_info(f"    Range: [{asd_df[col].min():.2f}, {asd_df[col].max():.2f}]")
+        print_warning("No ADOS columns found in data")
+        print_info(f"Available columns: {list(asd_df.columns)}")
+        # Try to find any behavioral columns
+        behavioral_cols = [col for col in asd_df.columns if col not in 
+                          ['subject_id', 'data', 'mean_fd', 'age', 'gender', 'site', 'label']]
+        if behavioral_cols:
+            print_info(f"Other behavioral columns: {behavioral_cols}")
+            ados_cols = behavioral_cols
+    
+    print_info(f"Behavioral measures found: {ados_cols}")
     
     return asd_df, ados_cols
 
@@ -231,57 +160,12 @@ def merge_data(ig_df, behavioral_df):
     print_info(f"IG subjects: {len(ig_df)}")
     print_info(f"Behavioral subjects: {len(behavioral_df)}")
     
-    # Debug: Check ID formats
-    print_info(f"Sample IG IDs: {list(ig_df['subject_id'].head(5))}")
-    print_info(f"Sample behavioral IDs: {list(behavioral_df['subject_id'].head(5))}")
-    
     # Remove duplicates in behavioral data (keep first)
     behavioral_df = behavioral_df.drop_duplicates(subset='subject_id', keep='first')
     print_info(f"Behavioral subjects after deduplication: {len(behavioral_df)}")
     
-    # Check for overlapping IDs
-    ig_ids = set(ig_df['subject_id'])
-    behav_ids = set(behavioral_df['subject_id'])
-    overlap_ids = ig_ids.intersection(behav_ids)
-    print_info(f"Overlapping subject IDs (exact match): {len(overlap_ids)}")
-    
-    # If poor overlap, try stripping leading zeros
-    if len(overlap_ids) < 200:  # Increased threshold to ensure we try stripping
-        print_warning(f"Few overlapping IDs ({len(overlap_ids)})! Trying to strip leading zeros...")
-        
-        # Create copy with stripped leading zeros for behavioral data
-        behavioral_df_stripped = behavioral_df.copy()
-        behavioral_df_stripped['subject_id_stripped'] = behavioral_df_stripped['subject_id'].str.lstrip('0')
-        
-        # Also try stripping IG IDs (in case they have leading zeros)
-        ig_df_stripped = ig_df.copy()
-        ig_df_stripped['subject_id_stripped'] = ig_df_stripped['subject_id'].str.lstrip('0')
-        
-        print_info(f"Sample behavioral IDs after stripping: {list(behavioral_df_stripped['subject_id_stripped'].head(5))}")
-        print_info(f"Sample IG IDs after stripping: {list(ig_df_stripped['subject_id_stripped'].head(5))}")
-        
-        # Check overlap after stripping
-        overlap_stripped = set(ig_df_stripped['subject_id_stripped']).intersection(
-            set(behavioral_df_stripped['subject_id_stripped']))
-        print_info(f"Overlapping IDs after stripping zeros: {len(overlap_stripped)}")
-        
-        if len(overlap_stripped) > len(overlap_ids):
-            print_success(f"✓ Better overlap with stripped IDs! Using stripped IDs for merge.")
-            # Merge on stripped IDs but keep all columns
-            merged = pd.merge(ig_df_stripped.drop(columns=['subject_id']), 
-                            behavioral_df_stripped.drop(columns=['subject_id']), 
-                            on='subject_id_stripped', how='inner')
-            # Rename back to subject_id for consistency
-            merged = merged.rename(columns={'subject_id_stripped': 'subject_id'})
-            print_info(f"Merged {len(merged)} subjects using stripped IDs")
-        else:
-            print_warning(f"No improvement with stripped IDs. Using original merge.")
-            # Use original merge
-            merged = pd.merge(ig_df, behavioral_df, on='subject_id', how='inner')
-    else:
-        print_info(f"Good overlap ({len(overlap_ids)} subjects). Using exact ID matching.")
-        # Good overlap, use original merge
-        merged = pd.merge(ig_df, behavioral_df, on='subject_id', how='inner')
+    # Merge on subject_id
+    merged = pd.merge(ig_df, behavioral_df, on='subject_id', how='inner')
     
     common_subjects = len(merged)
     print_success(f"Merged: {common_subjects} subjects with both IG and behavioral data")
@@ -348,35 +232,8 @@ def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, ou
     
     # Remove NaNs
     valid_mask = ~np.isnan(behavioral_scores)
-    X_clean = pca_scores[valid_mask]
-    y_clean = behavioral_scores[valid_mask]
-    
-    print_info(f"Valid subjects after removing NaN: {len(y_clean)}")
-    
-    # Remove outliers using IQR method
-    if len(y_clean) > 10:  # Only do outlier detection if we have enough data
-        q1 = np.percentile(y_clean, 25)
-        q3 = np.percentile(y_clean, 75)
-        iqr = q3 - q1
-        lower_bound = q1 - 3 * iqr  # 3 * IQR for outlier detection
-        upper_bound = q3 + 3 * iqr
-        
-        outlier_mask = (y_clean >= lower_bound) & (y_clean <= upper_bound)
-        n_outliers = len(y_clean) - outlier_mask.sum()
-        
-        if n_outliers > 0:
-            print_info(f"Removing {n_outliers} outliers (beyond Q1-3*IQR or Q3+3*IQR)")
-            print_info(f"  Score range before: [{y_clean.min():.2f}, {y_clean.max():.2f}]")
-            X = X_clean[outlier_mask]
-            y = y_clean[outlier_mask]
-            print_info(f"  Score range after: [{y.min():.2f}, {y.max():.2f}]")
-        else:
-            X = X_clean
-            y = y_clean
-            print_info(f"No outliers detected (score range: [{y.min():.2f}, {y.max():.2f}])")
-    else:
-        X = X_clean
-        y = y_clean
+    X = pca_scores[valid_mask]
+    y = behavioral_scores[valid_mask]
     
     if len(y) < 10:
         print_warning(f"Insufficient valid data for {behavioral_name}: {len(y)} subjects")
@@ -561,46 +418,6 @@ def main():
         # 2. Merge data
         merged_df = merge_data(ig_df, behavioral_df)
         
-        # Debug: Check if ADOS columns are in merged data and have values
-        print()
-        print_step("Checking ADOS data after merge", "Validating behavioral measures")
-        if ados_cols:
-            for col in ados_cols:
-                if col in merged_df.columns:
-                    non_null = merged_df[col].notna().sum()
-                    print_info(f"  {col} in merged data: {non_null} non-null values out of {len(merged_df)}")
-                    if non_null > 0:
-                        # Show some sample values
-                        sample_vals = merged_df[col].dropna().head(5)
-                        print_info(f"    Sample values: {list(sample_vals)}")
-                else:
-                    print_warning(f"  {col} NOT in merged data!")
-        
-        # If no ADOS data after merge, check which subjects have ADOS scores
-        if all(merged_df[col].notna().sum() == 0 for col in ados_cols if col in merged_df.columns):
-            print_warning("No ADOS scores in merged data - checking subject ID overlap...")
-            # Check if behavioral subjects with ADOS data overlap with IG subjects
-            for col in ados_cols:
-                if col in behavioral_df.columns:
-                    subjects_with_ados = behavioral_df[behavioral_df[col].notna()]['subject_id'].values
-                    print_info(f"  Subjects with {col} in behavioral data: {len(subjects_with_ados)}")
-                    print_info(f"    Sample IDs: {list(subjects_with_ados[:5])}")
-                    
-                    # Check overlap with IG subjects
-                    ig_ids = set(ig_df['subject_id'])
-                    ados_overlap = [sid for sid in subjects_with_ados if sid in ig_ids]
-                    print_info(f"    Overlap with IG subjects: {len(ados_overlap)}")
-                    if ados_overlap:
-                        print_info(f"      Sample overlapping IDs: {ados_overlap[:5]}")
-            
-            print()
-            print_error("NO OVERLAP: Subjects with ADOS data don't match IG subjects")
-            print_info("SOLUTION: The IG predictions need to be regenerated for ABIDE ASD subjects")
-            print_info("          who have ADOS behavioral data available.")
-            print()
-            print_info("Continuing with analysis but no brain-behavior results will be generated...")
-        print()
-        
         # Extract IG matrix
         ig_matrix = merged_df[roi_cols].values
         
@@ -642,23 +459,7 @@ def main():
             for ados_col in ados_cols:
                 print()
                 print_step(f"Analyzing {ados_col}", "Predicted vs Actual Behavioral Scores")
-                
-                # Check if column exists in merged data
-                if ados_col not in merged_df.columns:
-                    print_warning(f"Column '{ados_col}' not found in merged data - skipping")
-                    continue
-                
-                # Extract column and ensure it's a Series, then convert to numeric
-                try:
-                    col_data = merged_df[ados_col]
-                    if isinstance(col_data, pd.DataFrame):
-                        # If it's a DataFrame (shouldn't be), take the first column
-                        col_data = col_data.iloc[:, 0]
-                    behavioral_scores = pd.to_numeric(col_data, errors='coerce').values
-                except Exception as e:
-                    print_warning(f"Error processing column '{ados_col}': {e}")
-                    continue
-                
+                behavioral_scores = pd.to_numeric(merged_df[ados_col], errors='coerce').values
                 result = perform_linear_regression(pca_scores_optimal, behavioral_scores, ados_col, OUTPUT_DIR)
                 if result is not None:
                     results_list.append(result)
