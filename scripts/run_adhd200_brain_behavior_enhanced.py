@@ -11,11 +11,15 @@ import os
 from pathlib import Path
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.backends.backend_pdf as pdf_backend
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
+from sklearn.model_selection import cross_val_score, KFold
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import r2_score, make_scorer
 from scipy.stats import spearmanr
-from sklearn.metrics import r2_score
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -37,6 +41,13 @@ DATASET = "adhd200_td"
 PKLZ_FILE = "/oak/stanford/groups/menon/deriveddata/public/adhd200/restfmri/timeseries/group_level/brainnetome/normz/adhd200_run-rest_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs.pklz"
 IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/adhd200_td_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv"
 OUTPUT_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_td"
+
+# ============================================================================
+# OPTIMIZATION SETTINGS (Set OPTIMIZE=True to enable)
+# ============================================================================
+OPTIMIZE = False  # Set to True for hyperparameter tuning (Ridge/Lasso/ElasticNet, optimal PCs)
+# If True: Tests multiple models, PCs, and regularization strengths
+# If False: Uses standard LinearRegression with 80% variance threshold (faster)
 
 # ============================================================================
 # HELPER FUNCTIONS

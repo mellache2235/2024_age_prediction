@@ -12,8 +12,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.font_manager as font_manager
-import matplotlib.backends.backend_pdf as pdf
+import matplotlib.backends.backend_pdf as pdf_backend
 import seaborn as sns
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
@@ -23,16 +22,17 @@ from scipy.stats import spearmanr
 import warnings
 warnings.filterwarnings('ignore')
 
-# Set Arial font
-font_path = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/clustering_analysis/arial.ttf'
-font_manager.fontManager.addfont(font_path)
-prop = font_manager.FontProperties(fname=font_path)
-plt.rcParams['font.family'] = prop.get_name()
-
-# Add utils to path
+# Add to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'utils'))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 from logging_utils import (print_section_header, print_step, print_success, 
                            print_warning, print_error, print_info, print_completion)
+from plot_styles import get_dataset_title, setup_arial_font, create_standardized_scatter, DPI, FIGURE_FACECOLOR
+from sklearn.metrics import r2_score
+
+# Setup Arial font globally
+setup_arial_font()
 
 # ============================================================================
 # PRE-CONFIGURED PATHS (NO ARGUMENTS NEEDED)
@@ -331,63 +331,26 @@ def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, ou
 
 
 def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, dataset_name, output_dir):
-    """Create scatter plot of predicted vs actual behavioral scores."""
-    fig, ax = plt.subplots(figsize=(6, 6))
+    """Create scatter plot using centralized styling."""
+    p_str = "< 0.001" if p_value < 0.001 else f"= {p_value:.3f}"
+    stats_text = f"ρ = {rho:.3f}\np {p_str}"
+    title = get_dataset_title(dataset_name)
+    safe_name = behavioral_name.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
+    save_path = Path(output_dir) / f'scatter_{safe_name}'
     
-    # Scatter plot - match brain age plot colors (darker blue/purple)
-    ax.scatter(y_actual, y_pred, alpha=0.7, s=80, color='#5A6FA8', edgecolors='#5A6FA8', linewidth=1)
-    
-    # Add best fit line - match brain age plot (red)
-    z = np.polyfit(y_actual, y_pred, 1)
-    p = np.poly1d(z)
-    x_line = np.linspace(y_actual.min(), y_actual.max(), 100)
-    ax.plot(x_line, p(x_line), color='#D32F2F', linewidth=2.5, alpha=0.9)
-    
-    # Format p-value
-    if p_value < 0.001:
-        p_str = "< 0.001"
-    else:
-        p_str = f"= {p_value:.3f}"
-    
-    # Add statistics text (bottom right, NO bounding box)
-    stats_text = f"R = {rho:.3f}\nP {p_str}"
-    ax.text(0.95, 0.05, stats_text, transform=ax.transAxes,
-            fontsize=14, verticalalignment='bottom', horizontalalignment='right')
-    
-    # Labels and title
-    ax.set_xlabel('Observed Behavioral Score', fontsize=14, fontweight='normal')
-    ax.set_ylabel('Predicted Behavioral Score', fontsize=14, fontweight='normal')
-    
-    # Use dataset name as title (e.g., "ADHD-200")
-    title = dataset_name.replace('_', '-').upper()
-    ax.set_title(title, fontsize=16, fontweight='bold', pad=15)
-    
-    # Styling - clean minimal style, NO top/right spines
-    ax.grid(False)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_linewidth(1.5)
-    ax.spines['bottom'].set_linewidth(1.5)
-    
-    # Ensure all ticks are present on both axes
-    ax.minorticks_on()
-    ax.tick_params(axis='both', which='major', labelsize=12, direction='out', 
-                  length=6, width=1.5, top=False, right=False)
-    ax.tick_params(axis='both', which='minor', direction='out', 
-                  length=3, width=1, top=False, right=False)
+    fig, ax = plt.subplots(figsize=(8, 6))
+    create_standardized_scatter(ax, y_actual, y_pred, title=title,
+                               xlabel='Observed Behavioral Score',
+                               ylabel='Predicted Behavioral Score',
+                               stats_text=stats_text, is_subplot=False)
     
     plt.tight_layout()
-    
-    # Save PNG and AI
-    safe_name = behavioral_name.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
-    output_path = Path(output_dir) / f'scatter_{safe_name}.png'
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    
-    # Save as .ai file
-    ai_path = Path(output_dir) / f'scatter_{safe_name}.ai'
-    pdf.FigureCanvas(fig).print_pdf(str(ai_path))
-    
+    png_path, tiff_path, ai_path = save_path.with_suffix('.png'), save_path.with_suffix('.tiff'), save_path.with_suffix('.ai')
+    plt.savefig(png_path, dpi=DPI, bbox_inches='tight', facecolor=FIGURE_FACECOLOR, edgecolor='none')
+    plt.savefig(tiff_path, dpi=DPI, bbox_inches='tight', facecolor=FIGURE_FACECOLOR, edgecolor='none', format='tiff', pil_kwargs={'compression': 'tiff_lzw'})
+    pdf_backend.FigureCanvas(fig).print_pdf(str(ai_path))
     plt.close()
+    print(f"  ✓ Saved: {png_path.name} + {tiff_path.name} + {ai_path.name}")
 
 
 def get_pc_loadings(pca, roi_cols, n_top=10):

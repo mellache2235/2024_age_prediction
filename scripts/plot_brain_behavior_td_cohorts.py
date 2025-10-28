@@ -12,24 +12,22 @@ Each panel shows predicted vs actual behavioral scores for one cohort
 
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.font_manager as font_manager
-import matplotlib.backends.backend_pdf as pdf
+import matplotlib.backends.backend_pdf as pdf_backend
 import numpy as np
 from pathlib import Path
 import sys
 import os
 
-# Set Arial font
-font_path = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/clustering_analysis/arial.ttf'
-if os.path.exists(font_path):
-    font_manager.fontManager.addfont(font_path)
-    prop = font_manager.FontProperties(fname=font_path)
-    plt.rcParams['font.family'] = prop.get_name()
-
-# Add parent directory to path for imports
+# Add to path
 sys.path.insert(0, str(Path(__file__).parent.parent / 'utils'))
+sys.path.insert(0, str(Path(__file__).parent))
+
 from logging_utils import (print_section_header, print_step, print_success, 
                            print_warning, print_error, print_info)
+from plot_styles import setup_arial_font, DPI, FIGURE_FACECOLOR
+
+# Setup font
+setup_arial_font()
 
 # ============================================================================
 # PRE-CONFIGURED PATHS
@@ -174,12 +172,14 @@ def create_combined_plot(measure_type, cohort_data, output_path):
     
     plt.tight_layout(rect=[0, 0.03, 1, 0.96])
     
-    # Save PNG and AI
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    # Save PNG + TIFF + AI
+    png_path = Path(output_path)
+    tiff_path = png_path.with_suffix('.tiff')
+    ai_path = png_path.with_suffix('.ai')
     
-    # Save as .ai file
-    ai_path = str(output_path).replace('.png', '.ai')
-    pdf.FigureCanvas(fig).print_pdf(ai_path)
+    plt.savefig(png_path, dpi=DPI, bbox_inches='tight', facecolor=FIGURE_FACECOLOR, edgecolor='none')
+    plt.savefig(tiff_path, dpi=DPI, bbox_inches='tight', facecolor=FIGURE_FACECOLOR, edgecolor='none', format='tiff', pil_kwargs={'compression': 'tiff_lzw'})
+    pdf_backend.FigureCanvas(fig).print_pdf(str(ai_path))
     
     plt.close()
     

@@ -17,17 +17,17 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.font_manager as font_manager
-import matplotlib.backends.backend_pdf as pdf
+import matplotlib.backends.backend_pdf as pdf_backend
 from scipy.stats import spearmanr
 from sklearn.metrics import mean_absolute_error
 
-# Set Arial font
-font_path = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/clustering_analysis/arial.ttf'
-if os.path.exists(font_path):
-    font_manager.fontManager.addfont(font_path)
-    prop = font_manager.FontProperties(fname=font_path)
-    plt.rcParams['font.family'] = prop.get_name()
+# Add to path
+sys.path.insert(0, str(Path(__file__).parent))
+
+from plot_styles import setup_arial_font, create_standardized_scatter, DPI, FIGURE_FACECOLOR
+
+# Setup font
+setup_arial_font()
 
 # ============================================================================
 # CONFIGURATION
@@ -114,43 +114,15 @@ def load_predictions(dataset_dir: Path, measure: str):
 
 
 def create_subplot(ax, actual, predicted, rho, p_value, title):
-    """Create a single scatter plot subplot with consistent styling."""
-    
-    # Scatter plot - bluer dots
-    ax.scatter(actual, predicted, alpha=0.7, s=80, 
-              color='#5A6FA8', edgecolors='#5A6FA8', linewidth=1)
-    
-    # Best fit line - red
-    z = np.polyfit(actual, predicted, 1)
-    p = np.poly1d(z)
-    x_line = np.linspace(actual.min(), actual.max(), 100)
-    ax.plot(x_line, p(x_line), color='#D32F2F', linewidth=2.5, alpha=0.9)
-    
-    # Calculate MAE
+    """Create subplot using centralized styling."""
     mae = mean_absolute_error(actual, predicted)
+    p_str = "< 0.001" if p_value < 0.001 else f"= {p_value:.4f}"
+    stats_text = f'ρ = {rho:.3f}\np {p_str}\nMAE = {mae:.2f}'
     
-    # Statistics text - NO bounding box
-    stats_text = f'ρ = {rho:.3f}\np = {p_value:.4f}\nMAE = {mae:.2f}'
-    ax.text(0.95, 0.05, stats_text, transform=ax.transAxes,
-            fontsize=11, verticalalignment='bottom', horizontalalignment='right')
-    
-    # Labels
-    ax.set_xlabel('Observed Behavioral Score', fontsize=12, fontweight='normal')
-    ax.set_ylabel('Predicted Behavioral Score', fontsize=12, fontweight='normal')
-    
-    # Title
-    ax.set_title(title, fontsize=13, fontweight='bold', pad=10)
-    
-    # Styling - NO top/right spines
-    ax.grid(False)
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_linewidth(1.5)
-    ax.spines['bottom'].set_linewidth(1.5)
-    
-    # Tick styling - major ticks only (no minor ticks)
-    ax.tick_params(axis='both', which='major', labelsize=11, direction='out', 
-                  length=6, width=1.5, top=False, right=False)
+    create_standardized_scatter(ax, actual, predicted, title=title,
+                               xlabel='Observed Behavioral Score',
+                               ylabel='Predicted Behavioral Score',
+                               stats_text=stats_text, is_subplot=True)
 
 
 # ============================================================================
@@ -200,15 +172,17 @@ def main():
     # Adjust spacing between subplots - minimal whitespace
     plt.tight_layout(pad=2.0, w_pad=2.5, h_pad=1.0)
     
-    # Save PNG
-    output_png = OUTPUT_DIR / "custom_1x3_nki_adhd200_hyperactivity_inattention.png"
-    plt.savefig(output_png, dpi=300, bbox_inches='tight')
-    print(f"\n✓ Saved PNG: {output_png}")
+    # Save PNG + TIFF + AI
+    base_name = "custom_1x3_nki_adhd200_hyperactivity_inattention"
+    png_path = OUTPUT_DIR / f"{base_name}.png"
+    tiff_path = OUTPUT_DIR / f"{base_name}.tiff"
+    ai_path = OUTPUT_DIR / f"{base_name}.ai"
     
-    # Save AI
-    output_ai = OUTPUT_DIR / "custom_1x3_nki_adhd200_hyperactivity_inattention.ai"
-    pdf.FigureCanvas(fig).print_pdf(str(output_ai))
-    print(f"✓ Saved AI: {output_ai}")
+    plt.savefig(png_path, dpi=DPI, bbox_inches='tight', facecolor=FIGURE_FACECOLOR, edgecolor='none')
+    plt.savefig(tiff_path, dpi=DPI, bbox_inches='tight', facecolor=FIGURE_FACECOLOR, edgecolor='none', format='tiff', pil_kwargs={'compression': 'tiff_lzw'})
+    pdf_backend.FigureCanvas(fig).print_pdf(str(ai_path))
+    
+    print(f"\n✓ Saved: {png_path.name} + {tiff_path.name} + {ai_path.name}")
     
     plt.close()
     

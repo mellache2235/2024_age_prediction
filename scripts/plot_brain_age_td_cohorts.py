@@ -225,13 +225,16 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
     plt.tight_layout()
     plt.subplots_adjust(top=0.93)
     
-    # Save the plot in PNG and AI formats
-    save_figure(fig, output_path, formats=['png'])
-    
-    # Save as .ai file
+    # Save PNG + TIFF + AI
+    png_path = output_path
+    tiff_path = output_path.replace('.png', '.tiff')
     ai_path = output_path.replace('.png', '.ai')
+    
+    plt.savefig(png_path, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none')
+    plt.savefig(tiff_path, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none', format='tiff', pil_kwargs={'compression': 'tiff_lzw'})
     pdf.FigureCanvas(fig).print_pdf(ai_path)
-    logging.info(f"Combined TD cohorts plot saved to: {output_path}")
+    
+    logging.info(f"Combined TD cohorts plot saved: {png_path} + {tiff_path} + {ai_path}")
     logging.info(f"Overall TD cohorts - R²: {overall_r_squared:.3f}, MAE: {overall_mae:.2f} years, r: {overall_r:.3f}, p: {overall_p:.3f}, N: {len(all_actual)}")
 
 

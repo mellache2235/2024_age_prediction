@@ -47,18 +47,19 @@ python create_region_tables.py \
 python run_statistical_comparisons.py
 
 # 3. Brain-Behavior Analysis
+# All scripts use plot_styles.py for consistent formatting
+# Export: PNG + TIFF + AI (publication-ready, no post-processing)
 
-# Standard analysis (80% variance threshold, LinearRegression)
-python run_nki_brain_behavior_enhanced.py
-python run_adhd200_brain_behavior_enhanced.py
-python run_cmihbn_brain_behavior_enhanced.py
-python run_adhd200_adhd_brain_behavior_enhanced.py
-python run_cmihbn_adhd_brain_behavior_enhanced.py
+python run_nki_brain_behavior_enhanced.py           # NKI-RS
+python run_adhd200_brain_behavior_enhanced.py       # ADHD-200 TD Subset (NYU)
+python run_cmihbn_brain_behavior_enhanced.py        # CMI-HBN TD Subset
+python run_adhd200_adhd_brain_behavior_enhanced.py  # ADHD-200 ADHD
+python run_cmihbn_adhd_brain_behavior_enhanced.py   # CMI-HBN ADHD
 
-# To enable optimization (Ridge/Lasso/ElasticNet, grid search):
-# Edit each script and set: OPTIMIZE = True
-# This will test multiple models and PC values for higher correlations
-# (Runtime: ~10-30 min per script instead of ~2-5 min)
+# Optional: Enable optimization for higher correlations
+# Edit script, set: OPTIMIZE = True (line ~46)
+# Tests Ridge/Lasso/ElasticNet, grid search over PCs
+# Runtime: ~10-30 min per script (vs ~2-5 min standard)
 
 # 4. Combined Plots
 python plot_brain_behavior_td_cohorts.py
