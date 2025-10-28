@@ -470,15 +470,6 @@ python plot_brain_age_asd_cohorts.py
 
 ## 📖 Additional Documentation
 
-### Diverse Subset Tables for Manuscripts
-
-The `shared_*_regions_diverse_subset.csv` files ensure network diversity:
-- Max 30 regions total
-- Max 3 regions per brain network
-- Prioritizes high-count regions while maintaining diversity
-- Prevents repetitive regions (e.g., MTG ×4, PFC ×6)
-- Ideal for manuscript tables
-
 ### Statistical Comparison Interpretation
 
 **Cosine Similarity**:
