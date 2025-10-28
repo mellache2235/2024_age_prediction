@@ -155,20 +155,28 @@ def load_abide_behavioral_data(pklz_dir, sites):
     # Ensure subject_id is string
     asd_df['subject_id'] = asd_df['subject_id'].astype(str)
     
-    # Check for ADOS-related columns
-    ados_cols = [col for col in asd_df.columns if 'ados' in col.lower()]
+    # Check for specific ADOS columns (case-insensitive)
+    # Looking for: ados_total, ados_social, ados_comm
+    target_ados = ['ados_total', 'ados_social', 'ados_comm']
+    ados_cols = []
+    
+    for target in target_ados:
+        # Try exact match (lowercase)
+        if target in asd_df.columns:
+            ados_cols.append(target)
+        else:
+            # Try case-insensitive match
+            for col in asd_df.columns:
+                if col.lower() == target:
+                    ados_cols.append(col)
+                    break
     
     if not ados_cols:
-        print_warning("No ADOS columns found in data")
-        print_info(f"Available columns: {list(asd_df.columns)}")
-        # Try to find any behavioral columns
-        behavioral_cols = [col for col in asd_df.columns if col not in 
-                          ['subject_id', 'data', 'mean_fd', 'age', 'gender', 'site', 'label']]
-        if behavioral_cols:
-            print_info(f"Other behavioral columns: {behavioral_cols}")
-            ados_cols = behavioral_cols
-    
-    print_info(f"Behavioral measures found: {ados_cols}")
+        print_warning(f"None of the target ADOS columns found: {target_ados}")
+        print_info(f"Available ADOS columns: {[col for col in asd_df.columns if 'ados' in col.lower()]}")
+        print_info(f"All behavioral columns: {list(asd_df.columns)}")
+    else:
+        print_info(f"ADOS behavioral measures found: {ados_cols}")
     
     return asd_df, ados_cols
 
@@ -479,7 +487,23 @@ def main():
             for ados_col in ados_cols:
                 print()
                 print_step(f"Analyzing {ados_col}", "Predicted vs Actual Behavioral Scores")
-                behavioral_scores = pd.to_numeric(merged_df[ados_col], errors='coerce').values
+                
+                # Check if column exists in merged data
+                if ados_col not in merged_df.columns:
+                    print_warning(f"Column '{ados_col}' not found in merged data - skipping")
+                    continue
+                
+                # Extract column and ensure it's a Series, then convert to numeric
+                try:
+                    col_data = merged_df[ados_col]
+                    if isinstance(col_data, pd.DataFrame):
+                        # If it's a DataFrame (shouldn't be), take the first column
+                        col_data = col_data.iloc[:, 0]
+                    behavioral_scores = pd.to_numeric(col_data, errors='coerce').values
+                except Exception as e:
+                    print_warning(f"Error processing column '{ados_col}': {e}")
+                    continue
+                
                 result = perform_linear_regression(pca_scores_optimal, behavioral_scores, ados_col, OUTPUT_DIR)
                 if result is not None:
                     results_list.append(result)

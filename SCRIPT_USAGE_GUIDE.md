@@ -145,24 +145,29 @@ python scripts/create_region_tables.py --top_n 100 --output_dir results/custom_t
 **`scripts/run_cmihbn_adhd_brain_behavior_enhanced.py`**
 - **Dataset**: CMI-HBN ADHD
 - **Behavioral Measures**: C3SR (Conners 3 Self-Report)
+- **Special Features**: Uses clinical diagnosis CSV (Diagnosis_ClinicianConsensus.csv) to identify ADHD subjects
 - **Usage**: `python scripts/run_cmihbn_adhd_brain_behavior_enhanced.py`
 
 #### ASD Cohorts
 
 **`scripts/run_stanford_asd_brain_behavior_enhanced.py`**
 - **Dataset**: Stanford ASD
-- **Behavioral Measures**: SRS Total Score (Social Responsiveness Scale)
+- **Behavioral Measures**: SRS Total Score T-Score (Social Responsiveness Scale)
 - **Usage**: `python scripts/run_stanford_asd_brain_behavior_enhanced.py`
 
 **`scripts/run_abide_asd_brain_behavior_enhanced.py`**
 - **Dataset**: ABIDE ASD
 - **Behavioral Measures**: ADOS (Autism Diagnostic Observation Schedule)
+  - `ados_total` - ADOS Total Score
+  - `ados_social` - ADOS Social Score
+  - `ados_comm` - ADOS Communication Score
 - **Usage**: `python scripts/run_abide_asd_brain_behavior_enhanced.py`
 
 **All scripts output**:
 - Elbow plot (optimal PC selection)
-- Scatter plots (predicted vs actual behavioral scores) - PNG + TIFF + AI formats
-- Linear regression results (Spearman ρ, p-values, R²)
+- Scatter plots (6×6 inch, predicted vs actual behavioral scores) - PNG + TIFF + AI formats
+- Plot format: Uses "r =" for Spearman correlation (not "ρ =")
+- Linear regression results (Spearman r, p-values, R²)
 - PC importance rankings
 - PC loadings (top brain regions per PC)
 

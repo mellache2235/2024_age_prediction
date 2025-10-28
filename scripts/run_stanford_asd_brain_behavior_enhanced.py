@@ -120,33 +120,50 @@ def load_srs_data(srs_file):
     if id_col != 'subject_id':
         srs_df = srs_df.rename(columns={id_col: 'subject_id'})
     
-    # Check if srs_total_score_standard exists, or find alternative
-    if 'srs_total_score_standard' not in srs_df.columns:
-        print_warning("Column 'srs_total_score_standard' not found in SRS file")
-        
-        # Try to find SRS total score column (various naming conventions)
+    # Look for 'SRS Total Score T-Score' column
+    srs_score_col = None
+    
+    # First try exact match
+    if 'SRS Total Score T-Score' in srs_df.columns:
+        srs_score_col = 'SRS Total Score T-Score'
+        print_info(f"Found SRS score column: '{srs_score_col}'")
+    elif 'srs_total_score_standard' in srs_df.columns:
+        srs_score_col = 'srs_total_score_standard'
+        print_info(f"Found SRS score column: '{srs_score_col}'")
+    else:
+        # Try flexible matching
+        print_warning("'SRS Total Score T-Score' not found, searching for alternatives...")
         srs_cols = []
         for col in srs_df.columns:
             col_lower = col.lower()
-            # Look for columns with 'total' and either 'score' or 't-score' or 'tscore'
-            if 'total' in col_lower and any(x in col_lower for x in ['score', 't-score', 'tscore', 't_score']):
-                # Prioritize columns that also mention 'srs'
-                if 'srs' in col_lower:
-                    srs_cols.insert(0, col)  # Add to front
-                else:
-                    srs_cols.append(col)
+            # Look for columns with 'srs' and 'total' and 'score' or 't-score'
+            if 'srs' in col_lower and 'total' in col_lower and any(x in col_lower for x in ['score', 't-score', 'tscore', 't_score']):
+                srs_cols.append(col)
         
         if srs_cols:
-            print_info(f"Found SRS total score columns: {srs_cols}")
-            print_info(f"Using: {srs_cols[0]}")
-            srs_df = srs_df.rename(columns={srs_cols[0]: 'srs_total_score_standard'})
+            srs_score_col = srs_cols[0]
+            print_info(f"Found alternative SRS columns: {srs_cols}")
+            print_info(f"Using: {srs_score_col}")
         else:
             print_error("No SRS total score column found")
             print_info(f"All columns: {list(srs_df.columns)}")
             raise ValueError(f"No SRS total score column found. Available columns: {list(srs_df.columns)}")
     
+    # Rename to standard name
+    if srs_score_col != 'srs_total_score_standard':
+        srs_df = srs_df.rename(columns={srs_score_col: 'srs_total_score_standard'})
+        print_info(f"Renamed '{srs_score_col}' to 'srs_total_score_standard'")
+    
+    # Convert to numeric, coercing errors to NaN
+    srs_df['srs_total_score_standard'] = pd.to_numeric(srs_df['srs_total_score_standard'], errors='coerce')
+    
+    # Check how many valid scores we have
+    valid_scores = srs_df['srs_total_score_standard'].notna().sum()
     print_info(f"SRS subjects: {len(srs_df)}")
-    print_info(f"SRS score column: srs_total_score_standard (renamed from original if needed)")
+    print_info(f"Valid SRS scores (non-NaN): {valid_scores}")
+    
+    if valid_scores == 0:
+        raise ValueError("No valid SRS scores found after conversion to numeric")
     
     return srs_df
 
@@ -223,6 +240,9 @@ def create_elbow_plot(pca, output_dir):
 def perform_linear_regression(pca_scores, srs_scores, output_dir):
     """Perform linear regression using all PCs to predict SRS total score."""
     print_step("Linear regression for SRS Total Score", "Using all PCs as predictors")
+    
+    # Ensure srs_scores is numeric and convert to numpy array
+    srs_scores = pd.to_numeric(srs_scores, errors='coerce').values
     
     # Remove NaNs
     valid_mask = ~np.isnan(srs_scores)
