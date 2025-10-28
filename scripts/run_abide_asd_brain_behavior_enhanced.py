@@ -208,10 +208,13 @@ def load_abide_behavioral_data(pklz_dir, sites):
             print_info(f"All columns: {list(asd_df.columns)}")
     else:
         print_info(f"ADOS behavioral measures found: {ados_cols}")
-        # Check how many non-null values each has
+        # Convert ADOS columns to numeric
         for col in ados_cols:
+            asd_df[col] = pd.to_numeric(asd_df[col], errors='coerce')
             non_null = asd_df[col].notna().sum()
             print_info(f"  {col}: {non_null} non-null values out of {len(asd_df)}")
+            if non_null > 0:
+                print_info(f"    Range: [{asd_df[col].min():.2f}, {asd_df[col].max():.2f}]")
     
     return asd_df, ados_cols
 
@@ -523,15 +526,38 @@ def main():
         # 2. Merge data
         merged_df = merge_data(ig_df, behavioral_df)
         
-        # Debug: Check if ADOS columns are in merged data
-        print_info(f"Merged data columns: {list(merged_df.columns)}")
+        # Debug: Check if ADOS columns are in merged data and have values
+        print()
+        print_step("Checking ADOS data after merge", "Validating behavioral measures")
         if ados_cols:
             for col in ados_cols:
                 if col in merged_df.columns:
                     non_null = merged_df[col].notna().sum()
-                    print_info(f"  {col} in merged data: {non_null} non-null values")
+                    print_info(f"  {col} in merged data: {non_null} non-null values out of {len(merged_df)}")
+                    if non_null > 0:
+                        # Show some sample values
+                        sample_vals = merged_df[col].dropna().head(5)
+                        print_info(f"    Sample values: {list(sample_vals)}")
                 else:
                     print_warning(f"  {col} NOT in merged data!")
+        
+        # If no ADOS data after merge, check which subjects have ADOS scores
+        if all(merged_df[col].notna().sum() == 0 for col in ados_cols if col in merged_df.columns):
+            print_warning("No ADOS scores in merged data - checking subject ID overlap...")
+            # Check if behavioral subjects with ADOS data overlap with IG subjects
+            for col in ados_cols:
+                if col in behavioral_df.columns:
+                    subjects_with_ados = behavioral_df[behavioral_df[col].notna()]['subject_id'].values
+                    print_info(f"  Subjects with {col} in behavioral data: {len(subjects_with_ados)}")
+                    print_info(f"    Sample IDs: {list(subjects_with_ados[:5])}")
+                    
+                    # Check overlap with IG subjects
+                    ig_ids = set(ig_df['subject_id'])
+                    ados_overlap = [sid for sid in subjects_with_ados if sid in ig_ids]
+                    print_info(f"    Overlap with IG subjects: {len(ados_overlap)}")
+                    if ados_overlap:
+                        print_info(f"      Sample overlapping IDs: {ados_overlap[:5]}")
+        print()
         
         # Extract IG matrix
         ig_matrix = merged_df[roi_cols].values
