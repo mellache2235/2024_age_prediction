@@ -362,7 +362,7 @@ results/
 - **Spines**: NO top/right spines, left/bottom width=1.5pt, black
 - **Ticks**: Major ticks ONLY (length=6pt, width=1.2pt), NO minor ticks, black labels
 - **Figure Size**: (8, 6) inches for single plots, (6, 4.5) per subplot
-- **Export**: PNG (300 dpi) + AI (Adobe Illustrator, vector format)
+- **Export**: PNG (300 dpi) + TIFF (300 dpi, LZW compression) + AI (vector format)
 
 **Publication-Ready**: Optimized for direct use - no need to adjust fonts, line thickness, or colors in Affinity Designer!
 

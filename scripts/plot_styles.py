@@ -320,21 +320,27 @@ def create_single_scatter_plot(
     if USE_TIGHT_LAYOUT:
         plt.tight_layout(pad=TIGHT_LAYOUT_PAD)
     
-    # Save both formats with optimal settings
+    # Save in multiple formats with optimal settings
     save_path = Path(save_path)
     png_path = save_path.with_suffix('.png')
+    tiff_path = save_path.with_suffix('.tiff')
     ai_path = save_path.with_suffix('.ai')
     
     # PNG: High-res, crisp edges
     plt.savefig(png_path, dpi=DPI, bbox_inches='tight', 
                facecolor=FIGURE_FACECOLOR, edgecolor='none')
     
+    # TIFF: High-res, lossless compression
+    plt.savefig(tiff_path, dpi=DPI, bbox_inches='tight',
+               facecolor=FIGURE_FACECOLOR, edgecolor='none',
+               format='tiff', pil_kwargs={'compression': 'tiff_lzw'})
+    
     # AI: Vector format for Adobe Illustrator
     pdf.FigureCanvas(fig).print_pdf(str(ai_path))
     
     plt.close()
     
-    print(f"  ✓ Saved: {png_path.name} + {ai_path.name}")
+    print(f"  ✓ Saved: {png_path.name} + {tiff_path.name} + {ai_path.name}")
 
 
 def create_multi_panel_scatter(
@@ -417,21 +423,27 @@ def create_multi_panel_scatter(
     # Adjust spacing - minimal whitespace, clean look
     plt.tight_layout(pad=TIGHT_LAYOUT_PAD, w_pad=2.5, h_pad=2.0)
     
-    # Save both formats with optimal settings
+    # Save in multiple formats with optimal settings
     save_path = Path(save_path)
     png_path = save_path.with_suffix('.png')
+    tiff_path = save_path.with_suffix('.tiff')
     ai_path = save_path.with_suffix('.ai')
     
     # PNG: High-res, crisp edges
     plt.savefig(png_path, dpi=DPI, bbox_inches='tight',
                facecolor=FIGURE_FACECOLOR, edgecolor='none')
     
+    # TIFF: High-res, lossless compression
+    plt.savefig(tiff_path, dpi=DPI, bbox_inches='tight',
+               facecolor=FIGURE_FACECOLOR, edgecolor='none',
+               format='tiff', pil_kwargs={'compression': 'tiff_lzw'})
+    
     # AI: Vector format for Adobe Illustrator
     pdf.FigureCanvas(fig).print_pdf(str(ai_path))
     
     plt.close()
     
-    print(f"  ✓ Saved: {png_path.name} + {ai_path.name}")
+    print(f"  ✓ Saved: {png_path.name} + {tiff_path.name} + {ai_path.name}")
 
 
 # ============================================================================
