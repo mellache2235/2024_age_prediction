@@ -96,20 +96,6 @@ results/
 
 ---
 
-## 🎨 Plot Styling
-
-**All plots**: Arial font, #5A6FA8 dots (size=100), #D32F2F line (width=3.0pt), NO top/right spines, 300 DPI
-
-**Export formats**: PNG + TIFF + AI (publication-ready, no post-processing needed)
-
-**Dataset titles**:
-- `adhd200_td` → "ADHD-200 TD Subset (NYU)"
-- `cmihbn_td` → "CMI-HBN TD Subset"
-
-**Module**: `scripts/plot_styles.py` (SINGLE SOURCE OF TRUTH)
-
----
-
 ## 📖 Key Features
 
 ### Optimized Brain-Behavior Analysis (RECOMMENDED)
