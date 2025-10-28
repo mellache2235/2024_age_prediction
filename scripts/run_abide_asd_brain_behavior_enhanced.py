@@ -246,14 +246,14 @@ def merge_data(ig_df, behavioral_df):
     print_info(f"Overlapping subject IDs (exact match): {len(overlap_ids)}")
     
     # If poor overlap, try stripping leading zeros
-    if len(overlap_ids) < 50:
-        print_warning(f"Few overlapping IDs! Trying to strip leading zeros...")
+    if len(overlap_ids) < 200:  # Increased threshold to ensure we try stripping
+        print_warning(f"Few overlapping IDs ({len(overlap_ids)})! Trying to strip leading zeros...")
         
         # Create copy with stripped leading zeros for behavioral data
         behavioral_df_stripped = behavioral_df.copy()
         behavioral_df_stripped['subject_id_stripped'] = behavioral_df_stripped['subject_id'].str.lstrip('0')
         
-        # Also try stripping IG IDs
+        # Also try stripping IG IDs (in case they have leading zeros)
         ig_df_stripped = ig_df.copy()
         ig_df_stripped['subject_id_stripped'] = ig_df_stripped['subject_id'].str.lstrip('0')
         
@@ -266,17 +266,20 @@ def merge_data(ig_df, behavioral_df):
         print_info(f"Overlapping IDs after stripping zeros: {len(overlap_stripped)}")
         
         if len(overlap_stripped) > len(overlap_ids):
-            print_success(f"Better overlap with stripped IDs! Using stripped IDs for merge.")
-            # Merge on stripped IDs
-            merged = pd.merge(ig_df_stripped, behavioral_df_stripped, 
-                            on='subject_id_stripped', how='inner', suffixes=('_ig', '_behav'))
-            # Use IG subject_id as the primary one
-            merged['subject_id'] = merged['subject_id_ig']
+            print_success(f"✓ Better overlap with stripped IDs! Using stripped IDs for merge.")
+            # Merge on stripped IDs but keep all columns
+            merged = pd.merge(ig_df_stripped.drop(columns=['subject_id']), 
+                            behavioral_df_stripped.drop(columns=['subject_id']), 
+                            on='subject_id_stripped', how='inner')
+            # Rename back to subject_id for consistency
+            merged = merged.rename(columns={'subject_id_stripped': 'subject_id'})
             print_info(f"Merged {len(merged)} subjects using stripped IDs")
         else:
+            print_warning(f"No improvement with stripped IDs. Using original merge.")
             # Use original merge
             merged = pd.merge(ig_df, behavioral_df, on='subject_id', how='inner')
     else:
+        print_info(f"Good overlap ({len(overlap_ids)} subjects). Using exact ID matching.")
         # Good overlap, use original merge
         merged = pd.merge(ig_df, behavioral_df, on='subject_id', how='inner')
     
