@@ -314,8 +314,30 @@ def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, ou
     
     # Remove NaNs
     valid_mask = ~np.isnan(behavioral_scores)
-    X = pca_scores[valid_mask]
-    y = behavioral_scores[valid_mask]
+    X_clean = pca_scores[valid_mask]
+    y_clean = behavioral_scores[valid_mask]
+    
+    if len(y_clean) < 10:
+        print_warning(f"Insufficient valid data for {behavioral_name}: {len(y_clean)} subjects")
+        return None
+    
+    # Remove outliers using IQR method
+    q1 = np.percentile(y_clean, 25)
+    q3 = np.percentile(y_clean, 75)
+    iqr = q3 - q1
+    lower_bound = q1 - 3 * iqr
+    upper_bound = q3 + 3 * iqr
+    
+    outlier_mask = (y_clean >= lower_bound) & (y_clean <= upper_bound)
+    n_outliers = len(y_clean) - outlier_mask.sum()
+    
+    if n_outliers > 0:
+        print_info(f"Removing {n_outliers} outliers (beyond Q1-3*IQR or Q3+3*IQR)")
+        X = X_clean[outlier_mask]
+        y = y_clean[outlier_mask]
+    else:
+        X = X_clean
+        y = y_clean
     
     if len(y) < 10:
         print_warning(f"Insufficient valid data for {behavioral_name}: {len(y)} subjects")

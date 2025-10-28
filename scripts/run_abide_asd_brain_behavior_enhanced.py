@@ -131,10 +131,11 @@ def load_abide_behavioral_data(pklz_dir, sites):
     print_info(f"Total subjects loaded: {len(combined_df)}")
     print_info(f"Unique label values: {combined_df['label'].unique()}")
     
-    # Filter for ASD subjects only (label == 'asd' string)
-    asd_df = combined_df[combined_df['label'] == 'asd'].copy()
+    # Filter for ASD subjects only (label == '1')
+    # In ABIDE .pklz files: '1' = ASD, '2' = TD
+    asd_df = combined_df[combined_df['label'] == '1'].copy()
     
-    print_info(f"ASD subjects (label='asd'): {len(asd_df)}")
+    print_info(f"ASD subjects (label='1'): {len(asd_df)}")
     
     # Filter for developmental age (age <= 21)
     if 'age' in asd_df.columns:
@@ -294,8 +295,35 @@ def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, ou
     
     # Remove NaNs
     valid_mask = ~np.isnan(behavioral_scores)
-    X = pca_scores[valid_mask]
-    y = behavioral_scores[valid_mask]
+    X_clean = pca_scores[valid_mask]
+    y_clean = behavioral_scores[valid_mask]
+    
+    print_info(f"Valid subjects after removing NaN: {len(y_clean)}")
+    
+    # Remove outliers using IQR method
+    if len(y_clean) > 10:  # Only do outlier detection if we have enough data
+        q1 = np.percentile(y_clean, 25)
+        q3 = np.percentile(y_clean, 75)
+        iqr = q3 - q1
+        lower_bound = q1 - 3 * iqr  # 3 * IQR for outlier detection
+        upper_bound = q3 + 3 * iqr
+        
+        outlier_mask = (y_clean >= lower_bound) & (y_clean <= upper_bound)
+        n_outliers = len(y_clean) - outlier_mask.sum()
+        
+        if n_outliers > 0:
+            print_info(f"Removing {n_outliers} outliers (beyond Q1-3*IQR or Q3+3*IQR)")
+            print_info(f"  Score range before: [{y_clean.min():.2f}, {y_clean.max():.2f}]")
+            X = X_clean[outlier_mask]
+            y = y_clean[outlier_mask]
+            print_info(f"  Score range after: [{y.min():.2f}, {y.max():.2f}]")
+        else:
+            X = X_clean
+            y = y_clean
+            print_info(f"No outliers detected (score range: [{y.min():.2f}, {y.max():.2f}])")
+    else:
+        X = X_clean
+        y = y_clean
     
     if len(y) < 10:
         print_warning(f"Insufficient valid data for {behavioral_name}: {len(y)} subjects")
