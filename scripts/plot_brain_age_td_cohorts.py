@@ -98,16 +98,16 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
             'actual': 'actual_hcp_dev_ages_most_updated.npz'
         },
         'NKI': {
-            'predicted': 'predicted_nki_ages_oct25.npz',
-            'actual': 'actual_nki_ages_oct25.npz'
+            'predicted': 'predicted_nki_ages.npz',
+            'actual': 'actual_nki_ages.npz'
         },
         'CMI-HBN TD': {
-            'predicted': 'predicted_cmihbn_td_ages_oct25.npz',
-            'actual': 'actual_cmihbn_td_ages_oct25.npz'
+            'predicted': 'predicted_cmihbn_td_ages.npz',
+            'actual': 'actual_cmihbn_td_ages.npz'
         },
         'ADHD200 TD': {
-            'predicted': 'predicted_adhd200_td_ages_oct25.npz',
-            'actual': 'actual_adhd200_td_ages_oct25.npz'
+            'predicted': 'predicted_adhd200_td_ages.npz',
+            'actual': 'actual_adhd200_td_ages.npz'
         }
     }
     
@@ -253,7 +253,7 @@ Examples:
         """
     )
     
-    parser.add_argument('--npz_dir', type=str, default='/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_predictions/npz_files', help='Directory containing .npz files')
+    parser.add_argument('--npz_dir', type=str, default='/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test', help='Directory containing .npz files')
     parser.add_argument('--output_dir', type=str, required=True, help='Output directory for plots')
     parser.add_argument('--title', type=str, default='TD Cohorts', help='Plot title')
     
