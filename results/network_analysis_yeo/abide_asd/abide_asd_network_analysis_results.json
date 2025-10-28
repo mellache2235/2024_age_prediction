@@ -1,7 +1,7 @@
 {
   "total_networks": 21,
   "total_regions": "246",
-  "mean_attribution_across_networks": 258.00384761904763,
+  "mean_attribution_across_networks": 258.0038476190477,
   "max_attribution": 360.6667,
   "top_3_networks": [
     {
