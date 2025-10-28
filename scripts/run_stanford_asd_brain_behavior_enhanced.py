@@ -85,24 +85,53 @@ def load_srs_data(srs_file):
     """Load Stanford SRS behavioral data."""
     print_step("Loading SRS behavioral data", f"From {Path(srs_file).name}")
     
-    # Load SRS file
+    # Load SRS file - handle potential whitespace in column names
     srs_df = pd.read_csv(srs_file)
     
-    # Drop duplicates (keep last as specified)
-    srs_df = srs_df.drop_duplicates(subset=['record_id'], keep='last')
+    # Strip whitespace from column names
+    srs_df.columns = srs_df.columns.str.strip()
     
-    # Convert record_id to string
-    srs_df['record_id'] = srs_df['record_id'].astype(str)
+    print_info(f"Total rows: {len(srs_df)}")
+    print_info(f"First few columns: {list(srs_df.columns[:5])}")
+    
+    # Identify subject ID column
+    id_col = None
+    for col in ['record_id', 'subject_id', 'id', 'ID', 'Subject_ID', 'participant_id']:
+        if col in srs_df.columns:
+            id_col = col
+            break
+    
+    if id_col is None:
+        print_error(f"No subject ID column found in SRS file")
+        print_info(f"All columns: {list(srs_df.columns)}")
+        raise ValueError(f"No subject ID column found in SRS file. Available columns: {list(srs_df.columns)}")
+    
+    print_info(f"Using ID column: {id_col}")
+    
+    # Drop duplicates (keep last as specified)
+    srs_df = srs_df.drop_duplicates(subset=[id_col], keep='last')
+    
+    # Convert ID to string
+    srs_df[id_col] = srs_df[id_col].astype(str)
     
     # Rename to subject_id for consistency
-    srs_df = srs_df.rename(columns={'record_id': 'subject_id'})
+    if id_col != 'subject_id':
+        srs_df = srs_df.rename(columns={id_col: 'subject_id'})
     
     # Check if srs_total_score_standard exists
     if 'srs_total_score_standard' not in srs_df.columns:
-        raise ValueError("Column 'srs_total_score_standard' not found in SRS file")
+        print_warning("Column 'srs_total_score_standard' not found in SRS file")
+        print_info(f"Available columns: {list(srs_df.columns)}")
+        # Try to find alternative SRS total score column
+        srs_cols = [col for col in srs_df.columns if 'srs' in col.lower() and 'total' in col.lower()]
+        if srs_cols:
+            print_info(f"Found alternative SRS columns: {srs_cols}")
+            print_info(f"Using: {srs_cols[0]}")
+            srs_df = srs_df.rename(columns={srs_cols[0]: 'srs_total_score_standard'})
+        else:
+            raise ValueError(f"No SRS total score column found. Available columns: {list(srs_df.columns)}")
     
     print_info(f"SRS subjects: {len(srs_df)}")
-    print_info(f"SRS columns: {list(srs_df.columns)}")
     
     return srs_df
 

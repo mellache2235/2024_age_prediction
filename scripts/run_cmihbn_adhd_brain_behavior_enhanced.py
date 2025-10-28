@@ -78,7 +78,7 @@ def load_cmihbn_pklz_data(pklz_dir, c3sr_file):
     # CMI-HBN specific filtering
     # Check if label column exists
     if 'label' not in data.columns:
-        print_warning("No 'label' column found. Assuming all subjects are TD.")
+        print_warning("No 'label' column found. Assuming all subjects are ADHD.")
         td_data = data
     else:
         # Debug: Check label values before filtering
@@ -87,12 +87,12 @@ def load_cmihbn_pklz_data(pklz_dir, c3sr_file):
         print_info(f"Unique label values: {unique_labels}")
         print_info(f"Non-null labels: {data['label'].notna().sum()}")
         
-        # Filter for TD subjects based on label format
-        # Check if labels are strings (e.g., 'td', 'asd') or numeric (0, 1)
+        # Filter for ADHD subjects based on label format
+        # Check if labels are strings (e.g., 'adhd', 'asd', 'td') or numeric (0, 1)
         if data['label'].dtype == 'object':
-            # String labels: filter for 'td' (case-insensitive)
-            td_data = data[data['label'].str.lower() == 'td']
-            print_info(f"TD subjects (label='td'): {len(td_data)}")
+            # String labels: filter for 'adhd' (case-insensitive)
+            td_data = data[data['label'].str.lower() == 'adhd']
+            print_info(f"ADHD subjects (label='adhd'): {len(td_data)}")
         else:
             # Numeric labels: filter for 0
             # First remove 'pending' labels if they exist
@@ -110,9 +110,9 @@ def load_cmihbn_pklz_data(pklz_dir, c3sr_file):
             data = data[data['label'] != 99]
             print_info(f"Valid subjects (label != 99): {len(data)}")
             
-            # Filter for TD subjects (label == 0)
-            td_data = data[data['label'] == 0]
-            print_info(f"TD subjects (label=0): {len(td_data)}")
+            # Filter for ADHD subjects (label == 1)
+            td_data = data[data['label'] == 1]
+            print_info(f"ADHD subjects (label=1): {len(td_data)}")
     
     # Filter by mean_fd < 0.5
     td_data = td_data[td_data['mean_fd'] < 0.5]
@@ -180,7 +180,7 @@ def load_cmihbn_pklz_data(pklz_dir, c3sr_file):
     
     # DON'T drop rows with NaN - we'll handle each behavioral measure separately
     # Just return the data with behavioral columns (some may have NaN)
-    print_success(f"Final TD subjects: {len(merged)}")
+    print_success(f"Final ADHD subjects: {len(merged)}")
     print_info(f"Note: Each behavioral measure will be analyzed separately with available data")
     
     return merged, behavioral_cols
@@ -442,7 +442,7 @@ def save_results(results_list, pc_loadings_dict, output_dir):
 # ============================================================================
 
 def main():
-    print_section_header("ENHANCED BRAIN-BEHAVIOR ANALYSIS - CMI-HBN TD")
+    print_section_header("ENHANCED BRAIN-BEHAVIOR ANALYSIS - CMI-HBN ADHD")
     
     print_info(f"PKLZ DIR:   {PKLZ_DIR}")
     print_info(f"IG CSV:     {IG_CSV}")
