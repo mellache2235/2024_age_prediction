@@ -98,16 +98,16 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
             'actual': 'actual_hcp_dev_ages_most_updated.npz'
         },
         'NKI': {
-            'predicted': 'predicted_nki_ages.npz',
-            'actual': 'actual_nki_ages.npz'
+            'predicted': 'predicted_nki_ages_oct25.npz',
+            'actual': 'actual_nki_ages_oct25.npz'
         },
         'CMI-HBN TD': {
-            'predicted': 'predicted_cmihbn_td_ages.npz',
-            'actual': 'actual_cmihbn_td_ages.npz'
+            'predicted': 'predicted_cmihbn_td_ages_oct25.npz',
+            'actual': 'actual_cmihbn_td_ages_oct25.npz'
         },
         'ADHD200 TD': {
-            'predicted': 'predicted_adhd200_td_ages.npz',
-            'actual': 'actual_adhd200_td_ages.npz'
+            'predicted': 'predicted_adhd200_td_ages_oct25.npz',
+            'actual': 'actual_adhd200_td_ages_oct25.npz'
         }
     }
     
