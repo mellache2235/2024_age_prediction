@@ -27,46 +27,113 @@ from typing import Optional, Tuple
 # Font
 FONT_PATH = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/clustering_analysis/arial.ttf'
 
-# Colors
-COLOR_DOTS = '#5A6FA8'      # Bluer dots
-COLOR_LINE = '#D32F2F'      # Red regression line
+# Colors - Publication-ready, NO post-processing needed
+COLOR_DOTS = '#5A6FA8'           # Bluer dots (fill AND edge - same color)
+COLOR_LINE = '#D32F2F'           # Red regression line (vibrant, clearly visible)
+COLOR_BACKGROUND = '#FFFFFF'     # Pure white background
+COLOR_SPINE = '#000000'          # Black spines (crisp, professional)
+COLOR_TICK = '#000000'           # Black tick labels (high contrast)
+COLOR_STATS_TEXT = '#000000'     # Black statistics text (clear, readable)
 
-# Scatter properties
-SCATTER_ALPHA = 0.7
-SCATTER_SIZE = 80
-SCATTER_LINEWIDTH = 1
-SCATTER_EDGECOLOR = '#5A6FA8'
+# Scatter properties - Optimized for Affinity Designer readiness
+SCATTER_ALPHA = 0.7              # Slight transparency for overlapping points
+SCATTER_SIZE = 100               # Larger for better visibility (was 80)
+SCATTER_LINEWIDTH = 1.5          # Thicker edge for definition (was 0.8)
+SCATTER_EDGECOLOR = '#5A6FA8'    # SAME as fill color (uniform appearance)
 
-# Line properties
-LINE_ALPHA = 0.9
-LINE_WIDTH = 2.5
+# Line properties - Bold and clearly visible
+LINE_ALPHA = 1.0                 # Fully opaque (no transparency)
+LINE_WIDTH = 3.0                 # Clear visibility without being too thick
+LINE_STYLE = '-'                 # Solid line
 
-# Spine properties
-SPINE_WIDTH = 1.5
+# Spine properties - Professional and crisp (not too heavy)
+SPINE_WIDTH = 1.5                # Balanced thickness
+SPINE_COLOR = '#000000'          # Black for professional look
 
-# Tick properties
-TICK_LENGTH_MAJOR = 6
-TICK_WIDTH_MAJOR = 1.5
-TICK_LABELSIZE = 12
+# Tick properties - Clear and readable
+TICK_LENGTH_MAJOR = 6            # Standard length for visibility
+TICK_WIDTH_MAJOR = 1.2           # Visible but not heavy
+TICK_LABELSIZE = 14              # Larger for readability (was 11)
+TICK_COLOR = '#000000'           # Black for maximum contrast
+TICK_PAD = 6                     # Good spacing
 
-# Font sizes
-FONTSIZE_LABEL = 14
-FONTSIZE_TITLE = 16
-FONTSIZE_STATS = 14
-FONTSIZE_STATS_SUBPLOT = 11  # Smaller for subplots
+# Font sizes - Publication-ready (no need to increase later)
+FONTSIZE_LABEL = 16              # Large, clear labels (was 13)
+FONTSIZE_TITLE = 18              # Prominent title (was 15)
+FONTSIZE_STATS = 14              # Readable statistics (was 11)
+FONTSIZE_STATS_SUBPLOT = 12      # Readable in subplots (was 10)
 
 # Font weights
 FONTWEIGHT_LABEL = 'normal'
 FONTWEIGHT_TITLE = 'bold'
 
 # Title padding
-TITLE_PAD = 15
-TITLE_PAD_SUBPLOT = 10
+TITLE_PAD = 20                   # More space for breathing room
+TITLE_PAD_SUBPLOT = 12
 
 # Figure sizes (width, height in inches)
-FIGSIZE_SINGLE = (8, 6)     # Single scatter plot
-FIGSIZE_SUBPLOT = (6, 4.5)  # Individual subplot in multi-panel
-DPI = 300                    # Export resolution
+FIGSIZE_SINGLE = (8, 6)          # Single scatter plot
+FIGSIZE_SUBPLOT = (6, 4.5)       # Individual subplot in multi-panel
+DPI = 300                         # High resolution for publications
+
+# Aesthetic enhancements
+USE_TIGHT_LAYOUT = True
+TIGHT_LAYOUT_PAD = 1.5           # Padding for tight_layout
+FIGURE_FACECOLOR = 'white'       # Figure background
+AXES_FACECOLOR = 'white'         # Axes background
+
+# Dataset title mapping - Clear, publication-ready titles
+DATASET_TITLES = {
+    'nki': 'NKI-RS',
+    'nki_rs': 'NKI-RS',
+    'nki_rs_td': 'NKI-RS',
+    'nki_td': 'NKI-RS',
+    
+    'adhd200': 'ADHD-200',
+    'adhd200_td': 'ADHD-200 TD Subset (NYU)',
+    'adhd200_adhd': 'ADHD-200 ADHD',
+    
+    'cmihbn': 'CMI-HBN',
+    'cmihbn_td': 'CMI-HBN TD Subset',
+    'cmihbn_adhd': 'CMI-HBN ADHD',
+    
+    'abide': 'ABIDE',
+    'abide_asd': 'ABIDE ASD',
+    'abide_td': 'ABIDE TD',
+    
+    'stanford': 'Stanford',
+    'stanford_asd': 'Stanford ASD',
+    
+    'hcp_dev': 'HCP-Dev',
+    'dev': 'HCP-Dev'
+}
+
+
+def get_dataset_title(dataset_key: str) -> str:
+    """
+    Get publication-ready title for dataset.
+    
+    Args:
+        dataset_key: Internal dataset identifier (e.g., 'adhd200_td')
+    
+    Returns:
+        Publication-ready title (e.g., 'ADHD-200 TD Subset (NYU)')
+    """
+    # Convert to lowercase for matching
+    key_lower = dataset_key.lower().replace('_', '').replace('-', '')
+    
+    # Try exact match first
+    if dataset_key in DATASET_TITLES:
+        return DATASET_TITLES[dataset_key]
+    
+    # Try fuzzy matching
+    for key, title in DATASET_TITLES.items():
+        key_clean = key.lower().replace('_', '').replace('-', '')
+        if key_clean == key_lower:
+            return title
+    
+    # Fallback: format nicely
+    return dataset_key.replace('_', '-').upper()
 
 
 # ============================================================================
@@ -104,6 +171,7 @@ def create_standardized_scatter(
     Create a standardized scatter plot with EXACT consistent styling.
     
     This is the SINGLE SOURCE OF TRUTH for all scatter plot formatting.
+    Optimized for publication quality with modern, clean aesthetics.
     
     Args:
         ax: Matplotlib axes object
@@ -115,7 +183,10 @@ def create_standardized_scatter(
         stats_text: Optional statistics text (e.g., "ρ = 0.75\np < 0.001")
         is_subplot: If True, uses smaller fonts for multi-panel figures
     """
-    # Scatter plot
+    # Set background colors
+    ax.set_facecolor(AXES_FACECOLOR)
+    
+    # Scatter plot with subtle edge
     ax.scatter(
         x, y,
         alpha=SCATTER_ALPHA,
@@ -125,7 +196,7 @@ def create_standardized_scatter(
         linewidth=SCATTER_LINEWIDTH
     )
     
-    # Best fit line
+    # Best fit line - smooth and prominent
     coeffs = np.polyfit(x, y, 1)
     x_line = np.linspace(x.min(), x.max(), 100)
     y_line = np.polyval(coeffs, x_line)
@@ -134,7 +205,9 @@ def create_standardized_scatter(
         x_line, y_line,
         color=COLOR_LINE,
         linewidth=LINE_WIDTH,
-        alpha=LINE_ALPHA
+        alpha=LINE_ALPHA,
+        linestyle=LINE_STYLE,
+        zorder=10  # Ensure line is on top
     )
     
     # Statistics text (if provided)
@@ -146,26 +219,33 @@ def create_standardized_scatter(
             transform=ax.transAxes,
             fontsize=fontsize,
             verticalalignment='bottom',
-            horizontalalignment='right'
+            horizontalalignment='right',
+            color=COLOR_STATS_TEXT,
+            linespacing=1.5  # Better spacing between lines
             # NO bbox parameter - no bounding box
         )
     
-    # Labels
-    ax.set_xlabel(xlabel, fontsize=FONTSIZE_LABEL, fontweight=FONTWEIGHT_LABEL)
-    ax.set_ylabel(ylabel, fontsize=FONTSIZE_LABEL, fontweight=FONTWEIGHT_LABEL)
+    # Labels - clean and readable
+    ax.set_xlabel(xlabel, fontsize=FONTSIZE_LABEL, fontweight=FONTWEIGHT_LABEL, 
+                 color=COLOR_TICK, labelpad=8)
+    ax.set_ylabel(ylabel, fontsize=FONTSIZE_LABEL, fontweight=FONTWEIGHT_LABEL,
+                 color=COLOR_TICK, labelpad=8)
     
-    # Title
+    # Title - prominent but not overwhelming
     title_pad = TITLE_PAD_SUBPLOT if is_subplot else TITLE_PAD
-    ax.set_title(title, fontsize=FONTSIZE_TITLE, fontweight=FONTWEIGHT_TITLE, pad=title_pad)
+    ax.set_title(title, fontsize=FONTSIZE_TITLE, fontweight=FONTWEIGHT_TITLE, 
+                pad=title_pad, color=COLOR_TICK)
     
-    # Styling - NO top/right spines
+    # Clean minimalist style - NO top/right spines
     ax.grid(False)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.spines['left'].set_linewidth(SPINE_WIDTH)
     ax.spines['bottom'].set_linewidth(SPINE_WIDTH)
+    ax.spines['left'].set_color(SPINE_COLOR)
+    ax.spines['bottom'].set_color(SPINE_COLOR)
     
-    # Ticks - MAJOR ONLY
+    # Ticks - MAJOR ONLY, clean and minimal
     ax.tick_params(
         axis='both',
         which='major',
@@ -174,8 +254,13 @@ def create_standardized_scatter(
         length=TICK_LENGTH_MAJOR,
         width=TICK_WIDTH_MAJOR,
         top=False,
-        right=False
+        right=False,
+        colors=TICK_COLOR,
+        pad=TICK_PAD
     )
+    
+    # Subtle aesthetic touch - ensure no minor ticks
+    ax.minorticks_off()
 
 
 # ============================================================================
@@ -206,8 +291,9 @@ def create_single_scatter_plot(
     # Setup font
     setup_arial_font()
     
-    # Create figure
+    # Create figure with aesthetic settings
     fig, ax = plt.subplots(figsize=FIGSIZE_SINGLE, dpi=100)
+    fig.patch.set_facecolor(FIGURE_FACECOLOR)
     
     # Format statistics
     stats_text = None
@@ -230,14 +316,20 @@ def create_single_scatter_plot(
         ax, x, y, title, xlabel, ylabel, stats_text, is_subplot=False
     )
     
-    plt.tight_layout()
+    # Apply tight layout with aesthetic padding
+    if USE_TIGHT_LAYOUT:
+        plt.tight_layout(pad=TIGHT_LAYOUT_PAD)
     
-    # Save both formats
+    # Save both formats with optimal settings
     save_path = Path(save_path)
     png_path = save_path.with_suffix('.png')
     ai_path = save_path.with_suffix('.ai')
     
-    plt.savefig(png_path, dpi=DPI, bbox_inches='tight')
+    # PNG: High-res, crisp edges
+    plt.savefig(png_path, dpi=DPI, bbox_inches='tight', 
+               facecolor=FIGURE_FACECOLOR, edgecolor='none')
+    
+    # AI: Vector format for Adobe Illustrator
     pdf.FigureCanvas(fig).print_pdf(str(ai_path))
     
     plt.close()
@@ -273,8 +365,9 @@ def create_multi_panel_scatter(
     fig_width = FIGSIZE_SUBPLOT[0] * ncols
     fig_height = FIGSIZE_SUBPLOT[1] * nrows
     
-    # Create figure
+    # Create figure with aesthetic settings
     fig, axes = plt.subplots(nrows, ncols, figsize=(fig_width, fig_height), dpi=100)
+    fig.patch.set_facecolor(FIGURE_FACECOLOR)
     
     # Handle single subplot case
     if nrows == 1 and ncols == 1:
@@ -316,19 +409,24 @@ def create_multi_panel_scatter(
     for i in range(len(data_list), len(axes_flat)):
         axes_flat[i].set_visible(False)
     
-    # Super title
+    # Super title (if provided)
     if suptitle:
-        fig.suptitle(suptitle, fontsize=18, fontweight='bold', y=0.98)
+        fig.suptitle(suptitle, fontsize=18, fontweight='bold', 
+                    y=0.98, color=COLOR_TICK)
     
-    # Adjust spacing
-    plt.tight_layout(pad=2.0, w_pad=2.5, h_pad=2.0)
+    # Adjust spacing - minimal whitespace, clean look
+    plt.tight_layout(pad=TIGHT_LAYOUT_PAD, w_pad=2.5, h_pad=2.0)
     
-    # Save both formats
+    # Save both formats with optimal settings
     save_path = Path(save_path)
     png_path = save_path.with_suffix('.png')
     ai_path = save_path.with_suffix('.ai')
     
-    plt.savefig(png_path, dpi=DPI, bbox_inches='tight')
+    # PNG: High-res, crisp edges
+    plt.savefig(png_path, dpi=DPI, bbox_inches='tight',
+               facecolor=FIGURE_FACECOLOR, edgecolor='none')
+    
+    # AI: Vector format for Adobe Illustrator
     pdf.FigureCanvas(fig).print_pdf(str(ai_path))
     
     plt.close()

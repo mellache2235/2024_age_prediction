@@ -691,7 +691,8 @@ Examples:
     
     parser.add_argument("--config", type=str, 
                        help="Path to configuration YAML file")
-    parser.add_argument("--output_dir", type=str, default="results/region_tables",
+    parser.add_argument("--output_dir", type=str, 
+                       default="/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/region_tables",
                        help="Output directory for region tables")
     parser.add_argument("--excel_path", type=str,
                        help="Path to single Excel file (for individual table)")

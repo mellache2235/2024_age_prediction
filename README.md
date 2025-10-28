@@ -352,23 +352,33 @@ results/
 
 ## 🎨 Plot Styling - SINGLE SOURCE OF TRUTH
 
-**All plots use `plot_styles.py` for 100% consistency**:
+**All plots use `plot_styles.py` for 100% consistency and ZERO post-processing**:
 
 ### Scatter Plots (Brain-Behavior & Brain Age)
-- **Font**: Arial (loaded from HPC path)
-- **Dots**: #5A6FA8 (bluer color), α=0.7, size=80, edge=1
-- **Regression Line**: #D32F2F (red), width=2.5, α=0.9
-- **Statistics**: Bottom-right corner, NO bounding box, fontsize=14 (single) or 11 (subplot)
-- **Spines**: NO top/right spines, left/bottom width=1.5
-- **Ticks**: Major ticks ONLY (length=6, width=1.5), NO minor ticks
+- **Font**: Arial, 18pt title (bold), 16pt labels, 14pt stats/ticks
+- **Dots**: #5A6FA8 (fill AND edge - same color), α=0.7, size=100, edge width=1.5pt
+- **Regression Line**: #D32F2F (red), width=3.0pt, α=1.0 (fully opaque)
+- **Statistics**: Bottom-right corner, NO bounding box, black text
+- **Spines**: NO top/right spines, left/bottom width=1.5pt, black
+- **Ticks**: Major ticks ONLY (length=6pt, width=1.2pt), NO minor ticks, black labels
 - **Figure Size**: (8, 6) inches for single plots, (6, 4.5) per subplot
-- **Export**: PNG (300 dpi) + AI (Adobe Illustrator)
+- **Export**: PNG (300 dpi) + AI (Adobe Illustrator, vector format)
+
+**Publication-Ready**: Optimized for direct use - no need to adjust fonts, line thickness, or colors in Affinity Designer!
 
 **Centralized Module**: `scripts/plot_styles.py`
 - All styling constants defined once
 - Two main functions: `create_single_scatter_plot()` and `create_multi_panel_scatter()`
+- Helper function: `get_dataset_title()` for clear, descriptive titles
 - Change styling once → updates all 50+ plots automatically
 - Guarantees plots can be placed side-by-side without visible differences
+
+**Clear Dataset Titles**:
+- `adhd200_td` → "ADHD-200 TD Subset (NYU)"
+- `cmihbn_td` → "CMI-HBN TD Subset"
+- `nki_rs_td` → "NKI-RS"
+- `adhd200_adhd` → "ADHD-200 ADHD"
+- `cmihbn_adhd` → "CMI-HBN ADHD"
 
 ### Radar Plots (Network Analysis)
 - **Font**: Arial
