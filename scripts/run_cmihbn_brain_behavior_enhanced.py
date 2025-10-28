@@ -357,7 +357,7 @@ def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, dataset
     safe_name = behavioral_name.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
     save_path = Path(output_dir) / f'scatter_{safe_name}'
     
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(6, 6))
     create_standardized_scatter(ax, y_actual, y_pred, title=title,
                                xlabel='Observed Behavioral Score',
                                ylabel='Predicted Behavioral Score',

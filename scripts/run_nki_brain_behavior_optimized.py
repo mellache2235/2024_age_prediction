@@ -531,7 +531,7 @@ def create_scatter_plot(results, measure_name, n_components, model_type, alpha, 
     p_value = results['p_value']
     mae = results['mae']
     
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(6, 6))
     
     # Scatter plot - bluer dots
     ax.scatter(y_actual, y_pred, alpha=0.7, s=80, 

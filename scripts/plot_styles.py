@@ -72,7 +72,7 @@ TITLE_PAD = 20                   # More space for breathing room
 TITLE_PAD_SUBPLOT = 12
 
 # Figure sizes (width, height in inches)
-FIGSIZE_SINGLE = (8, 6)          # Single scatter plot
+FIGSIZE_SINGLE = (6, 6)          # Single scatter plot
 FIGSIZE_SUBPLOT = (6, 4.5)       # Individual subplot in multi-panel
 DPI = 300                         # High resolution for publications
 

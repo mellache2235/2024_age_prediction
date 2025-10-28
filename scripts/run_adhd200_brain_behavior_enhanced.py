@@ -354,7 +354,7 @@ def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, dataset
     
     # Use centralized plotting function
     import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(6, 6))
     
     from plot_styles import create_standardized_scatter, DPI, FIGURE_FACECOLOR
     create_standardized_scatter(

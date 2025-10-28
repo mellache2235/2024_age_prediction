@@ -307,7 +307,7 @@ def create_scatter(y_true: np.ndarray, y_pred: np.ndarray,
     
     Consistent formatting: Arial, #5A6FA8 dots, #D32F2F line, no spines.
     """
-    fig, ax = plt.subplots(figsize=(8, 6), dpi=100)
+    fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
     
     # Scatter
     ax.scatter(y_true, y_pred, alpha=0.7, s=80, 

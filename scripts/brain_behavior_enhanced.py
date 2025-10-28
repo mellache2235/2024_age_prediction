@@ -117,7 +117,7 @@ def predict_behavior_with_pcs(pca_scores, behavioral_scores, behavior_name):
 def create_prediction_scatter(predicted, actual, behavior_name, r, p, output_path):
     """Create scatter plot of predicted vs actual behavioral scores."""
     setup_fonts()
-    fig, ax = plt.subplots(figsize=(8, 6), dpi=300)
+    fig, ax = plt.subplots(figsize=(6, 6), dpi=300)
     
     ax.scatter(actual, predicted, color='#1f77b4', 
               edgecolors='#1f77b4', alpha=0.7, s=50)

@@ -24,7 +24,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from logging_utils import (print_section_header, print_step, print_success, 
                            print_warning, print_error, print_info)
-from plot_styles import setup_arial_font, DPI, FIGURE_FACECOLOR
+from plot_styles import (setup_arial_font, DPI, FIGURE_FACECOLOR, 
+                         create_multi_panel_scatter, get_dataset_title)
 
 # Setup font
 setup_arial_font()
@@ -123,7 +124,7 @@ def create_combined_plot(measure_type, cohort_data, output_path):
                      {'plot_path': path, 'results': dict}
         output_path: Path to save combined plot
     """
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4.5))
     
     cohort_names = ['NKI-RS TD', 'ADHD200 TD', 'CMI-HBN TD']
     cohort_keys = ['nki', 'adhd200', 'cmihbn']
@@ -170,7 +171,8 @@ def create_combined_plot(measure_type, cohort_data, output_path):
     # Overall title
     fig.suptitle(f'{measure_type} - TD Cohorts', fontsize=16, fontweight='bold', y=0.98)
     
-    plt.tight_layout(rect=[0, 0.03, 1, 0.96])
+    # Tighter spacing between subplots - minimal whitespace
+    plt.tight_layout(rect=[0, 0.03, 1, 0.96], w_pad=0.5, h_pad=1.0)
     
     # Save PNG + TIFF + AI
     png_path = Path(output_path)

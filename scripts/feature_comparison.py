@@ -238,7 +238,7 @@ class FeatureComparison:
         metric_names = ['jaccard', 'dice', 'cosine_similarity']
         metric_values = [metrics.get(name, 0) for name in metric_names]
         
-        fig, ax = plt.subplots(figsize=(8, 6))
+        fig, ax = plt.subplots(figsize=(6, 6))
         bars = ax.bar(metric_names, metric_values, color=['#1f77b4', '#ff7f0e', '#2ca02c'])
         
         # Add value labels on bars
