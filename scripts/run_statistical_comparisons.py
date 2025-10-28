@@ -86,8 +86,11 @@ def load_ig_data(csv_path: Path) -> np.ndarray:
     """Load IG scores as numpy array (subjects × ROIs)."""
     df = pd.read_csv(csv_path)
     
-    # Get ROI columns
-    roi_cols = [c for c in df.columns if c.startswith('ROI_')]
+    # Get ROI columns (all columns except subject_id)
+    roi_cols = [c for c in df.columns if c not in ['subject_id', 'Unnamed: 0', 'id', 'ID']]
+    
+    if len(roi_cols) == 0:
+        raise ValueError(f"No ROI columns found in {csv_path.name}")
     
     # Extract as numpy array
     ig_matrix = df[roi_cols].values

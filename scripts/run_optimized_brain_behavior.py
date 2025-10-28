@@ -27,13 +27,8 @@ BASE_BEH_DIR = Path("/oak/stanford/groups/menon/projects/mellache/2021_foundatio
 BASE_OUTPUT_DIR = Path("/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior_optimized")
 
 DATASETS = {
-    'nki': {
-        'name': 'NKI-RS TD',
-        'ig_csv': BASE_IG_DIR / "nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv",
-        'behavioral_csv': BASE_BEH_DIR / "nki_behavioral_merged.csv",  # User needs to create merged file
-        'behavioral_cols': None,  # Auto-detect
-        'max_measures': None  # Analyze all
-    },
+    # Note: NKI skipped - use run_nki_brain_behavior_enhanced.py instead
+    # (requires loading multiple CAARS/Conners files, not a single merged CSV)
     
     'adhd200_td': {
         'name': 'ADHD200 TD',

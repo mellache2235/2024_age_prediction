@@ -53,8 +53,11 @@ python run_nki_brain_behavior_enhanced.py
 python run_adhd200_brain_behavior_enhanced.py
 python run_cmihbn_brain_behavior_enhanced.py
 
-# Option B: Optimized (RECOMMENDED - higher correlations)
-python run_optimized_brain_behavior.py --dataset all
+# Option B: Optimized (for ADHD200 and CMI-HBN datasets only)
+# Note: NKI requires individual script due to multiple behavioral files
+python run_nki_brain_behavior_enhanced.py
+python run_optimized_brain_behavior.py --dataset adhd200_td
+python run_optimized_brain_behavior.py --dataset cmihbn_td
 
 # 4. Combined Plots
 python plot_brain_behavior_td_cohorts.py
