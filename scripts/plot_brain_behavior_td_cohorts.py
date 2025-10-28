@@ -163,7 +163,7 @@ def create_combined_plot(measure_type, cohort_data, output_path):
                 p_str = f"= {p:.3f}"
             
             # Add text annotation
-            text = f"N = {n}\nρ = {rho:.3f}, p {p_str}\nR² = {r2:.3f}"
+            text = f"N = {n}\nr = {rho:.3f}, p {p_str}\nR² = {r2:.3f}"
             ax.text(0.5, -0.05, text, transform=ax.transAxes,
                    ha='center', va='top', fontsize=10,
                    bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))

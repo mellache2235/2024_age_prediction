@@ -321,7 +321,7 @@ def create_scatter(y_true: np.ndarray, y_pred: np.ndarray,
     
     # Statistics
     if metrics:
-        stats_text = f"ρ = {metrics.get('spearman_rho', 0):.3f}\n"
+        stats_text = f"r = {metrics.get('spearman_rho', 0):.3f}\n"
         stats_text += f"p = {metrics.get('p_value', 0):.4f}\n"
         stats_text += f"MAE = {metrics.get('mae', 0):.2f}"
         if model_info:

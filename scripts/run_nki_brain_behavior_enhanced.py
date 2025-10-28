@@ -301,7 +301,7 @@ def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, dataset
     p_str = "< 0.001" if p_value < 0.001 else f"= {p_value:.3f}"
     
     # Create stats text
-    stats_text = f"ρ = {rho:.3f}\np {p_str}"
+    stats_text = f"r = {rho:.3f}\np {p_str}"
     
     # Get standardized title
     title = get_dataset_title(dataset_name)

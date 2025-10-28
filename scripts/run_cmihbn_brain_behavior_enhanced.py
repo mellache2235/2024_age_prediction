@@ -352,7 +352,7 @@ def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, ou
 def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, dataset_name, output_dir):
     """Create scatter plot using centralized styling."""
     p_str = "< 0.001" if p_value < 0.001 else f"= {p_value:.3f}"
-    stats_text = f"ρ = {rho:.3f}\np {p_str}"
+    stats_text = f"r = {rho:.3f}\np {p_str}"
     title = get_dataset_title(dataset_name)
     safe_name = behavioral_name.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
     save_path = Path(output_dir) / f'scatter_{safe_name}'

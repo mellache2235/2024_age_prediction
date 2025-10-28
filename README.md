@@ -50,11 +50,18 @@ python run_statistical_comparisons.py
 # All scripts use plot_styles.py for consistent formatting
 # Export: PNG + TIFF + AI (publication-ready, no post-processing)
 
-python run_nki_brain_behavior_enhanced.py           # NKI-RS
+# TD Cohorts
+python run_nki_brain_behavior_enhanced.py           # NKI-RS (CAARS)
 python run_adhd200_brain_behavior_enhanced.py       # ADHD-200 TD Subset (NYU)
-python run_cmihbn_brain_behavior_enhanced.py        # CMI-HBN TD Subset
+python run_cmihbn_brain_behavior_enhanced.py        # CMI-HBN TD (C3SR)
+
+# ADHD Cohorts
 python run_adhd200_adhd_brain_behavior_enhanced.py  # ADHD-200 ADHD
-python run_cmihbn_adhd_brain_behavior_enhanced.py   # CMI-HBN ADHD
+python run_cmihbn_adhd_brain_behavior_enhanced.py   # CMI-HBN ADHD (C3SR)
+
+# ASD Cohorts
+python run_stanford_asd_brain_behavior_enhanced.py  # Stanford ASD (SRS Total Score)
+python run_abide_asd_brain_behavior_enhanced.py     # ABIDE ASD (ADOS)
 
 # Optional: Enable optimization for higher correlations
 # Edit script, set: OPTIMIZE = True (line ~46)

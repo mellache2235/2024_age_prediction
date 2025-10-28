@@ -114,6 +114,58 @@ python scripts/create_region_tables.py --top_n 100 --output_dir results/custom_t
 
 ## 🧠 Brain-Behavior Analysis
 
+### Enhanced Brain-Behavior Scripts (Pre-configured, Zero Arguments)
+
+**Purpose**: PCA-based brain-behavior correlation analysis using IG scores to predict behavioral measures. All paths pre-configured - just run!
+
+#### TD Cohorts
+
+**`scripts/run_nki_brain_behavior_enhanced.py`**
+- **Dataset**: NKI-RS TD
+- **Behavioral Measures**: CAARS (Conners Adult ADHD Rating Scale)
+- **Usage**: `python scripts/run_nki_brain_behavior_enhanced.py`
+
+**`scripts/run_adhd200_brain_behavior_enhanced.py`**
+- **Dataset**: ADHD-200 TD Subset (NYU)
+- **Behavioral Measures**: Inattentive, Hyperactive/Impulsive scores
+- **Usage**: `python scripts/run_adhd200_brain_behavior_enhanced.py`
+
+**`scripts/run_cmihbn_brain_behavior_enhanced.py`**
+- **Dataset**: CMI-HBN TD
+- **Behavioral Measures**: C3SR (Conners 3 Self-Report)
+- **Usage**: `python scripts/run_cmihbn_brain_behavior_enhanced.py`
+
+#### ADHD Cohorts
+
+**`scripts/run_adhd200_adhd_brain_behavior_enhanced.py`**
+- **Dataset**: ADHD-200 ADHD
+- **Behavioral Measures**: Inattentive, Hyperactive/Impulsive scores
+- **Usage**: `python scripts/run_adhd200_adhd_brain_behavior_enhanced.py`
+
+**`scripts/run_cmihbn_adhd_brain_behavior_enhanced.py`**
+- **Dataset**: CMI-HBN ADHD
+- **Behavioral Measures**: C3SR (Conners 3 Self-Report)
+- **Usage**: `python scripts/run_cmihbn_adhd_brain_behavior_enhanced.py`
+
+#### ASD Cohorts
+
+**`scripts/run_stanford_asd_brain_behavior_enhanced.py`**
+- **Dataset**: Stanford ASD
+- **Behavioral Measures**: SRS Total Score (Social Responsiveness Scale)
+- **Usage**: `python scripts/run_stanford_asd_brain_behavior_enhanced.py`
+
+**`scripts/run_abide_asd_brain_behavior_enhanced.py`**
+- **Dataset**: ABIDE ASD
+- **Behavioral Measures**: ADOS (Autism Diagnostic Observation Schedule)
+- **Usage**: `python scripts/run_abide_asd_brain_behavior_enhanced.py`
+
+**All scripts output**:
+- Elbow plot (optimal PC selection)
+- Scatter plots (predicted vs actual behavioral scores) - PNG + TIFF + AI formats
+- Linear regression results (Spearman ρ, p-values, R²)
+- PC importance rankings
+- PC loadings (top brain regions per PC)
+
 ### `scripts/comprehensive_brain_behavior_analysis.py`
 
 **Purpose**: Comprehensive brain-behavior correlation analysis with PCA and FDR correction

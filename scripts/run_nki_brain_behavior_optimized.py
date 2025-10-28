@@ -545,7 +545,7 @@ def create_scatter_plot(results, measure_name, n_components, model_type, alpha, 
     
     # Statistics text - NO bounding box
     model_info = f"{model_type}" + (f" (α={alpha})" if alpha is not None else "")
-    stats_text = f'ρ = {rho:.3f}\np = {p_value:.4f}\nMAE = {mae:.2f}\n{model_info}\nPCs = {n_components}'
+    stats_text = f'r = {rho:.3f}\np = {p_value:.4f}\nMAE = {mae:.2f}\n{model_info}\nPCs = {n_components}'
     ax.text(0.95, 0.05, stats_text, transform=ax.transAxes,
             fontsize=11, verticalalignment='bottom', horizontalalignment='right')
     

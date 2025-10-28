@@ -117,7 +117,7 @@ def create_subplot(ax, actual, predicted, rho, p_value, title):
     """Create subplot using centralized styling."""
     mae = mean_absolute_error(actual, predicted)
     p_str = "< 0.001" if p_value < 0.001 else f"= {p_value:.4f}"
-    stats_text = f'ρ = {rho:.3f}\np {p_str}\nMAE = {mae:.2f}'
+    stats_text = f'r = {rho:.3f}\np {p_str}\nMAE = {mae:.2f}'
     
     create_standardized_scatter(ax, actual, predicted, title=title,
                                xlabel='Observed Behavioral Score',

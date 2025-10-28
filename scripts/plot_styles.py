@@ -180,7 +180,7 @@ def create_standardized_scatter(
         title: Plot title
         xlabel: X-axis label
         ylabel: Y-axis label
-        stats_text: Optional statistics text (e.g., "ρ = 0.75\np < 0.001")
+        stats_text: Optional statistics text (e.g., "r = 0.75\np < 0.001")
         is_subplot: If True, uses smaller fonts for multi-panel figures
     """
     # Set background colors
@@ -301,7 +301,7 @@ def create_single_scatter_plot(
         lines = []
         if 'rho' in stats_dict or 'spearman_rho' in stats_dict:
             rho = stats_dict.get('rho', stats_dict.get('spearman_rho', 0))
-            lines.append(f"ρ = {rho:.3f}")
+            lines.append(f"r = {rho:.3f}")
         if 'p_value' in stats_dict:
             lines.append(f"p = {stats_dict['p_value']:.4f}")
         if 'mae' in stats_dict:
@@ -389,7 +389,7 @@ def create_multi_panel_scatter(
             lines = []
             if 'rho' in stats or 'spearman_rho' in stats:
                 rho = stats.get('rho', stats.get('spearman_rho', 0))
-                lines.append(f"ρ = {rho:.3f}")
+                lines.append(f"r = {rho:.3f}")
             if 'p_value' in stats:
                 lines.append(f"p = {stats['p_value']:.4f}")
             if 'mae' in stats:
