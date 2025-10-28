@@ -61,13 +61,15 @@ def load_abide_ig_scores(ig_csv):
     
     # Identify subject ID column
     id_col = None
-    for col in ['subject_id', 'id', 'ID', 'Subject_ID']:
+    for col in ['subjid', 'subject_id', 'id', 'ID', 'Subject_ID']:
         if col in df.columns:
             id_col = col
             break
     
     if id_col is None:
         raise ValueError("No subject ID column found in IG CSV")
+    
+    print_info(f"Using ID column: {id_col}")
     
     # Standardize to 'subject_id'
     if id_col != 'subject_id':
@@ -131,6 +133,24 @@ def load_abide_behavioral_data(pklz_dir, sites):
     
     print_info(f"Total subjects loaded: {len(combined_df)}")
     print_info(f"ASD subjects (label=1): {len(asd_df)}")
+    
+    # Identify and rename subject ID column
+    id_col = None
+    for col in ['subjid', 'subject_id', 'id', 'ID', 'Subject_ID']:
+        if col in asd_df.columns:
+            id_col = col
+            break
+    
+    if id_col is None:
+        print_warning("No standard subject ID column found in .pklz data")
+        print_info(f"Available columns: {list(asd_df.columns)}")
+        raise ValueError(f"No subject ID column found in .pklz files")
+    
+    print_info(f"Using ID column from .pklz: {id_col}")
+    
+    # Standardize to subject_id
+    if id_col != 'subject_id':
+        asd_df = asd_df.rename(columns={id_col: 'subject_id'})
     
     # Ensure subject_id is string
     asd_df['subject_id'] = asd_df['subject_id'].astype(str)

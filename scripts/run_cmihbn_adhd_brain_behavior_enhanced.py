@@ -40,6 +40,7 @@ setup_arial_font()
 DATASET = "cmihbn_adhd"
 PKLZ_DIR = "/oak/stanford/groups/menon/deriveddata/public/cmihbn/restfmri/timeseries/group_level/brainnetome/normz"
 IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/cmihbn_adhd_no_cutoffs_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv"
+DIAGNOSIS_CSV = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/cmihbn/Cmihbn-CustomDECMIHBNClinic_DATA_2024-10-21_1336.csv"
 C3SR_FILE = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/adhd/C3SR.csv"
 OUTPUT_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/cmihbn_adhd"
 
@@ -47,9 +48,60 @@ OUTPUT_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_t
 # HELPER FUNCTIONS
 # ============================================================================
 
-def load_cmihbn_pklz_data(pklz_dir, c3sr_file):
-    """Load CMI-HBN .pklz files (run1 only) and merge with C3SR behavioral data."""
-    print_step("Loading CMI-HBN ADHD data", f"From {Path(pklz_dir).name}")
+def load_cmihbn_adhd_subjects(diagnosis_csv):
+    """Load CMI-HBN ADHD subjects from clinical diagnosis CSV."""
+    print_step("Loading ADHD diagnosis data", f"From {Path(diagnosis_csv).name}")
+    
+    if not Path(diagnosis_csv).exists():
+        raise ValueError(f"Diagnosis CSV not found: {diagnosis_csv}")
+    
+    diag_df = pd.read_csv(diagnosis_csv)
+    
+    # Find subject ID column
+    id_col = None
+    for col in diag_df.columns:
+        if 'id' in col.lower() or 'identifier' in col.lower():
+            id_col = col
+            break
+    
+    if id_col is None:
+        raise ValueError(f"No subject ID column found in diagnosis CSV. Columns: {list(diag_df.columns)}")
+    
+    # Find diagnosis column
+    diag_col = None
+    for col in diag_df.columns:
+        if 'diagnosis_clinicianconsensus_dx' in col.lower():
+            diag_col = col
+            break
+    
+    if diag_col is None:
+        raise ValueError(f"No diagnosis column found in CSV. Columns: {list(diag_df.columns)}")
+    
+    print_info(f"Using ID column: {id_col}")
+    print_info(f"Using diagnosis column: {diag_col}")
+    
+    # Filter for ADHD subjects (any form: combined, inattentive, impulsive)
+    adhd_mask = diag_df[diag_col].str.contains('ADHD', case=False, na=False)
+    adhd_subjects = diag_df[adhd_mask]
+    
+    # Extract unique subject IDs and convert to string
+    adhd_ids = adhd_subjects[id_col].astype(str).unique()
+    
+    print_info(f"Total subjects in diagnosis file: {len(diag_df)}")
+    print_info(f"ADHD subjects (all types): {len(adhd_ids)}")
+    
+    # Show breakdown of ADHD types
+    adhd_types = adhd_subjects[diag_col].value_counts()
+    print_info(f"ADHD diagnosis breakdown:")
+    for dx_type, count in adhd_types.items():
+        print_info(f"  {dx_type}: {count}")
+    
+    return adhd_ids
+
+
+def load_cmihbn_pklz_data(pklz_dir, adhd_ids, c3sr_file):
+    """Load CMI-HBN .pklz files (run1 only) and filter for ADHD subjects."""
+    print_step("Loading CMI-HBN imaging data", f"From {Path(pklz_dir).name}")
     
     # Load all run1 .pklz files
     pklz_files = [f for f in Path(pklz_dir).glob('*.pklz') if 'run1' in f.name]
@@ -75,48 +127,14 @@ def load_cmihbn_pklz_data(pklz_dir, c3sr_file):
     data = data.drop_duplicates(subset='subject_id', keep='first')
     print_info(f"Total subjects after deduplication: {len(data)}")
     
-    # CMI-HBN specific filtering
-    # Check if label column exists
-    if 'label' not in data.columns:
-        print_warning("No 'label' column found. Assuming all subjects are ADHD.")
-        td_data = data
-    else:
-        # Debug: Check label values before filtering
-        print_info(f"Label column dtype: {data['label'].dtype}")
-        unique_labels = data['label'].unique()
-        print_info(f"Unique label values: {unique_labels}")
-        print_info(f"Non-null labels: {data['label'].notna().sum()}")
-        
-        # Filter for ADHD subjects based on label format
-        # Check if labels are strings (e.g., 'adhd', 'asd', 'td') or numeric (0, 1)
-        if data['label'].dtype == 'object':
-            # String labels: filter for 'adhd' (case-insensitive)
-            td_data = data[data['label'].str.lower() == 'adhd']
-            print_info(f"ADHD subjects (label='adhd'): {len(td_data)}")
-        else:
-            # Numeric labels: filter for 0
-            # First remove 'pending' labels if they exist
-            data = data[data['label'] != 'pending']
-            print_info(f"After removing 'pending' labels: {len(data)}")
-            
-            # Convert label to numeric
-            data['label'] = pd.to_numeric(data['label'], errors='coerce')
-            
-            # Filter out NaN labels
-            data = data[~data['label'].isna()]
-            print_info(f"Valid subjects (non-NaN labels): {len(data)}")
-            
-            # Filter out label == 99
-            data = data[data['label'] != 99]
-            print_info(f"Valid subjects (label != 99): {len(data)}")
-            
-            # Filter for ADHD subjects (label == 1)
-            td_data = data[data['label'] == 1]
-            print_info(f"ADHD subjects (label=1): {len(td_data)}")
+    # Filter for ADHD subjects using the diagnosis-based IDs
+    print_info(f"Filtering for ADHD subjects from diagnosis file...")
+    adhd_data = data[data['subject_id'].isin(adhd_ids)]
+    print_info(f"ADHD subjects found in imaging data: {len(adhd_data)}")
     
     # Filter by mean_fd < 0.5
-    td_data = td_data[td_data['mean_fd'] < 0.5]
-    print_info(f"After mean_fd < 0.5 filter: {len(td_data)}")
+    adhd_data = adhd_data[adhd_data['mean_fd'] < 0.5]
+    print_info(f"After mean_fd < 0.5 filter: {len(adhd_data)}")
     
     # Load C3SR behavioral data
     print_step("Loading C3SR behavioral data", f"From {Path(c3sr_file).name}")
@@ -159,13 +177,13 @@ def load_cmihbn_pklz_data(pklz_dir, c3sr_file):
     if not behavioral_cols:
         print_warning("No behavioral columns found in C3SR/Conners file")
         print_info(f"Available columns: {list(c3sr.columns)[:10]}...")
-        return td_data, []
+        return adhd_data, []
     
     print_info(f"Behavioral columns: {behavioral_cols}")
     
-    # Merge TD data with C3SR
+    # Merge ADHD data with C3SR
     c3sr_subset = c3sr[['subject_id'] + behavioral_cols]
-    merged = pd.merge(td_data, c3sr_subset, on='subject_id', how='inner')
+    merged = pd.merge(adhd_data, c3sr_subset, on='subject_id', how='inner')
     
     print_info(f"Subjects with C3SR data: {len(merged)}")
     
@@ -444,25 +462,31 @@ def save_results(results_list, pc_loadings_dict, output_dir):
 def main():
     print_section_header("ENHANCED BRAIN-BEHAVIOR ANALYSIS - CMI-HBN ADHD")
     
-    print_info(f"PKLZ DIR:   {PKLZ_DIR}")
-    print_info(f"IG CSV:     {IG_CSV}")
-    print_info(f"C3SR FILE:  {C3SR_FILE}")
-    print_info(f"Output:     {OUTPUT_DIR}")
+    print_info(f"PKLZ DIR:      {PKLZ_DIR}")
+    print_info(f"IG CSV:        {IG_CSV}")
+    print_info(f"DIAGNOSIS CSV: {DIAGNOSIS_CSV}")
+    print_info(f"C3SR FILE:     {C3SR_FILE}")
+    print_info(f"Output:        {OUTPUT_DIR}")
     print()
     
     # Create output directory if it doesn't exist
     Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
     
     try:
-        # 1. Load data
-        pklz_data, behavioral_cols = load_cmihbn_pklz_data(PKLZ_DIR, C3SR_FILE)
+        # 1. Load ADHD subjects from diagnosis file
+        adhd_ids = load_cmihbn_adhd_subjects(DIAGNOSIS_CSV)
+        print()
+        
+        # 2. Load imaging and behavioral data
+        pklz_data, behavioral_cols = load_cmihbn_pklz_data(PKLZ_DIR, adhd_ids, C3SR_FILE)
         
         if not behavioral_cols:
             raise ValueError("No behavioral columns found")
         
+        # 3. Load IG scores
         ig_df, roi_cols = load_cmihbn_ig_scores(IG_CSV)
         
-        # 2. Merge data
+        # 4. Merge data
         merged_df = merge_data(pklz_data, ig_df, behavioral_cols)
         
         # Extract IG matrix
@@ -471,7 +495,7 @@ def main():
         print_info(f"IG matrix shape: {ig_matrix.shape} (subjects x ROIs)")
         print()
         
-        # 3. Perform PCA with many components
+        # 5. Perform PCA with many components
         print_step("Performing PCA", "Using 50 components for elbow plot")
         scaler = StandardScaler()
         ig_scaled = scaler.fit_transform(ig_matrix)
@@ -483,7 +507,7 @@ def main():
         print_info(f"Variance explained by first 3 PCs: {pca.explained_variance_ratio_[:3].sum()*100:.2f}%")
         print()
         
-        # 4. Create elbow plot and determine optimal PCs
+        # 6. Create elbow plot and determine optimal PCs
         optimal_pcs = create_elbow_plot(pca, OUTPUT_DIR)
         print()
         
@@ -492,11 +516,11 @@ def main():
         print_info(f"Using {optimal_pcs} PCs for linear regression")
         print()
         
-        # 5. Get PC loadings
+        # 7. Get PC loadings
         pc_loadings_dict = get_pc_loadings(pca, roi_cols, n_top=10)
         print()
         
-        # 6. Perform linear regression for each behavioral measure
+        # 8. Perform linear regression for each behavioral measure
         print_section_header("LINEAR REGRESSION RESULTS")
         results_list = []
         for behavioral_col in behavioral_cols:
@@ -515,11 +539,11 @@ def main():
         
         print()
         
-        # 7. Save all results
+        # 9. Save all results
         save_results(results_list, pc_loadings_dict, OUTPUT_DIR)
         
         print()
-        print_completion("CMI-HBN TD Enhanced Analysis Complete!")
+        print_completion("CMI-HBN ADHD Enhanced Analysis Complete!")
         print_info(f"Results saved to: {OUTPUT_DIR}")
         
     except Exception as e:
