@@ -120,15 +120,16 @@ def load_srs_data(srs_file):
     if id_col != 'subject_id':
         srs_df = srs_df.rename(columns={id_col: 'subject_id'})
     
-    # Look for 'SRS Total Score T-Score' column
+    # Look for SRS score column - prioritize srs_total_score_standard
     srs_score_col = None
     
-    # First try exact match
-    if 'SRS Total Score T-Score' in srs_df.columns:
-        srs_score_col = 'SRS Total Score T-Score'
-        print_info(f"Found SRS score column: '{srs_score_col}'")
-    elif 'srs_total_score_standard' in srs_df.columns:
+    # First priority: srs_total_score_standard
+    if 'srs_total_score_standard' in srs_df.columns:
         srs_score_col = 'srs_total_score_standard'
+        print_info(f"Found SRS score column: '{srs_score_col}'")
+    # Second priority: SRS Total Score T-Score
+    elif 'SRS Total Score T-Score' in srs_df.columns:
+        srs_score_col = 'SRS Total Score T-Score'
         print_info(f"Found SRS score column: '{srs_score_col}'")
     else:
         # Try flexible matching

@@ -223,9 +223,24 @@ def merge_data(ig_df, behavioral_df):
     print_info(f"IG subjects: {len(ig_df)}")
     print_info(f"Behavioral subjects: {len(behavioral_df)}")
     
+    # Debug: Check ID formats
+    print_info(f"Sample IG IDs: {list(ig_df['subject_id'].head(5))}")
+    print_info(f"Sample behavioral IDs: {list(behavioral_df['subject_id'].head(5))}")
+    
     # Remove duplicates in behavioral data (keep first)
     behavioral_df = behavioral_df.drop_duplicates(subset='subject_id', keep='first')
     print_info(f"Behavioral subjects after deduplication: {len(behavioral_df)}")
+    
+    # Check for overlapping IDs
+    ig_ids = set(ig_df['subject_id'])
+    behav_ids = set(behavioral_df['subject_id'])
+    overlap_ids = ig_ids.intersection(behav_ids)
+    print_info(f"Overlapping subject IDs: {len(overlap_ids)}")
+    
+    if len(overlap_ids) < 10:
+        print_warning(f"Very few overlapping IDs! Showing some examples:")
+        print_info(f"  First 5 IG IDs: {list(ig_df['subject_id'].head(5))}")
+        print_info(f"  First 5 Behavioral IDs: {list(behavioral_df['subject_id'].head(5))}")
     
     # Merge on subject_id
     merged = pd.merge(ig_df, behavioral_df, on='subject_id', how='inner')
