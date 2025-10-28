@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Enhanced brain-behavior analysis for CMI-HBN ADHD with all paths pre-configured.
+Enhanced brain-behavior analysis for ABIDE ASD with all paths pre-configured.
 Includes: Elbow plot, Linear Regression, Scatter plots, PC importance, PC loadings.
 
-Just run: python run_cmihbn_adhd_brain_behavior_enhanced.py
+Uses ADOS measures for behavioral correlation.
+
+Just run: python run_abide_asd_brain_behavior_enhanced.py
 """
 
 import sys
@@ -13,12 +15,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf as pdf_backend
-import seaborn as sns
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import cross_val_score
 from scipy.stats import spearmanr
+from sklearn.metrics import r2_score
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -28,8 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from logging_utils import (print_section_header, print_step, print_success, 
                            print_warning, print_error, print_info, print_completion)
-from plot_styles import get_dataset_title, setup_arial_font, create_standardized_scatter, DPI, FIGURE_FACECOLOR
-from sklearn.metrics import r2_score
+from plot_styles import create_standardized_scatter, get_dataset_title, setup_arial_font, DPI, FIGURE_FACECOLOR
 
 # Setup Arial font globally
 setup_arial_font()
@@ -37,160 +37,27 @@ setup_arial_font()
 # ============================================================================
 # PRE-CONFIGURED PATHS (NO ARGUMENTS NEEDED)
 # ============================================================================
-DATASET = "cmihbn_adhd"
-PKLZ_DIR = "/oak/stanford/groups/menon/deriveddata/public/cmihbn/restfmri/timeseries/group_level/brainnetome/normz"
-IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/cmihbn_adhd_no_cutoffs_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv"
-C3SR_FILE = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/adhd/C3SR.csv"
-OUTPUT_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/cmihbn_adhd"
+DATASET = "abide_asd"
+IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/abide_asd_features_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS.csv"
+PKLZ_DIR = "/oak/stanford/groups/menon/deriveddata/public/abide/restfmri/timeseries/group_level/brainnetome/normz/"
+OUTPUT_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/abide_asd"
+
+# ABIDE sites to include (matching create_data script)
+ABIDE_SITES = ['NYU', 'SDSU', 'STANFORD', 'Stanford', 'TCD-1', 'UM', 'USM', 'Yale']
 
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
 
-def load_cmihbn_pklz_data(pklz_dir, c3sr_file):
-    """Load CMI-HBN .pklz files (run1 only) and merge with C3SR behavioral data."""
-    print_step("Loading CMI-HBN ADHD data", f"From {Path(pklz_dir).name}")
-    
-    # Load all run1 .pklz files
-    pklz_files = [f for f in Path(pklz_dir).glob('*.pklz') if 'run1' in f.name]
-    
-    if not pklz_files:
-        raise ValueError(f"No run1 .pklz files found in {pklz_dir}")
-    
-    print_info(f"Found {len(pklz_files)} run1 .pklz files")
-    
-    # Load and concatenate
-    data_list = []
-    for pklz_file in pklz_files:
-        data_new = pd.read_pickle(pklz_file)
-        data_list.append(data_new)
-    
-    data = pd.concat(data_list, ignore_index=True)
-    print_info(f"Loaded {len(data)} total subjects from {len(pklz_files)} files")
-    
-    # Convert subject_id to string
-    data['subject_id'] = data['subject_id'].astype(str)
-    
-    # Remove duplicates
-    data = data.drop_duplicates(subset='subject_id', keep='first')
-    print_info(f"Total subjects after deduplication: {len(data)}")
-    
-    # CMI-HBN specific filtering
-    # Check if label column exists
-    if 'label' not in data.columns:
-        print_warning("No 'label' column found. Assuming all subjects are TD.")
-        td_data = data
-    else:
-        # Debug: Check label values before filtering
-        print_info(f"Label column dtype: {data['label'].dtype}")
-        unique_labels = data['label'].unique()
-        print_info(f"Unique label values: {unique_labels}")
-        print_info(f"Non-null labels: {data['label'].notna().sum()}")
-        
-        # Filter for TD subjects based on label format
-        # Check if labels are strings (e.g., 'td', 'asd') or numeric (0, 1)
-        if data['label'].dtype == 'object':
-            # String labels: filter for 'td' (case-insensitive)
-            td_data = data[data['label'].str.lower() == 'td']
-            print_info(f"TD subjects (label='td'): {len(td_data)}")
-        else:
-            # Numeric labels: filter for 0
-            # First remove 'pending' labels if they exist
-            data = data[data['label'] != 'pending']
-            print_info(f"After removing 'pending' labels: {len(data)}")
-            
-            # Convert label to numeric
-            data['label'] = pd.to_numeric(data['label'], errors='coerce')
-            
-            # Filter out NaN labels
-            data = data[~data['label'].isna()]
-            print_info(f"Valid subjects (non-NaN labels): {len(data)}")
-            
-            # Filter out label == 99
-            data = data[data['label'] != 99]
-            print_info(f"Valid subjects (label != 99): {len(data)}")
-            
-            # Filter for TD subjects (label == 0)
-            td_data = data[data['label'] == 0]
-            print_info(f"TD subjects (label=0): {len(td_data)}")
-    
-    # Filter by mean_fd < 0.5
-    td_data = td_data[td_data['mean_fd'] < 0.5]
-    print_info(f"After mean_fd < 0.5 filter: {len(td_data)}")
-    
-    # Load C3SR behavioral data
-    print_step("Loading C3SR behavioral data", f"From {Path(c3sr_file).name}")
-    
-    if not Path(c3sr_file).exists():
-        raise ValueError(f"C3SR file not found: {c3sr_file}")
-    
-    c3sr = pd.read_csv(c3sr_file)
-    
-    # Identify subject ID column in C3SR
-    id_col = None
-    for col in c3sr.columns:
-        if 'id' in col.lower() or 'identifier' in col.lower():
-            id_col = col
-            break
-    
-    if id_col is None:
-        raise ValueError("No subject ID column found in C3SR CSV")
-    
-    # Process C3SR subject IDs (take first 12 characters)
-    c3sr['subject_id'] = c3sr[id_col].apply(lambda x: str(x)[:12])
-    
-    # Identify C3SR/Conners behavioral columns
-    # Look for various patterns: C3SR_HY_T, C3SR_IN_T, or Conners subscales
-    behavioral_cols = []
-    
-    # First try C3SR naming
-    for col in c3sr.columns:
-        col_lower = col.lower()
-        if any(pattern in col_lower for pattern in ['c3sr_hy_t', 'c3sr_in_t', 'hyperactivity', 'inattention']):
-            behavioral_cols.append(col)
-    
-    # If no C3SR columns, look for Conners subscales (T-scores)
-    if not behavioral_cols:
-        for col in c3sr.columns:
-            if ('_t' in col.lower() or 't_score' in col.lower() or 'tscore' in col.lower()) and \
-               any(keyword in col.lower() for keyword in ['hyperactiv', 'inattent', 'adhd']):
-                behavioral_cols.append(col)
-    
-    if not behavioral_cols:
-        print_warning("No behavioral columns found in C3SR/Conners file")
-        print_info(f"Available columns: {list(c3sr.columns)[:10]}...")
-        return td_data, []
-    
-    print_info(f"Behavioral columns: {behavioral_cols}")
-    
-    # Merge TD data with C3SR
-    c3sr_subset = c3sr[['subject_id'] + behavioral_cols]
-    merged = pd.merge(td_data, c3sr_subset, on='subject_id', how='inner')
-    
-    print_info(f"Subjects with C3SR data: {len(merged)}")
-    
-    # Convert behavioral columns to numeric
-    for col in behavioral_cols:
-        merged[col] = pd.to_numeric(merged[col], errors='coerce')
-    
-    # Debug: Check how many subjects have data for each measure
-    for col in behavioral_cols:
-        non_null = merged[col].notna().sum()
-        print_info(f"  {col}: {non_null} non-null values")
-    
-    # DON'T drop rows with NaN - we'll handle each behavioral measure separately
-    # Just return the data with behavioral columns (some may have NaN)
-    print_success(f"Final TD subjects: {len(merged)}")
-    print_info(f"Note: Each behavioral measure will be analyzed separately with available data")
-    
-    return merged, behavioral_cols
-
-
-def load_cmihbn_ig_scores(ig_csv):
-    """Load CMI-HBN IG scores."""
+def load_abide_ig_scores(ig_csv):
+    """Load ABIDE ASD IG scores."""
     print_step("Loading IG scores", f"From {Path(ig_csv).name}")
     
     df = pd.read_csv(ig_csv)
+    
+    # Drop Unnamed: 0 if present
+    if 'Unnamed: 0' in df.columns:
+        df = df.drop(columns=['Unnamed: 0'])
     
     # Identify subject ID column
     id_col = None
@@ -214,23 +81,91 @@ def load_cmihbn_ig_scores(ig_csv):
     
     print_info(f"IG subjects: {len(df)}")
     print_info(f"IG features (ROIs): {len(roi_cols)}")
+    print_info(f"Sample ROI columns: {roi_cols[:3]}...")
     
     return df, roi_cols
 
 
-def merge_data(pklz_data, ig_df, behavioral_cols):
-    """Merge PKLZ and IG data by subject ID."""
+def load_abide_behavioral_data(pklz_dir, sites):
+    """Load ABIDE behavioral data from .pklz files (ASD subjects only)."""
+    print_step("Loading ABIDE behavioral data", f"From {Path(pklz_dir).name}")
+    
+    pklz_dir = Path(pklz_dir)
+    
+    # Find all .pklz files matching the specified sites
+    all_files = list(pklz_dir.glob('*.pklz'))
+    filtered_files = []
+    for file_path in all_files:
+        if any(site in file_path.name for site in sites):
+            filtered_files.append(file_path)
+    
+    if not filtered_files:
+        raise ValueError(f"No .pklz files found for sites: {sites}")
+    
+    print_info(f"Found {len(filtered_files)} .pklz files for {len(sites)} sites")
+    
+    # Load and concatenate all dataframes
+    appended_data = []
+    for file_path in filtered_files:
+        try:
+            data = pd.read_pickle(file_path)
+            # Remove NaN entries
+            data = data[~pd.isna(data)]
+            appended_data.append(data)
+            print_info(f"  Loaded {len(data)} subjects from {file_path.name}")
+        except Exception as e:
+            print_warning(f"  Could not load {file_path.name}: {e}")
+    
+    if not appended_data:
+        raise ValueError("No data loaded from .pklz files")
+    
+    # Concatenate all data
+    combined_df = pd.concat(appended_data, ignore_index=True)
+    
+    # Convert label to int
+    combined_df['label'] = combined_df['label'].astype(int)
+    
+    # Filter for ASD subjects only (label == 1 based on create_data script)
+    # In ABIDE: 1 = ASD, 2 = TD
+    asd_df = combined_df[combined_df['label'] == 1].copy()
+    
+    print_info(f"Total subjects loaded: {len(combined_df)}")
+    print_info(f"ASD subjects (label=1): {len(asd_df)}")
+    
+    # Ensure subject_id is string
+    asd_df['subject_id'] = asd_df['subject_id'].astype(str)
+    
+    # Check for ADOS-related columns
+    ados_cols = [col for col in asd_df.columns if 'ados' in col.lower()]
+    
+    if not ados_cols:
+        print_warning("No ADOS columns found in data")
+        print_info(f"Available columns: {list(asd_df.columns)}")
+        # Try to find any behavioral columns
+        behavioral_cols = [col for col in asd_df.columns if col not in 
+                          ['subject_id', 'data', 'mean_fd', 'age', 'gender', 'site', 'label']]
+        if behavioral_cols:
+            print_info(f"Other behavioral columns: {behavioral_cols}")
+            ados_cols = behavioral_cols
+    
+    print_info(f"Behavioral measures found: {ados_cols}")
+    
+    return asd_df, ados_cols
+
+
+def merge_data(ig_df, behavioral_df):
+    """Merge IG and behavioral data by subject ID."""
     print_step("Merging data", "Matching subject IDs")
     
-    # Select relevant columns from pklz_data
-    pklz_cols = ['subject_id'] + behavioral_cols
-    pklz_subset = pklz_data[pklz_cols]
-    
-    print_info(f"PKLZ subjects: {len(pklz_subset)}")
     print_info(f"IG subjects: {len(ig_df)}")
+    print_info(f"Behavioral subjects: {len(behavioral_df)}")
+    
+    # Remove duplicates in behavioral data (keep first)
+    behavioral_df = behavioral_df.drop_duplicates(subset='subject_id', keep='first')
+    print_info(f"Behavioral subjects after deduplication: {len(behavioral_df)}")
     
     # Merge on subject_id
-    merged = pd.merge(ig_df, pklz_subset, on='subject_id', how='inner')
+    merged = pd.merge(ig_df, behavioral_df, on='subject_id', how='inner')
     
     common_subjects = len(merged)
     print_success(f"Merged: {common_subjects} subjects with both IG and behavioral data")
@@ -318,7 +253,6 @@ def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, ou
     rho, p_value = spearmanr(y, y_pred)
     
     # Calculate R² on all data
-    from sklearn.metrics import r2_score
     r2 = r2_score(y, y_pred)
     
     # Format p-value for console output
@@ -353,24 +287,45 @@ def perform_linear_regression(pca_scores, behavioral_scores, behavioral_name, ou
 
 def create_scatter_plot(y_actual, y_pred, rho, p_value, behavioral_name, dataset_name, output_dir):
     """Create scatter plot using centralized styling."""
+    # Format p-value
     p_str = "< 0.001" if p_value < 0.001 else f"= {p_value:.3f}"
+    
+    # Create stats text
     stats_text = f"ρ = {rho:.3f}\np {p_str}"
+    
+    # Get standardized title
     title = get_dataset_title(dataset_name)
+    
+    # Create safe filename
     safe_name = behavioral_name.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
     save_path = Path(output_dir) / f'scatter_{safe_name}'
     
+    # Use centralized plotting function (handles PNG + TIFF + AI export)
     fig, ax = plt.subplots(figsize=(6, 6))
-    create_standardized_scatter(ax, y_actual, y_pred, title=title,
-                               xlabel='Observed Behavioral Score',
-                               ylabel='Predicted Behavioral Score',
-                               stats_text=stats_text, is_subplot=False)
     
+    create_standardized_scatter(
+        ax, y_actual, y_pred,
+        title=title,
+        xlabel='Observed Behavioral Score',
+        ylabel='Predicted Behavioral Score',
+        stats_text=stats_text,
+        is_subplot=False
+    )
+    
+    # Save with centralized export (PNG + TIFF + AI)
     plt.tight_layout()
-    png_path, tiff_path, ai_path = save_path.with_suffix('.png'), save_path.with_suffix('.tiff'), save_path.with_suffix('.ai')
+    
+    png_path = save_path.with_suffix('.png')
+    tiff_path = save_path.with_suffix('.tiff')
+    ai_path = save_path.with_suffix('.ai')
+    
     plt.savefig(png_path, dpi=DPI, bbox_inches='tight', facecolor=FIGURE_FACECOLOR, edgecolor='none')
-    plt.savefig(tiff_path, dpi=DPI, bbox_inches='tight', facecolor=FIGURE_FACECOLOR, edgecolor='none', format='tiff', pil_kwargs={'compression': 'tiff_lzw'})
+    plt.savefig(tiff_path, dpi=DPI, bbox_inches='tight', facecolor=FIGURE_FACECOLOR, edgecolor='none',
+               format='tiff', pil_kwargs={'compression': 'tiff_lzw'})
     pdf_backend.FigureCanvas(fig).print_pdf(str(ai_path))
+    
     plt.close()
+    
     print(f"  ✓ Saved: {png_path.name} + {tiff_path.name} + {ai_path.name}")
 
 
@@ -412,9 +367,11 @@ def save_results(results_list, pc_loadings_dict, output_dir):
         }
         for r in results_list if r is not None
     ])
-    results_path = output_dir / 'linear_regression_results.csv'
-    results_df.to_csv(results_path, index=False)
-    print_success(f"Regression results: {results_path.name}")
+    
+    if len(results_df) > 0:
+        results_path = output_dir / 'linear_regression_results.csv'
+        results_df.to_csv(results_path, index=False)
+        print_success(f"Regression results: {results_path.name}")
     
     # 2. Save PC importance
     for r in results_list:
@@ -442,11 +399,11 @@ def save_results(results_list, pc_loadings_dict, output_dir):
 # ============================================================================
 
 def main():
-    print_section_header("ENHANCED BRAIN-BEHAVIOR ANALYSIS - CMI-HBN TD")
+    print_section_header("ENHANCED BRAIN-BEHAVIOR ANALYSIS - ABIDE ASD")
     
-    print_info(f"PKLZ DIR:   {PKLZ_DIR}")
     print_info(f"IG CSV:     {IG_CSV}")
-    print_info(f"C3SR FILE:  {C3SR_FILE}")
+    print_info(f"PKLZ DIR:   {PKLZ_DIR}")
+    print_info(f"Sites:      {', '.join(ABIDE_SITES)}")
     print_info(f"Output:     {OUTPUT_DIR}")
     print()
     
@@ -455,15 +412,11 @@ def main():
     
     try:
         # 1. Load data
-        pklz_data, behavioral_cols = load_cmihbn_pklz_data(PKLZ_DIR, C3SR_FILE)
-        
-        if not behavioral_cols:
-            raise ValueError("No behavioral columns found")
-        
-        ig_df, roi_cols = load_cmihbn_ig_scores(IG_CSV)
+        ig_df, roi_cols = load_abide_ig_scores(IG_CSV)
+        behavioral_df, ados_cols = load_abide_behavioral_data(PKLZ_DIR, ABIDE_SITES)
         
         # 2. Merge data
-        merged_df = merge_data(pklz_data, ig_df, behavioral_cols)
+        merged_df = merge_data(ig_df, behavioral_df)
         
         # Extract IG matrix
         ig_matrix = merged_df[roi_cols].values
@@ -496,22 +449,26 @@ def main():
         pc_loadings_dict = get_pc_loadings(pca, roi_cols, n_top=10)
         print()
         
-        # 6. Perform linear regression for each behavioral measure
+        # 6. Perform linear regression for each ADOS measure
         print_section_header("LINEAR REGRESSION RESULTS")
         results_list = []
-        for behavioral_col in behavioral_cols:
-            print()
-            print_step(f"Analyzing {behavioral_col}", "Predicted vs Actual Behavioral Scores")
-            behavioral_scores = merged_df[behavioral_col].values
-            result = perform_linear_regression(pca_scores_optimal, behavioral_scores, behavioral_col, OUTPUT_DIR)
-            if result is not None:
-                results_list.append(result)
-                # Print summary
-                if result['p_value'] < 0.001:
-                    p_display = "< 0.001"
-                else:
-                    p_display = f"= {result['p_value']:.4f}"
-                print_success(f"✓ ρ = {result['spearman_rho']:.3f}, p {p_display}")
+        
+        if not ados_cols:
+            print_warning("No ADOS/behavioral columns found - skipping regression")
+        else:
+            for ados_col in ados_cols:
+                print()
+                print_step(f"Analyzing {ados_col}", "Predicted vs Actual Behavioral Scores")
+                behavioral_scores = pd.to_numeric(merged_df[ados_col], errors='coerce').values
+                result = perform_linear_regression(pca_scores_optimal, behavioral_scores, ados_col, OUTPUT_DIR)
+                if result is not None:
+                    results_list.append(result)
+                    # Print summary
+                    if result['p_value'] < 0.001:
+                        p_display = "< 0.001"
+                    else:
+                        p_display = f"= {result['p_value']:.4f}"
+                    print_success(f"✓ ρ = {result['spearman_rho']:.3f}, p {p_display}")
         
         print()
         
@@ -519,7 +476,7 @@ def main():
         save_results(results_list, pc_loadings_dict, OUTPUT_DIR)
         
         print()
-        print_completion("CMI-HBN TD Enhanced Analysis Complete!")
+        print_completion("ABIDE ASD Brain-Behavior Analysis Complete!")
         print_info(f"Results saved to: {OUTPUT_DIR}")
         
     except Exception as e:
@@ -532,3 +489,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

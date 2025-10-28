@@ -42,7 +42,7 @@ DATASETS = {
     
     # ADHD Cohorts
     'ADHD200 ADHD': BASE_DIR / 'adhd200_adhd_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv',
-    'CMI-HBN ADHD': BASE_DIR / 'cmihbn_adhd_weidong_cutoffs_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv',
+    'CMI-HBN ADHD': BASE_DIR / 'cmihbn_adhd_no_cutoffs_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv',
     
     # ASD Cohorts
     'ABIDE ASD': BASE_DIR / 'abide_asd_features_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS.csv',
