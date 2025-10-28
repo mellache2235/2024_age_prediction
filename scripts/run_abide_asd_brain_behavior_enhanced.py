@@ -94,17 +94,18 @@ def load_abide_behavioral_data(pklz_dir, sites):
     
     pklz_dir = Path(pklz_dir)
     
-    # Find all .pklz files matching the specified sites
-    all_files = list(pklz_dir.glob('*.pklz'))
+    # Find all .pklz files matching the specified sites AND ending with 246ROIs.pklz
+    all_files = os.listdir(pklz_dir)
     filtered_files = []
-    for file_path in all_files:
-        if any(site in file_path.name for site in sites):
-            filtered_files.append(file_path)
+    for file_name in all_files:
+        # Must contain one of the sites AND end with 246ROIs.pklz
+        if '246ROIs.pklz' in file_name and any(site in file_name for site in sites):
+            filtered_files.append(pklz_dir / file_name)
     
     if not filtered_files:
-        raise ValueError(f"No .pklz files found for sites: {sites}")
+        raise ValueError(f"No 246ROIs.pklz files found for sites: {sites}")
     
-    print_info(f"Found {len(filtered_files)} .pklz files for {len(sites)} sites")
+    print_info(f"Found {len(filtered_files)} 246ROIs.pklz files for {len(sites)} sites")
     
     # Load and concatenate all dataframes
     appended_data = []
@@ -124,15 +125,25 @@ def load_abide_behavioral_data(pklz_dir, sites):
     # Concatenate all data
     combined_df = pd.concat(appended_data, ignore_index=True)
     
-    # Convert label to int
-    combined_df['label'] = combined_df['label'].astype(int)
-    
-    # Filter for ASD subjects only (label == 1 based on create_data script)
-    # In ABIDE: 1 = ASD, 2 = TD
-    asd_df = combined_df[combined_df['label'] == 1].copy()
+    # Convert label to string if not already
+    combined_df['label'] = combined_df['label'].astype(str)
     
     print_info(f"Total subjects loaded: {len(combined_df)}")
-    print_info(f"ASD subjects (label=1): {len(asd_df)}")
+    print_info(f"Unique label values: {combined_df['label'].unique()}")
+    
+    # Filter for ASD subjects only (label == 'asd' string)
+    asd_df = combined_df[combined_df['label'] == 'asd'].copy()
+    
+    print_info(f"ASD subjects (label='asd'): {len(asd_df)}")
+    
+    # Filter for developmental age (age <= 21)
+    if 'age' in asd_df.columns:
+        asd_df['age'] = pd.to_numeric(asd_df['age'], errors='coerce')
+        asd_df = asd_df[asd_df['age'] <= 21]
+        print_info(f"ASD subjects age <= 21: {len(asd_df)}")
+    
+    # Reset index
+    asd_df = asd_df.reset_index(drop=True)
     
     # Identify and rename subject ID column
     id_col = None
@@ -160,23 +171,46 @@ def load_abide_behavioral_data(pklz_dir, sites):
     target_ados = ['ados_total', 'ados_social', 'ados_comm']
     ados_cols = []
     
+    print_info(f"Looking for ADOS columns: {target_ados}")
+    print_info(f"Available columns in .pklz data: {list(asd_df.columns)}")
+    
     for target in target_ados:
         # Try exact match (lowercase)
         if target in asd_df.columns:
             ados_cols.append(target)
+            print_info(f"  Found: {target}")
         else:
             # Try case-insensitive match
+            found = False
             for col in asd_df.columns:
                 if col.lower() == target:
                     ados_cols.append(col)
+                    print_info(f"  Found: {col} (matched {target})")
+                    found = True
                     break
+            if not found:
+                print_warning(f"  NOT FOUND: {target}")
+    
+    # Check for any ADOS-related columns
+    all_ados_cols = [col for col in asd_df.columns if 'ados' in col.lower()]
     
     if not ados_cols:
         print_warning(f"None of the target ADOS columns found: {target_ados}")
-        print_info(f"Available ADOS columns: {[col for col in asd_df.columns if 'ados' in col.lower()]}")
-        print_info(f"All behavioral columns: {list(asd_df.columns)}")
+        if all_ados_cols:
+            print_info(f"Available ADOS columns: {all_ados_cols}")
+            # Check if any have non-null values
+            for col in all_ados_cols[:5]:  # Check first 5
+                non_null = asd_df[col].notna().sum()
+                print_info(f"  {col}: {non_null} non-null values")
+        else:
+            print_warning("No ADOS columns found in data at all")
+            print_info(f"All columns: {list(asd_df.columns)}")
     else:
         print_info(f"ADOS behavioral measures found: {ados_cols}")
+        # Check how many non-null values each has
+        for col in ados_cols:
+            non_null = asd_df[col].notna().sum()
+            print_info(f"  {col}: {non_null} non-null values out of {len(asd_df)}")
     
     return asd_df, ados_cols
 
@@ -445,6 +479,16 @@ def main():
         
         # 2. Merge data
         merged_df = merge_data(ig_df, behavioral_df)
+        
+        # Debug: Check if ADOS columns are in merged data
+        print_info(f"Merged data columns: {list(merged_df.columns)}")
+        if ados_cols:
+            for col in ados_cols:
+                if col in merged_df.columns:
+                    non_null = merged_df[col].notna().sum()
+                    print_info(f"  {col} in merged data: {non_null} non-null values")
+                else:
+                    print_warning(f"  {col} NOT in merged data!")
         
         # Extract IG matrix
         ig_matrix = merged_df[roi_cols].values

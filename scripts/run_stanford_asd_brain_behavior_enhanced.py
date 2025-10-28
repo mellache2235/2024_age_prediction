@@ -241,8 +241,13 @@ def perform_linear_regression(pca_scores, srs_scores, output_dir):
     """Perform linear regression using all PCs to predict SRS total score."""
     print_step("Linear regression for SRS Total Score", "Using all PCs as predictors")
     
-    # Ensure srs_scores is numeric and convert to numpy array
-    srs_scores = pd.to_numeric(srs_scores, errors='coerce').values
+    # Ensure srs_scores is a numpy array of numeric values
+    if not isinstance(srs_scores, np.ndarray):
+        srs_scores = pd.to_numeric(srs_scores, errors='coerce').values
+    else:
+        # Already a numpy array, just ensure it's numeric (convert if needed)
+        if srs_scores.dtype == object:
+            srs_scores = pd.to_numeric(pd.Series(srs_scores), errors='coerce').values
     
     # Remove NaNs
     valid_mask = ~np.isnan(srs_scores)
