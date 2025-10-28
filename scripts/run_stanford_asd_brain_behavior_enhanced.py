@@ -120,35 +120,53 @@ def load_srs_data(srs_file):
     if id_col != 'subject_id':
         srs_df = srs_df.rename(columns={id_col: 'subject_id'})
     
-    # Check if srs_total_score_standard exists, or find alternative
-    if 'srs_total_score_standard' not in srs_df.columns:
-        print_warning("Column 'srs_total_score_standard' not found in SRS file")
-        
-        # Try to find SRS total score column (various naming conventions)
-        srs_cols = []
+    # Look for SRS behavioral columns (support multiple measures)
+    srs_cols = []
+    
+    # Target columns to find
+    target_cols = {
+        'srs_total_score_standard': 'srs_total_score_standard',
+        'SRS Total Score T-Score': 'srs_total_score_standard',
+        'Social Awareness (AWR) T-Score': 'social_awareness_tscore'
+    }
+    
+    # Find and rename columns
+    for original_name, standard_name in target_cols.items():
+        if original_name in srs_df.columns:
+            if original_name != standard_name:
+                srs_df = srs_df.rename(columns={original_name: standard_name})
+                print_info(f"Found and renamed '{original_name}' to '{standard_name}'")
+            else:
+                print_info(f"Found '{original_name}'")
+            srs_cols.append(standard_name)
+    
+    # If we didn't find srs_total_score_standard, try flexible matching
+    if 'srs_total_score_standard' not in srs_cols:
+        print_warning("'SRS Total Score T-Score' not found, searching for alternatives...")
         for col in srs_df.columns:
             col_lower = col.lower()
-            # Look for columns with 'total' and either 'score' or 't-score' or 'tscore'
-            if 'total' in col_lower and any(x in col_lower for x in ['score', 't-score', 'tscore', 't_score']):
-                # Prioritize columns that also mention 'srs'
-                if 'srs' in col_lower:
-                    srs_cols.insert(0, col)  # Add to front
-                else:
-                    srs_cols.append(col)
-        
-        if srs_cols:
-            print_info(f"Found SRS total score columns: {srs_cols}")
-            print_info(f"Using: {srs_cols[0]}")
-            srs_df = srs_df.rename(columns={srs_cols[0]: 'srs_total_score_standard'})
-        else:
-            print_error("No SRS total score column found")
-            print_info(f"All columns: {list(srs_df.columns)}")
-            raise ValueError(f"No SRS total score column found. Available columns: {list(srs_df.columns)}")
+            if 'srs' in col_lower and 'total' in col_lower and any(x in col_lower for x in ['score', 't-score', 'tscore', 't_score']):
+                srs_df = srs_df.rename(columns={col: 'srs_total_score_standard'})
+                print_info(f"Using '{col}' as SRS Total Score")
+                srs_cols.append('srs_total_score_standard')
+                break
+    
+    if not srs_cols:
+        print_error("No SRS behavioral columns found")
+        print_info(f"All columns: {list(srs_df.columns)}")
+        raise ValueError(f"No SRS behavioral columns found. Available columns: {list(srs_df.columns)}")
+    
+    # Convert all SRS columns to numeric
+    for col in srs_cols:
+        if col in srs_df.columns:
+            srs_df[col] = pd.to_numeric(srs_df[col], errors='coerce')
+            valid_scores = srs_df[col].notna().sum()
+            print_info(f"{col}: {valid_scores} valid scores (non-NaN)")
     
     print_info(f"SRS subjects: {len(srs_df)}")
-    print_info(f"SRS score column: srs_total_score_standard (renamed from original if needed)")
+    print_info(f"SRS behavioral measures: {srs_cols}")
     
-    return srs_df
+    return srs_df, srs_cols
 
 
 def merge_data(ig_df, srs_df):
@@ -402,17 +420,16 @@ def main():
     try:
         # 1. Load data
         ig_df, roi_cols = load_stanford_ig_scores(IG_CSV)
-        srs_df = load_srs_data(SRS_FILE)
+        srs_df, srs_cols = load_srs_data(SRS_FILE)
         
         # 2. Merge data
         merged_df = merge_data(ig_df, srs_df)
         
-        # Extract IG matrix and SRS scores
+        # Extract IG matrix
         ig_matrix = merged_df[roi_cols].values
-        srs_scores = merged_df['srs_total_score_standard'].values
         
         print_info(f"IG matrix shape: {ig_matrix.shape} (subjects x ROIs)")
-        print_info(f"SRS scores shape: {srs_scores.shape}")
+        print_info(f"SRS behavioral measures to analyze: {srs_cols}")
         print()
         
         # 3. Perform PCA with many components
@@ -440,23 +457,34 @@ def main():
         pc_loadings_dict = get_pc_loadings(pca, roi_cols, n_top=10)
         print()
         
-        # 6. Perform linear regression for SRS total score
+        # 6. Perform linear regression for each SRS measure
         print_section_header("LINEAR REGRESSION RESULTS")
-        print()
-        result = perform_linear_regression(pca_scores_optimal, srs_scores, OUTPUT_DIR)
+        results_list = []
         
-        if result is not None:
-            # Print summary
-            if result['p_value'] < 0.001:
-                p_display = "< 0.001"
-            else:
-                p_display = f"= {result['p_value']:.4f}"
-            print_success(f"✓ ρ = {result['spearman_rho']:.3f}, p {p_display}")
+        for srs_col in srs_cols:
+            print()
+            print_step(f"Analyzing {srs_col}", "Predicted vs Actual Behavioral Scores")
+            
+            if srs_col not in merged_df.columns:
+                print_warning(f"Column '{srs_col}' not found in merged data - skipping")
+                continue
+            
+            srs_scores = merged_df[srs_col].values
+            result = perform_linear_regression_multi(pca_scores_optimal, srs_scores, srs_col, OUTPUT_DIR)
+            
+            if result is not None:
+                results_list.append(result)
+                # Print summary
+                if result['p_value'] < 0.001:
+                    p_display = "< 0.001"
+                else:
+                    p_display = f"= {result['p_value']:.4f}"
+                print_success(f"✓ r = {result['spearman_rho']:.3f}, p {p_display}")
         
         print()
         
         # 7. Save all results
-        save_results(result, pc_loadings_dict, OUTPUT_DIR)
+        save_results_multi(results_list, pc_loadings_dict, OUTPUT_DIR)
         
         print()
         print_completion("Stanford ASD Brain-Behavior Analysis Complete!")

@@ -112,6 +112,7 @@ def plot_combined_asd_cohorts(npz_files_dir: str, output_path: str,
     # Plot each dataset in its own subplot
     for i, (dataset_name, dataset_info) in enumerate(asd_datasets.items()):
         ax = axes[i]
+        # ASD cohorts use absolute paths from npz_files_dir
         predicted_file = os.path.join(npz_files_dir, dataset_info['predicted'])
         actual_file = os.path.join(npz_files_dir, dataset_info['actual'])
         

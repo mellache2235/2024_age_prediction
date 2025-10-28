@@ -75,6 +75,9 @@ python plot_pc_loadings_heatmap.py --dataset adhd200_td
 python plot_pc_loadings_heatmap.py --dataset cmihbn_td
 
 # 5. Brain Age Plots
+# Note: TD cohorts (NKI, CMI-HBN TD, ADHD200 TD) use _oct25 NPZ files from:
+#   /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/
+
 python plot_brain_age_td_cohorts.py \
   --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots
 python plot_brain_age_adhd_cohorts.py \
@@ -92,12 +95,23 @@ results/
 ├── network_analysis_yeo/        # Network statistics & radar plots
 ├── region_tables/               # ROI tables (diverse subsets for manuscripts)
 ├── statistical_comparisons/     # Cosine similarity, Spearman ρ, Aitchison, JS divergence
-├── brain_behavior/              # Individual scatter plots (PNG/TIFF/AI)
-├── brain_behavior_optimized/    # Optimized models (RECOMMENDED)
+├── brain_behavior/              # Individual scatter plots (PNG/TIFF/AI), 6×6 inch
+│   ├── nki_rs_td/
+│   ├── adhd200_td/
+│   ├── adhd200_adhd/
+│   ├── cmihbn_td/
+│   ├── cmihbn_adhd/
+│   ├── stanford_asd/           # NEW: SRS Total Score, Social Awareness
+│   ├── abide_asd/              # NEW: ADOS (total, social, comm)
+│   └── combined_plots/
 ├── brain_age_plots/             # Combined scatter plots (PNG/TIFF/AI)
+├── integrated_gradients/        # IG scores CSV files with subject IDs
+└── count_data/                  # Consensus features CSVs
 ```
 
 **All paths**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/`
+
+**Note**: TD cohort NPZ files (_oct25) are located in `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/`
 
 ---
 

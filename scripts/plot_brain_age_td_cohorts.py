@@ -92,22 +92,29 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
     
     # Define core TD cohort datasets (4 datasets only)
     # All use bias-corrected predictions
+    # HCP-Dev uses most_updated from project root
+    hcp_dev_dir = npz_files_dir
+    # TD cohorts use oct25 from generalization folders
+    nki_dir = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/nki_updated'
+    cmihbn_dir = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/cmihbn_updated'
+    adhd200_dir = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/adhd200_updated'
+    
     td_datasets = {
         'HCP-Dev': {
-            'predicted': 'predicted_hcp_dev_ages_most_updated.npz',
-            'actual': 'actual_hcp_dev_ages_most_updated.npz'
+            'predicted': os.path.join(hcp_dev_dir, 'predicted_hcp_dev_ages_most_updated.npz'),
+            'actual': os.path.join(hcp_dev_dir, 'actual_hcp_dev_ages_most_updated.npz')
         },
         'NKI': {
-            'predicted': 'predicted_nki_ages_oct25.npz',
-            'actual': 'actual_nki_ages_oct25.npz'
+            'predicted': os.path.join(nki_dir, 'predicted_nki_ages_oct25.npz'),
+            'actual': os.path.join(nki_dir, 'actual_nki_ages_oct25.npz')
         },
         'CMI-HBN TD': {
-            'predicted': 'predicted_cmihbn_td_ages_oct25.npz',
-            'actual': 'actual_cmihbn_td_ages_oct25.npz'
+            'predicted': os.path.join(cmihbn_dir, 'predicted_cmihbn_td_ages_oct25.npz'),
+            'actual': os.path.join(cmihbn_dir, 'actual_cmihbn_td_ages_oct25.npz')
         },
         'ADHD200 TD': {
-            'predicted': 'predicted_adhd200_td_ages_oct25.npz',
-            'actual': 'actual_adhd200_td_ages_oct25.npz'
+            'predicted': os.path.join(adhd200_dir, 'predicted_adhd200_td_ages_oct25.npz'),
+            'actual': os.path.join(adhd200_dir, 'actual_adhd200_td_ages_oct25.npz')
         }
     }
     
@@ -123,8 +130,8 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
     # Plot each dataset in its own subplot
     for i, (dataset_name, dataset_info) in enumerate(td_datasets.items()):
         ax = axes[i]
-        predicted_file = os.path.join(npz_files_dir, dataset_info['predicted'])
-        actual_file = os.path.join(npz_files_dir, dataset_info['actual'])
+        predicted_file = dataset_info['predicted']
+        actual_file = dataset_info['actual']
         
         try:
             predicted_ages, actual_ages = load_age_data_from_npz(predicted_file, actual_file)

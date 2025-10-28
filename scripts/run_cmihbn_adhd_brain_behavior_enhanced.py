@@ -40,7 +40,7 @@ setup_arial_font()
 DATASET = "cmihbn_adhd"
 PKLZ_DIR = "/oak/stanford/groups/menon/deriveddata/public/cmihbn/restfmri/timeseries/group_level/brainnetome/normz"
 IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/cmihbn_adhd_no_cutoffs_features_all_sites_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS_single_model_predictions.csv"
-DIAGNOSIS_CSV = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/cmihbn/Cmihbn-CustomDECMIHBNClinic_DATA_2024-10-21_1336.csv"
+DIAGNOSIS_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_FM_ADHD/scripts/prepare_data/cmihbn/Diagnosis_ClinicianConsensus.csv"
 C3SR_FILE = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/adhd/C3SR.csv"
 OUTPUT_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/cmihbn_adhd"
 
@@ -55,46 +55,45 @@ def load_cmihbn_adhd_subjects(diagnosis_csv):
     if not Path(diagnosis_csv).exists():
         raise ValueError(f"Diagnosis CSV not found: {diagnosis_csv}")
     
-    diag_df = pd.read_csv(diagnosis_csv)
+    # Load diagnosis file
+    diagnosis = pd.read_csv(diagnosis_csv)
     
-    # Find subject ID column
-    id_col = None
-    for col in diag_df.columns:
-        if 'id' in col.lower() or 'identifier' in col.lower():
-            id_col = col
-            break
+    # Rename EID to subject_id
+    if 'EID' in diagnosis.columns:
+        diagnosis = diagnosis.rename(columns={'EID': 'subject_id'})
+        print_info(f"Renamed 'EID' to 'subject_id'")
+    elif 'subject_id' not in diagnosis.columns:
+        raise ValueError(f"No 'EID' or 'subject_id' column found in diagnosis CSV. Columns: {list(diagnosis.columns)}")
     
-    if id_col is None:
-        raise ValueError(f"No subject ID column found in diagnosis CSV. Columns: {list(diag_df.columns)}")
+    # Convert subject_id to string
+    diagnosis['subject_id'] = diagnosis['subject_id'].astype(str)
     
-    # Find diagnosis column
-    diag_col = None
-    for col in diag_df.columns:
-        if 'diagnosis_clinicianconsensus_dx' in col.lower():
-            diag_col = col
-            break
+    # Convert diagnosis columns to string
+    if 'DX_01_Sub' in diagnosis.columns:
+        diagnosis['DX_01_Sub'] = diagnosis['DX_01_Sub'].astype('string')
+    else:
+        raise ValueError(f"'DX_01_Sub' column not found. Columns: {list(diagnosis.columns)}")
     
-    if diag_col is None:
-        raise ValueError(f"No diagnosis column found in CSV. Columns: {list(diag_df.columns)}")
+    if 'DX_01_Cat' in diagnosis.columns:
+        diagnosis['DX_01_Cat'] = diagnosis['DX_01_Cat'].astype('string')
     
-    print_info(f"Using ID column: {id_col}")
-    print_info(f"Using diagnosis column: {diag_col}")
+    print_info(f"Total subjects in diagnosis file: {len(diagnosis)}")
     
-    # Filter for ADHD subjects (any form: combined, inattentive, impulsive)
-    adhd_mask = diag_df[diag_col].str.contains('ADHD', case=False, na=False)
-    adhd_subjects = diag_df[adhd_mask]
+    # Filter for ADHD subjects using DX_01_Sub
+    df_adhd = diagnosis.loc[diagnosis['DX_01_Sub'] == 'Attention-Deficit/Hyperactivity Disorder', :]
     
-    # Extract unique subject IDs and convert to string
-    adhd_ids = adhd_subjects[id_col].astype(str).unique()
+    # Extract unique subject IDs
+    adhd_ids = df_adhd['subject_id'].unique()
     
-    print_info(f"Total subjects in diagnosis file: {len(diag_df)}")
-    print_info(f"ADHD subjects (all types): {len(adhd_ids)}")
+    print_info(f"ADHD subjects (DX_01_Sub == 'Attention-Deficit/Hyperactivity Disorder'): {len(adhd_ids)}")
     
-    # Show breakdown of ADHD types
-    adhd_types = adhd_subjects[diag_col].value_counts()
-    print_info(f"ADHD diagnosis breakdown:")
-    for dx_type, count in adhd_types.items():
-        print_info(f"  {dx_type}: {count}")
+    # Show additional diagnosis categories if available
+    if 'DX_01_Cat' in df_adhd.columns:
+        adhd_cats = df_adhd['DX_01_Cat'].value_counts()
+        if len(adhd_cats) > 0:
+            print_info(f"ADHD category breakdown (DX_01_Cat):")
+            for cat, count in adhd_cats.items():
+                print_info(f"  {cat}: {count}")
     
     return adhd_ids
 
