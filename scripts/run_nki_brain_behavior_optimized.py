@@ -92,13 +92,18 @@ def load_nki_behavioral_data(behavioral_dir):
     
     behavioral_dir = Path(behavioral_dir)
     
-    # Look for multiple behavioral files
+    # Find ONLY CAARS and Conners files (exclude YRBS, DKEFS, RBS, Proverbs)
     behavioral_files = []
-    for pattern in ['*CAARS*.csv', '*Conners*.csv', '*RBS*.csv']:
+    for pattern in ['*CAARS*.csv', '*Conners*.csv']:
         behavioral_files.extend(behavioral_dir.glob(pattern))
     
+    # Explicitly exclude unwanted files
+    excluded_patterns = ['YRBS', 'DKEFS', 'RBS', 'Proverbs', 'proverbs']
+    behavioral_files = [f for f in behavioral_files 
+                       if not any(excl in f.name for excl in excluded_patterns)]
+    
     if not behavioral_files:
-        raise ValueError(f"No behavioral files found in {behavioral_dir}")
+        raise ValueError(f"No CAARS/Conners files found in {behavioral_dir}")
     
     print_info(f"Found {len(behavioral_files)} behavioral files:")
     for f in behavioral_files:

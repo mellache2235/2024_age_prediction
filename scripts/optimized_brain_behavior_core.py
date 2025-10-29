@@ -358,7 +358,8 @@ def evaluate_model(model, X, y, verbose=True):
         print(f"    {'Actual':>10} {'Predicted':>10} {'Residual':>10}")
         for i in range(min(5, len(y))):
             residual = y[i] - y_pred[i]
-            print(f"    {y[i]:>10.2f} {y_pred[i]:>10.2f} {residual:>10.2f}")
+            # Convert to float for formatting (handles numpy scalar types)
+            print(f"    {float(y[i]):>10.2f} {float(y_pred[i]):>10.2f} {float(residual):>10.2f}")
         print(f"  {'='*80}\n")
     
     return {

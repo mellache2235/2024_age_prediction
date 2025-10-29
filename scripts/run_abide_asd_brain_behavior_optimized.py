@@ -388,6 +388,12 @@ def main():
             predictions_df.to_csv(Path(OUTPUT_DIR) / pred_filename, index=False)
             print_info(f"Saved predictions: {pred_filename}")
             
+            # Verify predictions are reasonable
+            if eval_results['y_pred'].std() < 0.01:
+                print_warning(f"⚠️  Model for {measure} predicts nearly constant values!")
+            elif abs(eval_results['r2']) > 10:
+                print_warning(f"⚠️  Model for {measure} has extreme R² ({eval_results['r2']:.1f}) - likely overfitting!")
+            
             # Store summary
             all_results.append({
                 'Measure': measure,
