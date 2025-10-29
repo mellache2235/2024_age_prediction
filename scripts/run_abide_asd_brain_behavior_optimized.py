@@ -437,10 +437,19 @@ def main():
             print("BEST PERFORMANCES (Sorted by Spearman ρ)")
             print("="*100)
             summary_sorted = summary_df.sort_values('Final_Spearman', ascending=False)
-            print(summary_sorted[['Measure', 'Final_Spearman', 'Best_Strategy', 'Best_Model']].to_string(index=False))
+            
+            # Format p-values for display
+            summary_sorted['P_Display'] = summary_sorted['Final_P_Value'].apply(
+                lambda p: '< 0.001' if p < 0.001 else f'{p:.4f}'
+            )
+            
+            print(summary_sorted[['Measure', 'N_Subjects', 'Final_Spearman', 'P_Display', 'Best_Strategy', 'Best_Model']].to_string(index=False))
             print()
-            print(f"\n  HIGHEST CORRELATION: ρ = {summary_sorted.iloc[0]['Final_Spearman']:.4f}")
-            print(f"  Measure: {summary_sorted.iloc[0]['Measure']}")
+            
+            best_row = summary_sorted.iloc[0]
+            p_str = '< 0.001' if best_row['Final_P_Value'] < 0.001 else f"{best_row['Final_P_Value']:.4f}"
+            print(f"\n  HIGHEST CORRELATION: ρ = {best_row['Final_Spearman']:.4f}, p {p_str} (N = {best_row['N_Subjects']})")
+            print(f"  Measure: {best_row['Measure']}")
             print()
         else:
             print_warning("No results to save")

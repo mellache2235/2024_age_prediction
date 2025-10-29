@@ -76,7 +76,7 @@ python run_all_cohorts_brain_behavior_optimized.py --cohort cmihbn_adhd
 # Cohort-specific scripts (better data handling, recommended)
 python run_stanford_asd_brain_behavior_optimized.py  # Stanford ASD (SRS)
 python run_abide_asd_brain_behavior_optimized.py     # ABIDE ASD (ADOS, handles ID stripping)
-python run_nki_brain_behavior_optimized.py           # NKI (CAARS/Conners, multiple files)
+python run_nki_brain_behavior_optimized.py           # NKI (filters to core ADHD measures: Hyperactivity/Inattention/Impulsivity)
 # Note: All scripts sync to Oak when you clone/push
 
 # Runtime: ~30-60 min per cohort (vs ~2-5 min standard), +10-30% higher correlations

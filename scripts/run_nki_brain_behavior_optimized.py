@@ -156,12 +156,22 @@ def load_nki_behavioral_data(behavioral_dir):
     # Exclude subject_id if it got included
     behavioral_cols = [col for col in behavioral_cols if col != 'subject_id']
     
+    # FILTER: Only keep Hyperactivity, Inattention, and Impulsivity measures
+    # (consistent across multiple datasets)
+    filtered_cols = []
+    for col in behavioral_cols:
+        col_lower = col.lower()
+        if any(keyword in col_lower for keyword in ['hyperactivity', 'hyperactive', 'inattention', 'inattentive', 'impulsivity', 'impulsive']):
+            filtered_cols.append(col)
+    
+    behavioral_cols = filtered_cols
+    
     if not behavioral_cols:
-        raise ValueError("No behavioral columns found")
+        raise ValueError("No behavioral columns found matching hyperactivity/inattention/impulsivity")
     
     print_info(f"Total behavioral subjects: {len(merged_df)}")
-    print_info(f"Behavioral measures: {len(behavioral_cols)}")
-    print_info(f"Sample columns: {behavioral_cols[:5]}...")
+    print_info(f"Filtered to core ADHD measures (Hyperactivity/Inattention/Impulsivity): {len(behavioral_cols)}")
+    print_info(f"Measures: {behavioral_cols}")
     
     return merged_df, behavioral_cols
 
@@ -431,12 +441,12 @@ def main():
                 lambda p: '< 0.001' if p < 0.001 else f'{p:.4f}'
             )
             
-            print(summary_sorted[['Measure', 'Final_Spearman', 'P_Display', 'Best_Strategy', 'Best_Model']].to_string(index=False))
+            print(summary_sorted[['Measure', 'N_Subjects', 'Final_Spearman', 'P_Display', 'Best_Strategy', 'Best_Model']].to_string(index=False))
             print()
             
             best_row = summary_sorted.iloc[0]
             p_str = '< 0.001' if best_row['Final_P_Value'] < 0.001 else f"{best_row['Final_P_Value']:.4f}"
-            print(f"\n  HIGHEST CORRELATION: ρ = {best_row['Final_Spearman']:.4f}, p {p_str}")
+            print(f"\n  HIGHEST CORRELATION: ρ = {best_row['Final_Spearman']:.4f}, p {p_str} (N = {best_row['N_Subjects']})")
             print(f"  Measure: {best_row['Measure']}")
             print()
         else:

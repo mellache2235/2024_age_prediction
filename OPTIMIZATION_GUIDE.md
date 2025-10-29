@@ -30,9 +30,11 @@ python scripts/run_stanford_asd_brain_behavior_optimized.py
 # ABIDE ASD (ADOS measures)
 python scripts/run_abide_asd_brain_behavior_optimized.py
 
-# NKI (CAARS/Conners measures)
+# NKI (filters to core ADHD measures)
 python scripts/run_nki_brain_behavior_optimized.py
 ```
+
+**Note**: NKI script automatically filters to most relevant measures (Hyperactivity, Inattention, Impulsivity) from CAARS/Conners files for focused analysis.
 
 #### Universal Script (ADHD cohorts):
 ```bash

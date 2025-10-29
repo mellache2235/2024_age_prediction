@@ -216,15 +216,19 @@ These scripts use the exact same data loading logic as their enhanced counterpar
 
 **`scripts/run_nki_brain_behavior_optimized.py`** ⭐ UPDATED
 - **Dataset**: NKI-RS TD
-- **Behavioral Measures**: CAARS (multiple files merged)
-- **Data handling**: Merges CAARS, Conners Parent, Conners Self, RBS files
+- **Behavioral Measures**: Core ADHD measures (auto-filtered to Hyperactivity, Inattention, Impulsivity)
+- **Data handling**: 
+  - Merges CAARS and Conners files (excludes YRBS, DKEFS, RBS)
+  - Filters to most relevant measures for brain-behavior analysis
+  - Recognizes 'Anonymized ID' column
 - **Location**: Syncs to Oak when you clone/push
 - **Usage**:
   ```bash
   # Local or on Oak (after syncing)
   python scripts/run_nki_brain_behavior_optimized.py
   ```
-- **Why dedicated script**: NKI has unique data structure (multiple CSV files to merge, 'Anonymized ID' column)
+- **Why dedicated script**: NKI has unique data structure (multiple CSV files to merge) and filters to top-k relevant ADHD measures
+- **Typical output**: ~6-10 measures (filtered from ~40-60 total CAARS/Conners columns)
 
 #### **Key Features** (All Optimized Scripts)
 - **4 Optimization Strategies**:
