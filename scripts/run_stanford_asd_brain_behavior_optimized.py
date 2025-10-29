@@ -622,6 +622,18 @@ def evaluate_best_model(model, X, y, measure_name):
     print_info(f"R²: {r2:.3f}", 0)
     print_info(f"MAE: {mae:.2f}", 0)
     
+    # Diagnostic info
+    print()
+    print("  Predictions summary:")
+    print(f"    Actual:    mean={y.mean():.2f}, std={y.std():.2f}, range=[{y.min():.2f}, {y.max():.2f}]")
+    print(f"    Predicted: mean={y_pred.mean():.2f}, std={y_pred.std():.2f}, range=[{y_pred.min():.2f}, {y_pred.max():.2f}]")
+    
+    # Check for problems
+    if y_pred.std() < 0.01:
+        print_warning("  ⚠️  Predictions are nearly constant!")
+    if abs(y.mean() - y_pred.mean()) > 2 * y.std():
+        print_warning(f"  ⚠️  Mean prediction is far from actual mean (shift={y_pred.mean()-y.mean():.2f})")
+    
     return {
         'y_actual': y,
         'y_pred': y_pred,
@@ -750,6 +762,22 @@ def analyze_single_measure(X, merged_df, measure, output_dir, n_jobs_inner=1):
         # Save optimization results
         safe_name = measure.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
         opt_results.to_csv(Path(output_dir) / f"optimization_results_{safe_name}.csv", index=False)
+        
+        # INTEGRITY CHECK: Save actual vs predicted values
+        predictions_df = pd.DataFrame({
+            'Actual': eval_results['y_actual'],
+            'Predicted': eval_results['y_pred'],
+            'Residual': eval_results['y_actual'] - eval_results['y_pred']
+        })
+        predictions_df.to_csv(Path(output_dir) / f"predictions_{safe_name}.csv", index=False)
+        
+        # Check for constant predictions (warning sign)
+        if predictions_df['Predicted'].nunique() == 1:
+            print_warning(f"⚠️  Model predicts constant value: {predictions_df['Predicted'].iloc[0]:.2f}")
+        elif predictions_df['Predicted'].std() < 0.01:
+            print_warning(f"⚠️  Predictions have very low variance: std={predictions_df['Predicted'].std():.4f}")
+        else:
+            print_info(f"✓ Prediction variance OK: std={predictions_df['Predicted'].std():.2f}, range=[{predictions_df['Predicted'].min():.2f}, {predictions_df['Predicted'].max():.2f}]", 0)
         
         # Return summary
         return {

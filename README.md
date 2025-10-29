@@ -86,6 +86,9 @@ python run_nki_brain_behavior_optimized.py           # NKI (CAARS/Conners)
 python create_optimization_summary_figure.py --cohort stanford_asd
 python create_optimization_summary_figure.py --cohort abide_asd --min-rho 0.25
 
+# Check prediction integrity (verifies models are working correctly)
+python check_optimization_predictions.py --cohort stanford_asd
+
 # 4. Combined Plots
 python plot_brain_behavior_td_cohorts.py
 python plot_pc_loadings_heatmap.py --dataset nki_rs_td

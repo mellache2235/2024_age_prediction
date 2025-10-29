@@ -47,10 +47,11 @@ COHORTS = {
         'name': 'ABIDE ASD',
         'dataset': 'abide_asd',
         'ig_csv': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/abide_asd_features_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS.csv',
-        'data_type': 'pklz',
+        'data_type': 'abide_pklz',  # Special ABIDE format
         'data_path': '/oak/stanford/groups/menon/deriveddata/public/abide/restfmri/timeseries/group_level/brainnetome/normz/',
+        'sites': ['NYU', 'SDSU', 'STANFORD', 'Stanford', 'TCD-1', 'UM', 'USM', 'Yale'],  # ABIDE sites
         'output_dir': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/abide_asd_optimized',
-        'beh_columns': ['ados_total', 'ados_comm', 'ados_social']  # From PKLZ
+        'beh_columns': ['ados_total', 'ados_comm', 'ados_social']
     },
     'adhd200_td': {
         'name': 'ADHD200 TD',
@@ -131,7 +132,9 @@ def load_behavioral_data(config):
     """Load behavioral data based on cohort type."""
     data_type = config['data_type']
     
-    if data_type == 'pklz' or data_type == 'pklz_file':
+    if data_type == 'abide_pklz':
+        return load_abide_behavioral(config)
+    elif data_type == 'pklz' or data_type == 'pklz_file':
         return load_pklz_behavioral(config)
     elif data_type == 'c3sr':
         return load_c3sr_behavioral(config)
@@ -139,99 +142,293 @@ def load_behavioral_data(config):
         raise ValueError(f"Unknown data type: {data_type}")
 
 
-def load_pklz_behavioral(config):
-    """Load behavioral data from PKLZ files."""
-    import pickle
-    import gzip
+def load_abide_behavioral(config):
+    """Load ABIDE behavioral data from pandas .pklz files (from enhanced script logic)."""
+    print_step("Loading ABIDE behavioral data", f"From {Path(config['data_path']).name}")
     
-    print_step("Loading PKLZ behavioral data", "")
+    pklz_dir = Path(config['data_path'])
+    sites = config['sites']
     
-    data_path = config['data_path']
+    # Find all .pklz files matching the specified sites AND ending with 246ROIs.pklz
+    all_files = os.listdir(pklz_dir)
+    filtered_files = []
+    for file_name in all_files:
+        if '246ROIs.pklz' in file_name and any(site in file_name for site in sites):
+            filtered_files.append(pklz_dir / file_name)
     
-    # Handle both directory and single file
-    if Path(data_path).is_file():
-        pklz_files = [Path(data_path)]
-    else:
-        pklz_files = list(Path(data_path).glob("*.pklz"))
+    if not filtered_files:
+        raise ValueError(f"No 246ROIs.pklz files found for sites: {sites}")
     
-    if not pklz_files:
-        raise ValueError(f"No PKLZ files found in {data_path}")
+    print_info(f"Found {len(filtered_files)} 246ROIs.pklz files for {len(sites)} sites", 0)
     
-    all_data = {}
-    for pklz_file in pklz_files:
-        # Try gzipped first, then fall back to plain pickle
+    # Load and concatenate all dataframes
+    appended_data = []
+    for file_path in filtered_files:
         try:
-            with gzip.open(pklz_file, 'rb') as f:
-                data = pickle.load(f, encoding='latin1')
-                all_data.update(data)
-        except gzip.BadGzipFile:
-            # File is not gzipped, try plain pickle
-            with open(pklz_file, 'rb') as f:
-                data = pickle.load(f, encoding='latin1')
-                all_data.update(data)
+            # ABIDE uses pd.read_pickle (NOT gzip)
+            data = pd.read_pickle(file_path)
+            # Remove NaN entries
+            data = data[~pd.isna(data)]
+            appended_data.append(data)
+            print_info(f"  Loaded {len(data)} subjects from {file_path.name}", 0)
+        except Exception as e:
+            print_warning(f"  Could not load {file_path.name}: {e}")
     
-    # Extract subject IDs and behavioral measures
-    subject_ids = []
-    behavioral_data = {col: [] for col in config['beh_columns']}
+    if not appended_data:
+        raise ValueError("No data loaded from .pklz files")
     
-    for subj_id, subj_data in all_data.items():
-        subject_ids.append(str(subj_id))
-        for col in config['beh_columns']:
-            if col in subj_data:
-                behavioral_data[col].append(subj_data[col])
+    # Concatenate all data
+    combined_df = pd.concat(appended_data, ignore_index=True)
+    combined_df['label'] = combined_df['label'].astype(str)
+    
+    print_info(f"Total subjects loaded: {len(combined_df)}", 0)
+    
+    # Filter for ASD subjects only (label == '1')
+    asd_df = combined_df[combined_df['label'] == '1'].copy()
+    print_info(f"ASD subjects (label='1'): {len(asd_df)}", 0)
+    
+    # Filter for developmental age (age <= 21)
+    if 'age' in asd_df.columns:
+        asd_df['age'] = pd.to_numeric(asd_df['age'], errors='coerce')
+        asd_df = asd_df[asd_df['age'] <= 21]
+        print_info(f"ASD subjects age <= 21: {len(asd_df)}", 0)
+    
+    asd_df = asd_df.reset_index(drop=True)
+    
+    # Find subject ID column
+    id_col = None
+    for col in ['subjid', 'subject_id', 'id', 'ID']:
+        if col in asd_df.columns:
+            id_col = col
+            break
+    
+    if id_col is None:
+        raise ValueError(f"No subject ID column found. Columns: {list(asd_df.columns)}")
+    
+    if id_col != 'subject_id':
+        asd_df = asd_df.rename(columns={id_col: 'subject_id'})
+    
+    asd_df['subject_id'] = asd_df['subject_id'].astype(str)
+    
+    # Check for ADOS columns
+    ados_cols = []
+    for target in config['beh_columns']:
+        if target in asd_df.columns:
+            ados_cols.append(target)
+            print_info(f"  Found: {target}", 0)
+        else:
+            for col in asd_df.columns:
+                if col.lower() == target.lower():
+                    asd_df = asd_df.rename(columns={col: target})
+                    ados_cols.append(target)
+                    print_info(f"  Renamed: {col} -> {target}", 0)
+                    break
+    
+    if not ados_cols:
+        print_warning(f"No ADOS columns found. Available: {list(asd_df.columns)[:10]}")
+        ados_cols = [col for col in asd_df.columns if 'ados' in col.lower()]
+        if ados_cols:
+            print_info(f"Using alternative ADOS columns: {ados_cols}", 0)
+    
+    print_info(f"Final subjects: {len(asd_df)}, Measures: {ados_cols}", 0)
+    
+    return asd_df[['subject_id'] + ados_cols], ados_cols
+
+
+def load_pklz_behavioral(config):
+    """Load behavioral data from ADHD200 PKLZ file (DataFrame format)."""
+    print_step("Loading ADHD200 behavioral data", f"From {Path(config['data_path']).name}")
+    
+    data_path = Path(config['data_path'])
+    
+    # Load PKLZ file using pandas (it's a DataFrame, not a dict)
+    data = pd.read_pickle(data_path)
+    print_info(f"Total subjects loaded: {len(data)}", 0)
+    
+    # ADHD200-specific filtering (from enhanced script)
+    # Filter out TR != 2.5
+    if 'tr' in data.columns:
+        data = data[data['tr'] != 2.5]
+        print_info(f"After TR != 2.5 filter: {len(data)}", 0)
+    
+    # Remove 'pending' labels
+    if 'label' in data.columns:
+        data = data[data['label'] != 'pending']
+        print_info(f"After removing 'pending': {len(data)}", 0)
+    
+    # Filter by mean_fd < 0.5
+    if 'mean_fd' in data.columns:
+        data = data[data['mean_fd'] < 0.5]
+        print_info(f"After mean_fd < 0.5: {len(data)}", 0)
+    
+    # Convert subject_id to string
+    if 'subject_id' in data.columns:
+        data['subject_id'] = data['subject_id'].astype(str)
+    
+    # Remove duplicates
+    data = data.drop_duplicates(subset='subject_id', keep='first')
+    print_info(f"After deduplication: {len(data)}", 0)
+    
+    # Filter for TD vs ADHD based on cohort
+    if 'label' in data.columns:
+        data['label'] = pd.to_numeric(data['label'], errors='coerce')
+        data = data[~data['label'].isna()]
+        
+        if 'adhd200_td' in config['output_dir']:
+            filtered_data = data[data['label'] == 0]
+            print_info(f"TD subjects (label=0): {len(filtered_data)}", 0)
+        elif 'adhd200_adhd' in config['output_dir']:
+            filtered_data = data[data['label'] == 1]
+            print_info(f"ADHD subjects (label=1): {len(filtered_data)}", 0)
+        else:
+            filtered_data = data
+    else:
+        filtered_data = data
+    
+    # Check for behavioral columns (try both naming conventions)
+    behavioral_cols = []
+    for col in ['Hyper/Impulsive', 'Inattentive', 'Hyper_Impulsive']:
+        if col in filtered_data.columns:
+            behavioral_cols.append(col)
+    
+    if not behavioral_cols:
+        print_warning(f"No behavioral columns found. Columns: {list(filtered_data.columns)[:10]}")
+        return filtered_data[['subject_id']], []
+    
+    print_info(f"Behavioral columns found: {behavioral_cols}", 0)
+    
+    # Convert behavioral columns to numeric (handle nested arrays)
+    for col in behavioral_cols:
+        def extract_value(x):
+            if isinstance(x, pd.Series):
+                return float(x.iloc[0]) if len(x) > 0 else np.nan
+            elif isinstance(x, np.ndarray):
+                return float(x[0]) if len(x) > 0 else np.nan
             else:
-                behavioral_data[col].append(np.nan)
+                return float(x)
+        
+        filtered_data[col] = filtered_data[col].apply(extract_value)
+        filtered_data[col] = pd.to_numeric(filtered_data[col], errors='coerce')
+        filtered_data[col] = filtered_data[col].replace(-999.0, np.nan)  # Missing code
+        
+        non_null = filtered_data[col].notna().sum()
+        print_info(f"  {col}: {non_null} non-null values", 0)
     
-    beh_df = pd.DataFrame({'subject_id': subject_ids, **behavioral_data})
+    # IMPORTANT: For TD cohort, filter for NYU site only (scale consistency)
+    if 'adhd200_td' in config['output_dir'] and 'site' in filtered_data.columns:
+        print_info(f"Filtering for NYU site only (scale consistency)", 0)
+        filtered_data = filtered_data[filtered_data['site'] == 'NYU']
+        print_info(f"NYU subjects: {len(filtered_data)}", 0)
     
-    print_info(f"Behavioral subjects: {len(beh_df)}", 0)
-    print_info(f"Behavioral measures: {config['beh_columns']}", 0)
+    print_info(f"Final subjects: {len(filtered_data)}", 0)
     
-    return beh_df, config['beh_columns']
+    return filtered_data[['subject_id'] + behavioral_cols], behavioral_cols
 
 
 def load_c3sr_behavioral(config):
-    """Load C3SR behavioral data for CMI-HBN cohorts."""
-    import pickle
-    import gzip
+    """Load C3SR behavioral data for CMI-HBN cohorts (from enhanced script logic)."""
+    print_step("Loading CMI-HBN behavioral data", "")
     
-    print_step("Loading C3SR behavioral data", "")
+    pklz_dir = Path(config['data_path'])
     
-    # Load PKLZ for subject IDs
-    pklz_files = list(Path(config['data_path']).glob("*.pklz"))
-    all_data = {}
+    # Load all run1 .pklz files (CMI-HBN format)
+    pklz_files = [f for f in pklz_dir.glob('*.pklz') if 'run1' in f.name]
+    
+    if not pklz_files:
+        raise ValueError(f"No run1 .pklz files found in {pklz_dir}")
+    
+    print_info(f"Found {len(pklz_files)} run1 .pklz files", 0)
+    
+    # Load and concatenate (pd.read_pickle, NOT gzip)
+    data_list = []
     for pklz_file in pklz_files:
-        # Try gzipped first, then fall back to plain pickle
-        try:
-            with gzip.open(pklz_file, 'rb') as f:
-                data = pickle.load(f, encoding='latin1')
-                all_data.update(data)
-        except gzip.BadGzipFile:
-            # File is not gzipped, try plain pickle
-            with open(pklz_file, 'rb') as f:
-                data = pickle.load(f, encoding='latin1')
-                all_data.update(data)
+        data_new = pd.read_pickle(pklz_file)
+        data_list.append(data_new)
+        print_info(f"  Loaded {len(data_new)} from {pklz_file.name}", 0)
+    
+    data = pd.concat(data_list, ignore_index=True)
+    print_info(f"Total subjects loaded: {len(data)}", 0)
+    
+    # Convert subject_id to string
+    data['subject_id'] = data['subject_id'].astype(str)
+    
+    # Remove duplicates
+    data = data.drop_duplicates(subset='subject_id', keep='first')
+    print_info(f"After deduplication: {len(data)}", 0)
+    
+    # Filter for TD vs ADHD based on cohort
+    if 'label' in data.columns:
+        # Check label format
+        if data['label'].dtype == 'object':
+            # String labels
+            if 'cmihbn_td' in config['output_dir']:
+                filtered_data = data[data['label'].str.lower() == 'td']
+                print_info(f"TD subjects (label='td'): {len(filtered_data)}", 0)
+            elif 'cmihbn_adhd' in config['output_dir']:
+                filtered_data = data[data['label'].str.lower() == 'adhd']
+                print_info(f"ADHD subjects (label='adhd'): {len(filtered_data)}", 0)
+            else:
+                filtered_data = data
+        else:
+            # Numeric labels
+            data = data[data['label'] != 'pending']
+            data['label'] = pd.to_numeric(data['label'], errors='coerce')
+            data = data[~data['label'].isna()]
+            data = data[data['label'] != 99]
+            
+            if 'cmihbn_td' in config['output_dir']:
+                filtered_data = data[data['label'] == 0]
+                print_info(f"TD subjects (label=0): {len(filtered_data)}", 0)
+            elif 'cmihbn_adhd' in config['output_dir']:
+                filtered_data = data[data['label'] == 1]
+                print_info(f"ADHD subjects (label=1): {len(filtered_data)}", 0)
+            else:
+                filtered_data = data
+    else:
+        filtered_data = data
+    
+    # Filter by mean_fd < 0.5
+    if 'mean_fd' in filtered_data.columns:
+        filtered_data = filtered_data[filtered_data['mean_fd'] < 0.5]
+        print_info(f"After mean_fd < 0.5: {len(filtered_data)}", 0)
     
     # Load C3SR CSV
-    c3sr_df = pd.read_csv(config['beh_csv'])
+    print_step("Merging with C3SR", f"From {Path(config['beh_csv']).name}")
     
-    # Standardize C3SR column names
-    if 'Identifiers' in c3sr_df.columns:
-        c3sr_df = c3sr_df.rename(columns={'Identifiers': 'subject_id'})
+    c3sr = pd.read_csv(config['beh_csv'])
     
-    c3sr_df['subject_id'] = c3sr_df['subject_id'].astype(str)
+    # Find ID column in C3SR
+    id_col = None
+    for col in c3sr.columns:
+        if 'id' in col.lower() or 'identifier' in col.lower():
+            id_col = col
+            break
     
-    # Get behavioral columns (T-scores)
-    beh_cols = [col for col in c3sr_df.columns if '_T' in col or 'T-Score' in col]
+    if id_col is None:
+        raise ValueError(f"No ID column in C3SR. Columns: {list(c3sr.columns)}")
     
-    # Filter to subjects in PKLZ
-    pklz_subjects = [str(sid) for sid in all_data.keys()]
-    c3sr_df = c3sr_df[c3sr_df['subject_id'].isin(pklz_subjects)]
+    # Process C3SR subject IDs (take first 12 characters)
+    c3sr['subject_id'] = c3sr[id_col].apply(lambda x: str(x)[:12])
     
-    print_info(f"Behavioral subjects: {len(c3sr_df)}", 0)
-    print_info(f"Behavioral measures: {len(beh_cols)}", 0)
+    # Find behavioral columns
+    behavioral_cols = []
+    for col in c3sr.columns:
+        col_lower = col.lower()
+        if any(pattern in col_lower for pattern in ['c3sr_hy_t', 'c3sr_in_t']) or \
+           (('_t' in col_lower or 't_score' in col_lower) and any(kw in col_lower for kw in ['hyperactiv', 'inattent', 'adhd'])):
+            behavioral_cols.append(col)
     
-    return c3sr_df, beh_cols
+    if not behavioral_cols:
+        behavioral_cols = [col for col in c3sr.columns if '_T' in col or 'T_Score' in col or 'T-Score' in col]
+    
+    print_info(f"C3SR behavioral columns: {len(behavioral_cols)}", 0)
+    
+    # Merge PKLZ subjects with C3SR
+    merged = filtered_data.merge(c3sr[['subject_id'] + behavioral_cols], on='subject_id', how='inner')
+    
+    print_info(f"Merged subjects (PKLZ + C3SR): {len(merged)}", 0)
+    
+    return merged[['subject_id'] + behavioral_cols], behavioral_cols
 
 
 def merge_data(ig_df, beh_df):

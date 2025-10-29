@@ -271,37 +271,59 @@ def load_nki_behavioral_data():
     behavioral_dfs = []
     file_info = []
     
+    def standardize_subject_id(df, file_name):
+        """Standardize subject_id column name."""
+        # Try common variations
+        id_columns = ['subject_id', 'Identifiers', 'ID', 'id', 'Subject_ID', 'SubjectID', 'record_id']
+        for col in id_columns:
+            if col in df.columns:
+                if col != 'subject_id':
+                    df = df.rename(columns={col: 'subject_id'})
+                return df
+        
+        # If no ID column found, raise error
+        raise ValueError(f"No subject ID column found in {file_name}. Available columns: {list(df.columns)}")
+    
     # Load CAARS
     if CAARS_FILE.exists():
         caars_df = pd.read_csv(CAARS_FILE)
-        caars_df = caars_df.rename(columns={'Identifiers': 'subject_id'})
+        caars_df = standardize_subject_id(caars_df, "CAARS")
         behavioral_dfs.append(caars_df)
         file_info.append(f"CAARS: {len(caars_df)} subjects, {len(caars_df.columns)} columns")
     
     # Load Conners Parent
     if CONNERS_PARENT_FILE.exists():
         conners_p_df = pd.read_csv(CONNERS_PARENT_FILE)
-        conners_p_df = conners_p_df.rename(columns={'Identifiers': 'subject_id'})
+        conners_p_df = standardize_subject_id(conners_p_df, "Conners Parent")
         behavioral_dfs.append(conners_p_df)
         file_info.append(f"Conners Parent: {len(conners_p_df)} subjects, {len(conners_p_df.columns)} columns")
     
     # Load Conners Self-Report
     if CONNERS_SELF_FILE.exists():
         conners_s_df = pd.read_csv(CONNERS_SELF_FILE)
-        conners_s_df = conners_s_df.rename(columns={'Identifiers': 'subject_id'})
+        conners_s_df = standardize_subject_id(conners_s_df, "Conners Self")
         behavioral_dfs.append(conners_s_df)
         file_info.append(f"Conners Self: {len(conners_s_df)} subjects, {len(conners_s_df.columns)} columns")
     
     # Load RBS
     if RBS_FILE.exists():
         rbs_df = pd.read_csv(RBS_FILE)
-        rbs_df = rbs_df.rename(columns={'Identifiers': 'subject_id'})
+        rbs_df = standardize_subject_id(rbs_df, "RBS")
         behavioral_dfs.append(rbs_df)
         file_info.append(f"RBS: {len(rbs_df)} subjects, {len(rbs_df.columns)} columns")
     
+    if not behavioral_dfs:
+        raise ValueError("No behavioral data files found!")
+    
     # Merge all behavioral files
     merged_df = behavioral_dfs[0]
-    for df in behavioral_dfs[1:]:
+    for i, df in enumerate(behavioral_dfs[1:], 1):
+        # Verify subject_id exists in both DataFrames before merge
+        if 'subject_id' not in merged_df.columns:
+            raise ValueError(f"'subject_id' column missing from merged DataFrame before merging file {i}")
+        if 'subject_id' not in df.columns:
+            raise ValueError(f"'subject_id' column missing from DataFrame {i} before merge")
+        
         merged_df = merged_df.merge(df, on='subject_id', how='outer', suffixes=('', '_dup'))
     
     # Remove duplicate columns

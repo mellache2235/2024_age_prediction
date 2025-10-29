@@ -40,7 +40,16 @@ OUTER_CV_FOLDS = 5
 
 def spearman_scorer(y_true, y_pred):
     """Custom scorer for Spearman correlation."""
+    # Handle constant predictions gracefully
+    if len(np.unique(y_pred)) == 1 or len(np.unique(y_true)) == 1:
+        return 0.0  # Return 0 for constant predictions instead of NaN
+    
     rho, _ = spearmanr(y_true, y_pred)
+    
+    # Handle NaN results
+    if np.isnan(rho):
+        return 0.0
+    
     return rho
 
 
