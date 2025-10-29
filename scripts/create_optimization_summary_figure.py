@@ -1,27 +1,26 @@
 #!/usr/bin/env python3
 """
-Create publication-ready summary figure from optimization results.
+Create comprehensive summary figure from optimization results.
 
-This script:
-1. Reads optimization_summary.csv
-2. Filters for significant correlations (p < 0.05, |ρ| > threshold)
-3. Re-loads data and re-runs ONLY the best models
-4. Creates multi-panel figure with actual scatter plots
-5. Exports in publication formats
+Shows all behavioral measures with their optimization performance,
+highlighting best strategies and significant correlations.
 
 Usage:
     python create_optimization_summary_figure.py --cohort stanford_asd
     python create_optimization_summary_figure.py --cohort abide_asd --min-rho 0.25
-    python create_optimization_summary_figure.py --cohort adhd200_td --max-pvalue 0.01
+    python create_optimization_summary_figure.py --all  # All cohorts
+
+Author: Brain-Behavior Optimization Team
+Date: 2024
 """
 
+import os
 import sys
 from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.backends.backend_pdf as pdf_backend
-from scipy.stats import spearmanr
+import matplotlib.patches as mpatches
 import argparse
 import warnings
 warnings.filterwarnings('ignore')
@@ -31,376 +30,355 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'utils'))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from logging_utils import (print_section_header, print_step, print_success, 
-                           print_warning, print_info, print_error)
-from plot_styles import create_standardized_scatter, get_dataset_title, setup_arial_font, DPI, FIGURE_FACECOLOR
+                           print_warning, print_error, print_info, print_completion)
+from plot_styles import setup_arial_font, DPI, FIGURE_FACECOLOR
 
-# Setup Arial font
+# Setup Arial font globally
 setup_arial_font()
 
-# Base directory
-BASE_DIR = Path("/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior")
+# ============================================================================
+# COHORT CONFIGURATIONS
+# ============================================================================
+
+COHORTS = {
+    'abide_asd': {
+        'name': 'ABIDE ASD',
+        'results_dir': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/abide_asd_optimized'
+    },
+    'stanford_asd': {
+        'name': 'Stanford ASD',
+        'results_dir': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/stanford_asd_optimized'
+    },
+    'adhd200_td': {
+        'name': 'ADHD200 TD',
+        'results_dir': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_td_optimized'
+    },
+    'adhd200_adhd': {
+        'name': 'ADHD200 ADHD',
+        'results_dir': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_adhd_optimized'
+    },
+    'cmihbn_td': {
+        'name': 'CMI-HBN TD',
+        'results_dir': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/cmihbn_td_optimized'
+    },
+    'cmihbn_adhd': {
+        'name': 'CMI-HBN ADHD',
+        'results_dir': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/cmihbn_adhd_optimized'
+    },
+    'nki_rs_td': {
+        'name': 'NKI-RS TD',
+        'results_dir': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td_optimized'
+    }
+}
+
+# Strategy color mapping
+STRATEGY_COLORS = {
+    'PCA': '#1f77b4',  # Blue
+    'PCA+Selection': '#ff7f0e',  # Orange
+    'Selection': '#2ca02c',  # Green
+    'Raw': '#d62728',  # Red
+    'Unknown': '#7f7f7f'  # Gray
+}
+
+# ============================================================================
+# LOADING FUNCTIONS
+# ============================================================================
+
+def load_optimization_summary(results_dir):
+    """Load optimization summary CSV."""
+    summary_path = Path(results_dir) / 'optimization_summary.csv'
+    
+    if not summary_path.exists():
+        raise FileNotFoundError(f"Optimization summary not found: {summary_path}")
+    
+    df = pd.read_csv(summary_path)
+    return df
 
 
-def load_and_filter_results(cohort_dir, min_rho=0.2, max_pvalue=0.05):
-    """Load optimization results and filter for significant ones."""
-    print_step("Loading and filtering results", f"min_rho={min_rho}, max_p={max_pvalue}")
-    
-    summary_file = cohort_dir / "optimization_summary.csv"
-    
-    if not summary_file.exists():
-        raise FileNotFoundError(f"No optimization_summary.csv found in {cohort_dir}")
-    
-    summary_df = pd.read_csv(summary_file)
-    print_info(f"Total measures analyzed: {len(summary_df)}", 0)
-    
-    # Filter for significant results
-    # Exclude results with extreme R² values (indicates overfitting/failure)
-    significant = summary_df[
-        (summary_df['Final_Spearman'].abs() >= min_rho) & 
-        (summary_df['Final_P_Value'] <= max_pvalue) &
-        (summary_df['Final_R2'] > -100) &  # Exclude severe overfitting
-        (summary_df['Final_R2'] < 100)     # Exclude extreme values
-    ].copy()
-    
-    # Sort by absolute Spearman correlation (descending)
-    significant = significant.sort_values('Final_Spearman', key=abs, ascending=False)
-    
-    print_info(f"Significant results: {len(significant)}/{len(summary_df)}", 0)
-    
-    if len(significant) == 0:
-        return summary_df, None
-    
-    # Print summary
-    print("\n  📊 Significant Measures:")
-    for idx, row in significant.iterrows():
-        status = "✓" if row['Final_Spearman'] > 0 else "✗"
-        print(f"    {status} {row['Measure']:.<45} ρ={row['Final_Spearman']:>7.3f}, p={row['Final_P_Value']:.4f}, R²={row['Final_R2']:>6.3f}")
-    
-    return summary_df, significant
+# ============================================================================
+# PLOTTING FUNCTIONS
+# ============================================================================
 
-
-def create_summary_table(summary_df, significant_df, output_dir, cohort_name):
-    """Create formatted summary tables."""
-    print_step("Creating summary tables", "CSV and Markdown formats")
+def create_summary_bar_plot(df, cohort_name, output_dir, min_rho=None):
+    """
+    Create bar plot showing Spearman correlations for all measures.
+    Color-coded by optimization strategy.
+    """
+    print_step(f"Creating summary figure for {cohort_name}", "")
     
-    if significant_df is None or len(significant_df) == 0:
-        print_warning("No significant results to tabulate")
-        return
+    # Filter by minimum rho if specified
+    if min_rho is not None:
+        df = df[df['Final_Spearman'].abs() >= min_rho]
+        print_info(f"Filtered to {len(df)} measures with |ρ| >= {min_rho}", 0)
     
-    # Select and rename columns
-    table_df = significant_df[[
-        'Measure', 'N_Subjects', 'Best_Strategy', 'Best_Model',
-        'Best_N_Components', 'Best_Alpha', 
-        'CV_Spearman', 'Final_Spearman', 'Final_P_Value', 'Final_R2'
-    ]].copy()
+    if len(df) == 0:
+        print_warning("No measures to plot after filtering")
+        return None
     
-    table_df.columns = [
-        'Behavioral Measure', 'N', 'Strategy', 'Model',
-        'Components', 'Alpha',
-        'CV ρ', 'Final ρ', 'p-value', 'R²'
-    ]
+    # Sort by absolute Spearman correlation
+    df = df.sort_values('Final_Spearman', key=abs, ascending=True)
     
-    # Format numerical columns
-    table_df['CV ρ'] = table_df['CV ρ'].apply(lambda x: f"{x:.3f}" if pd.notna(x) else "")
-    table_df['Final ρ'] = table_df['Final ρ'].apply(lambda x: f"{x:.3f}")
-    table_df['p-value'] = table_df['p-value'].apply(lambda x: f"{x:.4f}" if x >= 0.001 else "< 0.001")
-    table_df['R²'] = table_df['R²'].apply(lambda x: f"{x:.3f}")
-    table_df['Components'] = table_df['Components'].apply(lambda x: f"{int(x)}" if pd.notna(x) else "—")
-    table_df['Alpha'] = table_df['Alpha'].apply(lambda x: f"{x:.4f}" if pd.notna(x) else "—")
+    # Determine figure size based on number of measures
+    n_measures = len(df)
+    fig_height = max(6, n_measures * 0.4)
     
-    # Save CSV
-    csv_path = output_dir / f"{cohort_name}_optimization_summary_significant.csv"
-    table_df.to_csv(csv_path, index=False)
-    print_success(f"Saved: {csv_path.name}")
+    fig, ax = plt.subplots(figsize=(10, fig_height))
     
-    # Save Markdown
-    md_path = output_dir / f"{cohort_name}_optimization_summary_significant.md"
-    with open(md_path, 'w') as f:
-        f.write(f"# {cohort_name.upper()} - Significant Brain-Behavior Correlations\n\n")
-        f.write(table_df.to_markdown(index=False))
-        f.write(f"\n\n**Total**: {len(significant_df)} significant results out of {len(summary_df)} measures analyzed\n")
-        f.write(f"\n**Criteria**: |ρ| ≥ {args.min_rho}, p ≤ {args.max_pvalue}\n")
-    print_success(f"Saved: {md_path.name}")
-    
-    return table_df
-
-
-def create_text_summary_figure(summary_df, significant_df, cohort_name, output_dir):
-    """Create a text-based summary figure showing key statistics."""
-    print_step("Creating summary visualization", f"{len(significant_df) if significant_df is not None else 0} measures")
-    
-    if significant_df is None or len(significant_df) == 0:
-        print_warning("No significant results to visualize")
-        return
-    
-    n_measures = len(significant_df)
-    
-    # Determine layout
-    if n_measures <= 3:
-        nrows, ncols = 1, n_measures
-        figsize = (6 * n_measures, 6)
-    elif n_measures <= 6:
-        nrows, ncols = 2, 3
-        figsize = (18, 12)
-    elif n_measures <= 9:
-        nrows, ncols = 3, 3
-        figsize = (18, 18)
-    else:
-        nrows = (n_measures + 2) // 3
-        ncols = 3
-        figsize = (18, 6 * nrows)
-    
-    fig, axes = plt.subplots(nrows, ncols, figsize=figsize, facecolor=FIGURE_FACECOLOR)
-    
-    if n_measures == 1:
-        axes = np.array([axes])
-    axes = axes.flatten()
-    
-    dataset_title = get_dataset_title(cohort_name)
-    
-    for idx, (_, row) in enumerate(significant_df.iterrows()):
-        if idx >= len(axes):
-            break
-        
-        ax = axes[idx]
-        
-        # Extract info
-        measure = row['Measure']
-        rho = row['Final_Spearman']
-        p_val = row['Final_P_Value']
-        r2 = row['Final_R2']
-        strategy = row['Best_Strategy']
-        model = row['Best_Model']
-        n_subj = row['N_Subjects']
-        cv_rho = row['CV_Spearman']
-        
-        # Format p-value
-        p_str = "< 0.001" if p_val < 0.001 else f"= {p_val:.4f}"
-        
-        # Create styled info box
-        title_text = f"{measure.replace('_', ' ').title()}"
-        
-        stats_text = f"Spearman ρ = {rho:.3f}\n"
-        stats_text += f"p {p_str}\n"
-        stats_text += f"R² = {r2:.3f}\n"
-        stats_text += f"N = {n_subj}\n\n"
-        stats_text += f"Strategy: {strategy}\n"
-        stats_text += f"Model: {model}\n"
-        
-        if pd.notna(row['Best_N_Components']):
-            stats_text += f"Components: {int(row['Best_N_Components'])}\n"
-        if pd.notna(row['Best_Alpha']):
-            stats_text += f"α = {row['Best_Alpha']:.4f}\n"
-        
-        stats_text += f"\nCV ρ = {cv_rho:.3f}"
-        
-        # Determine color based on correlation strength
-        if abs(rho) >= 0.5:
-            color = '#2E7D32'  # Dark green - strong
-        elif abs(rho) >= 0.3:
-            color = '#388E3C'  # Green - moderate
-        else:
-            color = '#66BB6A'  # Light green - weak but significant
-        
-        # Create text display
-        ax.text(0.5, 0.95, title_text, ha='center', va='top',
-                fontsize=14, fontweight='bold', transform=ax.transAxes)
-        
-        ax.text(0.5, 0.70, stats_text, ha='center', va='top',
-                fontsize=11, family='monospace', transform=ax.transAxes,
-                bbox=dict(boxstyle='round,pad=1', facecolor=color, alpha=0.2, edgecolor=color, linewidth=2))
-        
-        # Add note about scatter plot
-        ax.text(0.5, 0.05, f"See: scatter_{measure}_optimized.png", 
-                ha='center', va='bottom', fontsize=9, style='italic',
-                transform=ax.transAxes, color='gray')
-        
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        ax.axis('off')
-    
-    # Hide unused axes
-    for idx in range(n_measures, len(axes)):
-        axes[idx].axis('off')
-    
-    # Overall title
-    plt.suptitle(f"{dataset_title} - Significant Brain-Behavior Correlations\nOptimization Results Summary", 
-                 fontsize=18, fontweight='bold', y=0.98)
-    
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
-    
-    # Save
-    output_path = output_dir / f"{cohort_name}_optimization_summary_figure"
-    
-    png_path = output_path.with_suffix('.png')
-    tiff_path = output_path.with_suffix('.tiff')
-    ai_path = output_path.with_suffix('.ai')
-    
-    plt.savefig(png_path, dpi=DPI, bbox_inches='tight', facecolor=FIGURE_FACECOLOR)
-    plt.savefig(tiff_path, dpi=DPI, bbox_inches='tight', facecolor=FIGURE_FACECOLOR,
-               format='tiff', pil_kwargs={'compression': 'tiff_lzw'})
-    pdf_backend.FigureCanvas(fig).print_pdf(str(ai_path))
-    
-    plt.close()
-    
-    print_success(f"Saved: {png_path.name}")
-    print_success(f"Saved: {tiff_path.name}")
-    print_success(f"Saved: {ai_path.name}")
-
-
-def create_statistics_summary(summary_df, significant_df, cohort_name, output_dir):
-    """Create a bar plot summary of correlations."""
-    print_step("Creating correlation bar plot", "All measures")
-    
-    # Create figure
-    fig, ax = plt.subplots(figsize=(10, max(6, len(summary_df) * 0.4)), facecolor=FIGURE_FACECOLOR)
-    
-    # Sort by absolute correlation
-    plot_df = summary_df.sort_values('Final_Spearman', key=abs, ascending=True)
-    
-    # Determine colors (significant vs not)
-    if significant_df is not None:
-        significant_measures = set(significant_df['Measure'])
-        colors = ['#2E7D32' if measure in significant_measures else '#BDBDBD' 
-                  for measure in plot_df['Measure']]
-    else:
-        colors = '#BDBDBD'
+    # Get colors based on strategy
+    colors = [STRATEGY_COLORS.get(strategy, STRATEGY_COLORS['Unknown']) 
+              for strategy in df['Best_Strategy']]
     
     # Create horizontal bar plot
-    y_pos = np.arange(len(plot_df))
-    bars = ax.barh(y_pos, plot_df['Final_Spearman'], color=colors, alpha=0.8, edgecolor='black', linewidth=0.5)
+    y_pos = np.arange(len(df))
+    bars = ax.barh(y_pos, df['Final_Spearman'], color=colors, alpha=0.8, edgecolor='black', linewidth=0.5)
+    
+    # Add vertical line at x=0
+    ax.axvline(x=0, color='black', linewidth=1, linestyle='-', alpha=0.3)
+    
+    # Add significance markers (p < 0.05, p < 0.01, p < 0.001)
+    for i, (idx, row) in enumerate(df.iterrows()):
+        x_pos = row['Final_Spearman']
+        if row['Final_P_Value'] < 0.001:
+            marker = '***'
+        elif row['Final_P_Value'] < 0.01:
+            marker = '**'
+        elif row['Final_P_Value'] < 0.05:
+            marker = '*'
+        else:
+            marker = ''
+        
+        if marker:
+            # Place marker at end of bar
+            offset = 0.01 if x_pos > 0 else -0.01
+            ax.text(x_pos + offset, i, marker, 
+                   ha='left' if x_pos > 0 else 'right', 
+                   va='center', fontsize=10, fontweight='bold')
     
     # Customize
     ax.set_yticks(y_pos)
-    ax.set_yticklabels([m.replace('_', ' ') for m in plot_df['Measure']], fontsize=9)
-    ax.set_xlabel('Spearman Correlation (ρ)', fontsize=12, fontweight='bold')
-    ax.set_title(f"{get_dataset_title(cohort_name)} - Brain-Behavior Correlations\n(Green = Significant)", 
-                 fontsize=14, fontweight='bold', pad=15)
+    ax.set_yticklabels(df['Measure'], fontsize=9)
+    ax.set_xlabel('Spearman ρ', fontsize=12, fontweight='bold')
+    ax.set_title(f'{cohort_name} - Brain-Behavior Optimization Results', 
+                fontsize=14, fontweight='bold', pad=15)
     
-    # Add vertical line at 0
-    ax.axvline(x=0, color='black', linewidth=1, linestyle='-', alpha=0.3)
-    
-    # Add significance thresholds
-    if args.min_rho > 0:
-        ax.axvline(x=args.min_rho, color='red', linewidth=1, linestyle='--', alpha=0.5, label=f'|ρ| = {args.min_rho}')
-        ax.axvline(x=-args.min_rho, color='red', linewidth=1, linestyle='--', alpha=0.5)
-    
-    # Grid
-    ax.grid(axis='x', alpha=0.3, linestyle='--')
+    # Add grid
+    ax.grid(axis='x', alpha=0.3, linestyle='--', linewidth=0.5)
     ax.set_axisbelow(True)
     
     # Remove top and right spines
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     
-    if args.min_rho > 0:
-        ax.legend(fontsize=9)
+    # Create legend for strategies
+    unique_strategies = df['Best_Strategy'].unique()
+    legend_patches = [mpatches.Patch(color=STRATEGY_COLORS.get(s, STRATEGY_COLORS['Unknown']), 
+                                     label=s, alpha=0.8) 
+                     for s in unique_strategies]
+    ax.legend(handles=legend_patches, loc='lower right', fontsize=9, 
+             title='Optimization Strategy', framealpha=0.9)
     
     plt.tight_layout()
     
     # Save
-    output_path = output_dir / f"{cohort_name}_correlations_barplot"
+    output_path = Path(output_dir)
+    if min_rho is not None:
+        filename = f'optimization_summary_minrho{min_rho:.2f}'
+    else:
+        filename = 'optimization_summary'
     
-    png_path = output_path.with_suffix('.png')
-    tiff_path = output_path.with_suffix('.tiff')
+    png_path = output_path / f'{filename}.png'
+    pdf_path = output_path / f'{filename}.pdf'
     
     plt.savefig(png_path, dpi=DPI, bbox_inches='tight', facecolor=FIGURE_FACECOLOR)
-    plt.savefig(tiff_path, dpi=DPI, bbox_inches='tight', facecolor=FIGURE_FACECOLOR,
-               format='tiff', pil_kwargs={'compression': 'tiff_lzw'})
-    
+    plt.savefig(pdf_path, bbox_inches='tight', facecolor=FIGURE_FACECOLOR)
     plt.close()
     
-    print_success(f"Saved: {png_path.name}")
-    print_success(f"Saved: {tiff_path.name}")
+    print_success(f"Saved summary figure: {png_path.name}")
+    print_success(f"Saved summary figure: {pdf_path.name}")
+    
+    return png_path
+
+
+def create_detailed_table(df, cohort_name, output_dir, min_rho=None):
+    """Create detailed table with key metrics."""
+    print_step("Creating detailed metrics table", "")
+    
+    # Filter by minimum rho if specified
+    if min_rho is not None:
+        df = df[df['Final_Spearman'].abs() >= min_rho]
+    
+    if len(df) == 0:
+        print_warning("No measures to include in table")
+        return None
+    
+    # Sort by absolute Spearman correlation (descending)
+    df_sorted = df.sort_values('Final_Spearman', key=abs, ascending=False)
+    
+    # Select key columns for table
+    table_df = df_sorted[[
+        'Measure', 'N_Subjects', 'Best_Strategy', 'Best_Model',
+        'Final_Spearman', 'Final_P_Value', 'Final_R2'
+    ]].copy()
+    
+    # Format columns
+    table_df['Final_Spearman'] = table_df['Final_Spearman'].apply(lambda x: f"{x:.3f}")
+    table_df['Final_P_Value'] = table_df['Final_P_Value'].apply(
+        lambda x: "< 0.001" if x < 0.001 else f"{x:.4f}")
+    table_df['Final_R2'] = table_df['Final_R2'].apply(lambda x: f"{x:.3f}")
+    
+    # Rename columns
+    table_df.columns = ['Behavioral Measure', 'N', 'Strategy', 'Model', 
+                        'Spearman ρ', 'P-value', 'R²']
+    
+    # Save
+    output_path = Path(output_dir)
+    if min_rho is not None:
+        filename = f'optimization_metrics_minrho{min_rho:.2f}.csv'
+    else:
+        filename = 'optimization_metrics.csv'
+    
+    csv_path = output_path / filename
+    table_df.to_csv(csv_path, index=False)
+    
+    print_success(f"Saved metrics table: {csv_path.name}")
+    print_info(f"Total measures: {len(table_df)}", 0)
+    print_info(f"Significant (p<0.05): {len(df[df['Final_P_Value'] < 0.05])}", 0)
+    
+    return csv_path
+
+
+def print_summary_statistics(df, cohort_name):
+    """Print summary statistics."""
+    print()
+    print_section_header(f"SUMMARY STATISTICS - {cohort_name}")
+    
+    print_info(f"Total behavioral measures analyzed: {len(df)}")
+    
+    # Significance levels
+    sig_001 = len(df[df['Final_P_Value'] < 0.001])
+    sig_01 = len(df[(df['Final_P_Value'] >= 0.001) & (df['Final_P_Value'] < 0.01)])
+    sig_05 = len(df[(df['Final_P_Value'] >= 0.01) & (df['Final_P_Value'] < 0.05)])
+    non_sig = len(df[df['Final_P_Value'] >= 0.05])
+    
+    print_info(f"  p < 0.001: {sig_001}")
+    print_info(f"  p < 0.01:  {sig_01}")
+    print_info(f"  p < 0.05:  {sig_05}")
+    print_info(f"  n.s.:      {non_sig}")
+    
+    # Spearman correlation range
+    print()
+    print_info(f"Spearman ρ range: [{df['Final_Spearman'].min():.3f}, {df['Final_Spearman'].max():.3f}]")
+    print_info(f"Mean |ρ|: {df['Final_Spearman'].abs().mean():.3f}")
+    print_info(f"Median |ρ|: {df['Final_Spearman'].abs().median():.3f}")
+    
+    # Best result
+    best_idx = df['Final_Spearman'].abs().idxmax()
+    best_row = df.loc[best_idx]
+    print()
+    print_info(f"Best correlation:")
+    print(f"    Measure: {best_row['Measure']}")
+    print(f"    ρ = {best_row['Final_Spearman']:.3f}, p = {best_row['Final_P_Value']:.4f}")
+    print(f"    Strategy: {best_row['Best_Strategy']}, Model: {best_row['Best_Model']}")
+    
+    # Strategy distribution
+    print()
+    print_info("Strategy distribution:")
+    strategy_counts = df['Best_Strategy'].value_counts()
+    for strategy, count in strategy_counts.items():
+        pct = 100 * count / len(df)
+        print(f"    {strategy}: {count} ({pct:.1f}%)")
+    
+    print()
+
+
+# ============================================================================
+# MAIN FUNCTION
+# ============================================================================
+
+def analyze_cohort(cohort_key, min_rho=None):
+    """Analyze a single cohort."""
+    config = COHORTS[cohort_key]
+    
+    print_section_header(f"OPTIMIZATION SUMMARY - {config['name'].upper()}")
+    
+    results_dir = Path(config['results_dir'])
+    
+    if not results_dir.exists():
+        print_error(f"Results directory not found: {results_dir}")
+        return False
+    
+    try:
+        # Load optimization summary
+        df = load_optimization_summary(results_dir)
+        
+        # Print statistics
+        print_summary_statistics(df, config['name'])
+        
+        # Create visualizations
+        create_summary_bar_plot(df, config['name'], results_dir, min_rho)
+        create_detailed_table(df, config['name'], results_dir, min_rho)
+        
+        print()
+        print_completion(f"{config['name']} summary complete!")
+        print_info(f"Results saved to: {results_dir}")
+        
+        return True
+        
+    except Exception as e:
+        print()
+        print_error(f"Analysis failed: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 
 def main():
-    global args
-    
+    """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Create publication summary from optimization results"
+        description="Create optimization summary figures and tables"
     )
     parser.add_argument(
         '--cohort', '-c',
-        required=True,
-        help="Cohort name (e.g., stanford_asd, abide_asd, adhd200_td)"
+        choices=list(COHORTS.keys()),
+        help="Cohort to analyze"
+    )
+    parser.add_argument(
+        '--all', '-a',
+        action='store_true',
+        help="Analyze all cohorts"
     )
     parser.add_argument(
         '--min-rho',
         type=float,
-        default=0.2,
-        help="Minimum absolute Spearman correlation (default: 0.2)"
-    )
-    parser.add_argument(
-        '--max-pvalue',
-        type=float,
-        default=0.05,
-        help="Maximum p-value (default: 0.05)"
+        default=None,
+        help="Minimum absolute Spearman rho to include in plots (e.g., 0.25)"
     )
     
     args = parser.parse_args()
     
-    cohort_name = args.cohort
-    cohort_dir = BASE_DIR / f"{cohort_name}_optimized"
+    if not args.cohort and not args.all:
+        parser.error("Must specify either --cohort or --all")
     
-    print_section_header(f"OPTIMIZATION SUMMARY - {cohort_name.upper()}")
+    # Determine which cohorts to process
+    if args.all:
+        cohorts_to_process = list(COHORTS.keys())
+    else:
+        cohorts_to_process = [args.cohort]
+    
+    # Process each cohort
+    results = {}
+    for cohort_key in cohorts_to_process:
+        success = analyze_cohort(cohort_key, min_rho=args.min_rho)
+        results[cohort_key] = success
+        print("\n" + "="*100 + "\n")
+    
+    # Overall summary
+    print_section_header("OVERALL SUMMARY")
+    for cohort_key, success in results.items():
+        status = "✅ SUCCESS" if success else "❌ FAILED"
+        print(f"  {COHORTS[cohort_key]['name']:.<50} {status}")
     print()
-    print_info(f"Input directory: {cohort_dir}", 0)
-    print_info(f"Significance criteria: |ρ| ≥ {args.min_rho}, p ≤ {args.max_pvalue}", 0)
-    print()
-    
-    if not cohort_dir.exists():
-        print_error(f"Directory not found: {cohort_dir}")
-        print_info("Have you run the optimization for this cohort yet?", 0)
-        print_info(f"Run: python run_all_cohorts_brain_behavior_optimized.py --cohort {cohort_name}", 0)
-        return
-    
-    try:
-        # Load and filter results
-        summary_df, significant_df = load_and_filter_results(cohort_dir, args.min_rho, args.max_pvalue)
-        print()
-        
-        # Create summary table
-        if significant_df is not None and len(significant_df) > 0:
-            create_summary_table(summary_df, significant_df, cohort_dir, cohort_name)
-            print()
-            
-            # Create text summary figure
-            create_text_summary_figure(summary_df, significant_df, cohort_name, cohort_dir)
-            print()
-        else:
-            print_warning("No significant results found!")
-            print_info(f"Try lowering --min-rho (currently {args.min_rho})", 0)
-            print_info(f"Or increasing --max-pvalue (currently {args.max_pvalue})", 0)
-            print()
-        
-        # Create bar plot (all measures)
-        create_statistics_summary(summary_df, significant_df, cohort_name, cohort_dir)
-        print()
-        
-        # Summary
-        print_section_header("SUMMARY")
-        print_info(f"Total measures analyzed: {len(summary_df)}", 0)
-        print_info(f"Significant correlations: {len(significant_df) if significant_df is not None else 0}", 0)
-        print_info(f"Output directory: {cohort_dir}", 0)
-        print()
-        
-        if significant_df is not None and len(significant_df) > 0:
-            print("  📊 Individual scatter plots already created:")
-            for measure in significant_df['Measure']:
-                safe_name = measure.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
-                print(f"    - scatter_{safe_name}_optimized.png")
-        
-        print()
-        print_success("✅ All summary figures created!")
-        
-    except Exception as e:
-        print()
-        print_error(f"Error: {e}")
-        import traceback
-        traceback.print_exc()
 
 
 if __name__ == "__main__":
     main()
-

@@ -230,6 +230,22 @@ def load_abide_behavioral(config):
         if ados_cols:
             print_info(f"Using alternative ADOS columns: {ados_cols}", 0)
     
+    # CRITICAL: Clean missing data codes (same as enhanced version)
+    if ados_cols:
+        print_info(f"Cleaning missing data codes from ADOS columns", 0)
+        for col in ados_cols:
+            # Convert to numeric
+            asd_df[col] = pd.to_numeric(asd_df[col], errors='coerce')
+            
+            # Replace missing data codes (-9999, -999, etc.) with NaN
+            asd_df.loc[asd_df[col] < 0, col] = np.nan
+            asd_df.loc[asd_df[col] > 100, col] = np.nan  # ADOS scores shouldn't be > 100
+            
+            non_null = asd_df[col].notna().sum()
+            print_info(f"  {col}: {non_null} valid values (after removing missing codes)", 0)
+            if non_null > 0:
+                print_info(f"    Range: [{asd_df[col].min():.2f}, {asd_df[col].max():.2f}]", 0)
+    
     print_info(f"Final subjects: {len(asd_df)}, Measures: {ados_cols}", 0)
     
     return asd_df[['subject_id'] + ados_cols], ados_cols
@@ -298,6 +314,7 @@ def load_pklz_behavioral(config):
     print_info(f"Behavioral columns found: {behavioral_cols}", 0)
     
     # Convert behavioral columns to numeric (handle nested arrays)
+    print_info(f"Cleaning missing data codes from behavioral columns", 0)
     for col in behavioral_cols:
         def extract_value(x):
             if isinstance(x, pd.Series):
@@ -309,10 +326,15 @@ def load_pklz_behavioral(config):
         
         filtered_data[col] = filtered_data[col].apply(extract_value)
         filtered_data[col] = pd.to_numeric(filtered_data[col], errors='coerce')
-        filtered_data[col] = filtered_data[col].replace(-999.0, np.nan)  # Missing code
+        
+        # Replace ALL missing data codes (negative values, unrealistic values)
+        filtered_data.loc[filtered_data[col] < 0, col] = np.nan  # All negative = missing codes
+        filtered_data.loc[filtered_data[col] > 100, col] = np.nan  # Unrealistic values
         
         non_null = filtered_data[col].notna().sum()
-        print_info(f"  {col}: {non_null} non-null values", 0)
+        print_info(f"  {col}: {non_null} valid values (after removing missing codes)", 0)
+        if non_null > 0:
+            print_info(f"    Range: [{filtered_data[col].min():.2f}, {filtered_data[col].max():.2f}]", 0)
     
     # IMPORTANT: For TD cohort, filter for NYU site only (scale consistency)
     if 'adhd200_td' in config['output_dir'] and 'site' in filtered_data.columns:
@@ -563,14 +585,24 @@ def analyze_cohort(cohort_key, max_measures=None):
             if n_invalid > 0:
                 print_info(f"Removed {n_invalid} subjects with missing/invalid data", 0)
             
+            # Check if we have sufficient data BEFORE outlier removal
+            if len(y_valid) < 20:
+                print_warning(f"Insufficient valid data: {len(y_valid)} subjects (need at least 20)")
+                if len(y_valid) == 0:
+                    # Show sample of original values to help debug
+                    sample_vals = merged_df[measure].head(5).tolist()
+                    print_warning(f"Sample values before conversion: {sample_vals}")
+                continue
+            
             # Remove outliers
             X_valid, y_valid, n_outliers = remove_outliers(X_valid, y_valid)
             
             if n_outliers > 0:
                 print_info(f"Removed {n_outliers} outliers", 0)
             
+            # Check again after outlier removal
             if len(y_valid) < 20:
-                print_warning(f"Insufficient data: {len(y_valid)} subjects")
+                print_warning(f"Insufficient data after outlier removal: {len(y_valid)} subjects")
                 continue
             
             print_info(f"Valid subjects: {len(y_valid)}", 0)

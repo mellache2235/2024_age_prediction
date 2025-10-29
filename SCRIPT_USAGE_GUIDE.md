@@ -211,7 +211,17 @@ python scripts/create_region_tables.py --top_n 100 --output_dir results/custom_t
 **`scripts/run_nki_brain_behavior_optimized.py`**
 - **Dataset**: NKI-RS TD
 - **Behavioral Measures**: CAARS (multiple files merged)
-- **Usage**: `python scripts/run_nki_brain_behavior_optimized.py`
+- **Location**: Works both locally and on Oak (syncs when cloned)
+- **Usage**:
+  ```bash
+  # Local
+  python scripts/run_nki_brain_behavior_optimized.py
+  
+  # Or on Oak (after cloning/syncing)
+  ssh oak
+  cd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/scripts
+  python run_nki_brain_behavior_optimized.py
+  ```
 
 #### **Key Features** (All Optimized Scripts)
 - **4 Optimization Strategies**:

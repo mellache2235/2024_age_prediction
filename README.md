@@ -78,6 +78,7 @@ python run_all_cohorts_brain_behavior_optimized.py --all  # Run all cohorts
 # Cohort-specific scripts (special data requirements)
 python run_stanford_asd_brain_behavior_optimized.py  # Stanford ASD (SRS)
 python run_nki_brain_behavior_optimized.py           # NKI (CAARS/Conners)
+# Note: NKI script will sync to Oak when you clone/push
 
 # Runtime: ~30-60 min per cohort (vs ~2-5 min standard), +10-30% higher correlations
 # See: scripts/UNIVERSAL_OPTIMIZATION_GUIDE.md for details
@@ -202,6 +203,10 @@ Two modes available:
 - **P-values displayed**: In console output and on all plots
 - **Predictions saved**: Full actual/predicted/residual values in CSV format
 - **Issue detection**: Automatic flagging of constant predictions, overfitting, etc.
+
+#### Note on Cloning to Oak
+This repository is cloned from local (`2024_age_prediction`) to Oak (`2024_age_prediction_test`).
+All optimization scripts will automatically sync when you clone/push to Oak.
 
 ### Statistical Comparisons
 6 complementary metrics per comparison:
