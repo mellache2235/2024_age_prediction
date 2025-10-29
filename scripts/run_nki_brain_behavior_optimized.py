@@ -1,26 +1,20 @@
 #!/usr/bin/env python3
 """
-Optimized Brain-Behavior Analysis for NKI-RS TD Cohort (FIXED VERSION)
+Optimized Brain-Behavior Analysis for NKI-RS TD Cohort
 
-This script performs brain-behavior correlation analysis with comprehensive optimization:
-1. Loads NKI IG scores and behavioral data (CAARS, Conners, RBS)
-2. Performs optimization across multiple strategies
-3. Uses nested cross-validation for robust evaluation
-4. Reports best parameters and performance
+Based on run_nki_brain_behavior_enhanced.py with optimization strategies added.
+Uses the exact same data loading logic as the enhanced version.
 
 Usage:
-    python run_nki_brain_behavior_optimized_FIXED.py
-    python run_nki_brain_behavior_optimized_FIXED.py --max-measures 3
-
-Copy this to Oak:
-    scp run_nki_brain_behavior_optimized_FIXED.py oak:/oak/.../scripts/run_nki_brain_behavior_optimized.py
+    python run_nki_brain_behavior_optimized.py
+    python run_nki_brain_behavior_optimized.py --max-measures 5
 
 Author: Brain-Behavior Optimization Team
 Date: 2024
 """
 
-import os
 import sys
+import os
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -40,70 +34,85 @@ from logging_utils import (print_section_header, print_step, print_success,
 from plot_styles import create_standardized_scatter, get_dataset_title, setup_arial_font, DPI, FIGURE_FACECOLOR
 from optimized_brain_behavior_core import optimize_comprehensive, evaluate_model, remove_outliers
 
-# Setup Arial font
+# Setup Arial font globally
 setup_arial_font()
 
 # ============================================================================
-# CONFIGURATION
+# PRE-CONFIGURED PATHS (SAME AS ENHANCED VERSION)
 # ============================================================================
-
 DATASET = "nki_rs_td"
 IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv"
-BEHAVIORAL_DIR = Path("/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data")
-OUTPUT_DIR = Path("/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td_optimized")
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+BEHAVIORAL_DIR = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data"
+OUTPUT_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td_optimized"
 
 # ============================================================================
-# DATA LOADING (FROM ENHANCED SCRIPT - EXACT LOGIC)
+# DATA LOADING FUNCTIONS (EXACT COPY FROM ENHANCED VERSION)
 # ============================================================================
 
-def load_ig_scores():
-    """Load IG scores (from enhanced script logic)."""
-    print_step("Loading IG scores", f"From {Path(IG_CSV).name}")
+def load_nki_ig_scores(ig_csv):
+    """Load NKI IG scores (exact copy from enhanced version)."""
+    print_step("Loading IG scores", f"From {Path(ig_csv).name}")
     
-    ig_df = pd.read_csv(IG_CSV)
+    df = pd.read_csv(ig_csv)
     
-    # Extract subject IDs and IG scores
-    subject_ids = ig_df['subject_id'].values
-    ig_cols = [col for col in ig_df.columns if col.startswith('ROI_') or col != 'subject_id']
+    # Drop Unnamed: 0 if present
+    if 'Unnamed: 0' in df.columns:
+        df = df.drop(columns=['Unnamed: 0'])
     
-    # Remove subject_id from ig_cols if it got included
-    ig_cols = [col for col in ig_cols if col != 'subject_id']
+    # Identify subject ID column
+    id_col = None
+    for col in ['subject_id', 'id', 'ID', 'Subject_ID']:
+        if col in df.columns:
+            id_col = col
+            break
     
-    ig_matrix = ig_df[ig_cols].values
+    if id_col is None:
+        raise ValueError("No subject ID column found in IG CSV")
     
-    print_info("IG subjects", len(subject_ids))
-    print_info("IG features (ROIs)", ig_matrix.shape[1])
+    # Standardize to 'subject_id'
+    if id_col != 'subject_id':
+        df = df.rename(columns={id_col: 'subject_id'})
     
-    return subject_ids, ig_matrix, ig_cols
+    # Convert subject IDs to string
+    df['subject_id'] = df['subject_id'].astype(str)
+    
+    # ROI columns are all columns except subject_id
+    roi_cols = [col for col in df.columns if col != 'subject_id']
+    
+    print_info(f"IG subjects: {len(df)}")
+    print_info(f"IG features (ROIs): {len(roi_cols)}")
+    print_info(f"Sample ROI columns: {roi_cols[:3]}...")
+    
+    return df, roi_cols
 
 
-def load_nki_behavioral_data():
-    """Load and merge all NKI behavioral data files (from enhanced script - EXACT LOGIC)."""
-    print_step("Loading NKI behavioral data", "From multiple files")
+def load_nki_behavioral_data(behavioral_dir):
+    """Load NKI behavioral data (exact copy from enhanced version)."""
+    print_step("Loading NKI behavioral data", f"From {Path(behavioral_dir).name}")
     
-    # Find all behavioral files
+    behavioral_dir = Path(behavioral_dir)
+    
+    # Look for multiple behavioral files
     behavioral_files = []
     for pattern in ['*CAARS*.csv', '*Conners*.csv', '*RBS*.csv']:
-        behavioral_files.extend(BEHAVIORAL_DIR.glob(pattern))
+        behavioral_files.extend(behavioral_dir.glob(pattern))
     
     if not behavioral_files:
-        raise ValueError(f"No behavioral files found in {BEHAVIORAL_DIR}")
+        raise ValueError(f"No behavioral files found in {behavioral_dir}")
     
-    print_info("Found files", len(behavioral_files))
+    print_info(f"Found {len(behavioral_files)} behavioral files:")
     for f in behavioral_files:
-        print(f"  • {f.name}")
+        print_info(f"  • {f.name}")
     
     # Load and merge all behavioral files
     all_dfs = []
     for bf in behavioral_files:
         df = pd.read_csv(bf)
         
-        # Identify subject ID column (FLEXIBLE - includes 'anonymized')
+        # Identify subject ID column
         id_col = None
         for col in df.columns:
-            col_lower = col.lower()
-            if any(kw in col_lower for kw in ['id', 'subject', 'identifier', 'anonymized']):
+            if 'id' in col.lower() or 'subject' in col.lower():
                 id_col = col
                 break
         
@@ -142,41 +151,50 @@ def load_nki_behavioral_data():
     if not behavioral_cols:
         raise ValueError("No behavioral columns found")
     
-    print_info("Behavioral subjects", len(merged_df))
-    print_info("Behavioral measures", len(behavioral_cols))
-    print(f"  Sample columns: {behavioral_cols[:5]}...")
+    print_info(f"Total behavioral subjects: {len(merged_df)}")
+    print_info(f"Behavioral measures: {len(behavioral_cols)}")
+    print_info(f"Sample columns: {behavioral_cols[:5]}...")
     
     return merged_df, behavioral_cols
 
 
-def merge_data(ig_df, beh_df):
-    """Merge IG and behavioral data."""
+def merge_data(ig_df, behavioral_df):
+    """Merge IG and behavioral data by subject ID (exact copy from enhanced version)."""
     print_step("Merging data", "Matching subject IDs")
     
-    # Remove duplicates in behavioral data
-    beh_df = beh_df.drop_duplicates(subset='subject_id', keep='first')
+    print_info(f"IG subjects: {len(ig_df)}")
+    print_info(f"Behavioral subjects: {len(behavioral_df)}")
     
-    merged = pd.merge(ig_df, beh_df, on='subject_id', how='inner')
+    # Remove duplicates in behavioral data (keep first)
+    behavioral_df = behavioral_df.drop_duplicates(subset='subject_id', keep='first')
+    print_info(f"Behavioral subjects after deduplication: {len(behavioral_df)}")
     
-    print_success(f"Merged: {len(merged)} subjects with both IG and behavioral data")
+    # Merge on subject_id
+    merged = pd.merge(ig_df, behavioral_df, on='subject_id', how='inner')
     
-    if len(merged) < 10:
-        raise ValueError(f"Insufficient overlap: only {len(merged)} common subjects")
+    common_subjects = len(merged)
+    print_success(f"Merged: {common_subjects} subjects with both IG and behavioral data")
+    
+    if common_subjects < 10:
+        raise ValueError(f"Insufficient overlap: only {common_subjects} common subjects")
     
     return merged
 
 
+# ============================================================================
+# VISUALIZATION (OPTIMIZED VERSION - WITH STRATEGY INFO)
+# ============================================================================
+
 def create_scatter_plot(results, measure_name, best_params, output_dir):
-    """Create scatter plot using centralized styling."""
+    """Create scatter plot with optimization info."""
     y_actual = results['y_actual']
     y_pred = results['y_pred']
     rho = results['rho']
     p_value = results['p_value']
     
-    # Format p-value
     p_str = "< 0.001" if p_value < 0.001 else f"= {p_value:.3f}"
     
-    # Create stats text with model info
+    # Build model info text from best params
     strategy = best_params.get('strategy', 'Unknown')
     info_parts = [f"{strategy}"]
     if best_params.get('n_components'):
@@ -187,35 +205,21 @@ def create_scatter_plot(results, measure_name, best_params, output_dir):
     model_info = "\n".join(info_parts)
     stats_text = f"r = {rho:.3f}\np {p_str}\n{model_info}"
     
-    # Get standardized title
-    title = get_dataset_title(DATASET)
-    
-    # Create descriptive filename with method
+    title = get_dataset_title(DATASET) + " (Optimized)"
     safe_name = measure_name.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
-    method_name = best_params.get('strategy', 'Unknown').replace('+', '_')
+    save_path = Path(output_dir) / f'scatter_{safe_name}_optimized'
     
-    if best_params.get('n_components'):
-        filename = f'scatter_{safe_name}_{method_name}_comp{best_params["n_components"]}_optimized'
-    elif best_params.get('n_features'):
-        filename = f'scatter_{safe_name}_{method_name}_k{best_params["n_features"]}_optimized'
-    else:
-        filename = f'scatter_{safe_name}_{method_name}_optimized'
-    
-    save_path = OUTPUT_DIR / filename
-    
-    # Use centralized plotting function
     fig, ax = plt.subplots(figsize=(6, 6))
     
     create_standardized_scatter(
         ax, y_actual, y_pred,
-        title=title + " (Optimized)",
+        title=title,
         xlabel='Observed Behavioral Score',
         ylabel='Predicted Behavioral Score',
         stats_text=stats_text,
         is_subplot=False
     )
     
-    # Save with centralized export (PNG + TIFF + AI)
     plt.tight_layout()
     
     png_path = save_path.with_suffix('.png')
@@ -233,106 +237,109 @@ def create_scatter_plot(results, measure_name, best_params, output_dir):
 
 
 # ============================================================================
-# MAIN FUNCTION
+# MAIN ANALYSIS (ENHANCED + OPTIMIZATION)
 # ============================================================================
 
 def main():
     """Main analysis pipeline."""
-    parser = argparse.ArgumentParser(
-        description="Optimized brain-behavior analysis for NKI-RS TD"
-    )
-    parser.add_argument(
-        '--max-measures', '-m',
-        type=int,
-        default=None,
-        help="Maximum number of behavioral measures to analyze (for testing)"
-    )
-    
+    parser = argparse.ArgumentParser(description="NKI-RS TD optimized brain-behavior analysis")
+    parser.add_argument('--max-measures', type=int, default=None,
+                       help="Maximum number of behavioral measures to analyze (for testing)")
     args = parser.parse_args()
     
     print_section_header("OPTIMIZED BRAIN-BEHAVIOR ANALYSIS - NKI-RS TD")
+    
+    print_info(f"IG CSV:          {IG_CSV}")
+    print_info(f"Behavioral DIR:  {BEHAVIORAL_DIR}")
+    print_info(f"Output:          {OUTPUT_DIR}")
     print()
     
+    # Create output directory
+    Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+    
     try:
-        # Load data
-        subject_ids_ig, ig_matrix, ig_cols = load_ig_scores()
-        behavioral_df, behavioral_cols = load_nki_behavioral_data()
+        # 1. Load data (using enhanced version logic)
+        ig_df, roi_cols = load_nki_ig_scores(IG_CSV)
+        behavioral_df, behavioral_cols = load_nki_behavioral_data(BEHAVIORAL_DIR)
         
+        # 2. Merge data
+        merged_df = merge_data(ig_df, behavioral_df)
+        
+        # Extract IG matrix
+        ig_matrix = merged_df[roi_cols].values
+        
+        print_info(f"IG matrix shape: {ig_matrix.shape} (subjects x ROIs)")
         print()
-        
-        # Merge datasets
-        ig_df_full = pd.DataFrame({
-            'subject_id': subject_ids_ig,
-            **{col: ig_matrix[:, i] for i, col in enumerate(ig_cols)}
-        })
-        
-        merged_df = merge_data(ig_df_full, behavioral_df)
-        
-        print()
-        
-        X = merged_df[ig_cols].values
-        
-        print_info("Final IG matrix shape", f"{X.shape} (subjects x ROIs)")
         
         # Limit measures if specified
         if args.max_measures:
             behavioral_cols = behavioral_cols[:args.max_measures]
             print_warning(f"Limited to {args.max_measures} measures for testing")
         
-        print()
-        
-        # Analyze each behavioral measure
+        # 3. Analyze each behavioral measure with optimization
         all_results = []
         
         for measure in behavioral_cols:
+            print()
             print_section_header(f"ANALYZING: {measure}")
             
-            # Get behavioral scores for this measure
-            y = merged_df[measure].values
+            # Get behavioral scores (convert to numeric)
+            behavioral_scores = pd.to_numeric(merged_df[measure], errors='coerce').values
             
-            # Remove NaN values
+            # Prepare data
+            X = ig_matrix
+            y = behavioral_scores
+            
+            # Remove NaN
             valid_mask = ~np.isnan(y)
             X_valid = X[valid_mask]
             y_valid = y[valid_mask]
+            
+            n_invalid = np.sum(~valid_mask)
+            if n_invalid > 0:
+                print_info(f"Removed {n_invalid} subjects with missing/invalid data")
+            
+            # Check sufficient data BEFORE outlier removal
+            if len(y_valid) < 20:
+                print_warning(f"Insufficient valid data: {len(y_valid)} subjects (need at least 20)")
+                continue
             
             # Remove outliers
             X_valid, y_valid, n_outliers = remove_outliers(X_valid, y_valid)
             
             if n_outliers > 0:
-                print_info("Removed outliers", n_outliers)
+                print_info(f"Removed {n_outliers} outliers")
             
+            # Check again after outlier removal
             if len(y_valid) < 20:
-                print_warning(f"Insufficient data for {measure}: only {len(y_valid)} subjects")
+                print_warning(f"Insufficient data after outlier removal: {len(y_valid)} subjects")
                 continue
             
-            print_info("Valid subjects", len(y_valid))
-            print()
+            print_info(f"Valid subjects: {len(y_valid)}")
             
-            # Optimize model
+            # Optimize
             best_model, best_params, cv_score, opt_results = \
                 optimize_comprehensive(X_valid, y_valid, measure, verbose=True)
             
-            # Evaluate on all data with integrity checking
-            eval_results = evaluate_model(best_model, X_valid, y_valid, verbose=True)
+            # Evaluate
+            eval_results = evaluate_model(best_model, X_valid, y_valid)
             
             # Create visualization
             create_scatter_plot(eval_results, measure, best_params, OUTPUT_DIR)
             
             # Save optimization results
             safe_name = measure.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
+            opt_results.to_csv(Path(OUTPUT_DIR) / f"optimization_results_{safe_name}.csv", index=False)
+            
+            # Save predictions
             method_name = best_params.get('strategy', 'Unknown').replace('+', '_')
-            
-            opt_results.to_csv(OUTPUT_DIR / f"optimization_results_{safe_name}.csv", index=False)
-            
-            # Save predictions for integrity verification
             predictions_df = pd.DataFrame({
                 'Actual': eval_results['y_actual'],
                 'Predicted': eval_results['y_pred'],
                 'Residual': eval_results['y_actual'] - eval_results['y_pred']
             })
             pred_filename = f"predictions_{safe_name}_{method_name}.csv"
-            predictions_df.to_csv(OUTPUT_DIR / pred_filename, index=False)
-            print_info("Saved predictions", pred_filename)
+            predictions_df.to_csv(Path(OUTPUT_DIR) / pred_filename, index=False)
             
             # Store summary
             all_results.append({
@@ -351,29 +358,27 @@ def main():
                 'Final_R2': eval_results['r2'],
                 'Final_MAE': eval_results['mae']
             })
-            
-            print()
         
         # Save summary
         if all_results:
             summary_df = pd.DataFrame(all_results)
-            summary_df.to_csv(OUTPUT_DIR / "optimization_summary.csv", index=False)
+            summary_df.to_csv(Path(OUTPUT_DIR) / "optimization_summary.csv", index=False)
             
             print()
-            print_completion("NKI-RS TD Brain-Behavior Analysis Complete!")
-            print_info("Results saved to", str(OUTPUT_DIR))
+            print_completion("NKI-RS TD Optimized Analysis Complete!")
+            print_info(f"Results saved to: {OUTPUT_DIR}")
             print()
             print("="*100)
             print("BEST PERFORMANCES (Sorted by Spearman ρ)")
             print("="*100)
-            summary_sorted = summary_df.sort_values('Final_Spearman', ascending=False)
+            summary_sorted = summary_df.sort_values('Final_Spearman', ascending=False, key=abs)
             print(summary_sorted[['Measure', 'Final_Spearman', 'Best_Strategy', 'Best_Model']].to_string(index=False))
             print()
             print(f"\n  HIGHEST CORRELATION: ρ = {summary_sorted.iloc[0]['Final_Spearman']:.4f}")
             print(f"  Measure: {summary_sorted.iloc[0]['Measure']}")
             print()
         else:
-            print_warning("No results to save")
+            print_warning("No results generated - all measures had insufficient data")
         
     except Exception as e:
         print()
@@ -385,4 +390,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

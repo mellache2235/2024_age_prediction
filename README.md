@@ -67,18 +67,17 @@ python run_abide_asd_brain_behavior_enhanced.py     # ABIDE ASD (ADOS)
 # Comprehensive optimization: PCA, PLS, Feature Selection, Regularization
 # Tests ~100-200 configurations per behavioral measure
 
-# Universal script for most cohorts (recommended)
-python run_all_cohorts_brain_behavior_optimized.py --cohort abide_asd
+# Universal script for ADHD cohorts
 python run_all_cohorts_brain_behavior_optimized.py --cohort adhd200_td
 python run_all_cohorts_brain_behavior_optimized.py --cohort adhd200_adhd
 python run_all_cohorts_brain_behavior_optimized.py --cohort cmihbn_td
 python run_all_cohorts_brain_behavior_optimized.py --cohort cmihbn_adhd
-python run_all_cohorts_brain_behavior_optimized.py --all  # Run all cohorts
 
-# Cohort-specific scripts (special data requirements)
+# Cohort-specific scripts (better data handling, recommended)
 python run_stanford_asd_brain_behavior_optimized.py  # Stanford ASD (SRS)
-python run_nki_brain_behavior_optimized.py           # NKI (CAARS/Conners)
-# Note: NKI script will sync to Oak when you clone/push
+python run_abide_asd_brain_behavior_optimized.py     # ABIDE ASD (ADOS, handles ID stripping)
+python run_nki_brain_behavior_optimized.py           # NKI (CAARS/Conners, multiple files)
+# Note: All scripts sync to Oak when you clone/push
 
 # Runtime: ~30-60 min per cohort (vs ~2-5 min standard), +10-30% higher correlations
 # See: scripts/UNIVERSAL_OPTIMIZATION_GUIDE.md for details
@@ -157,7 +156,8 @@ results/
 | **Region Tables** | `create_region_tables.py` | CSV tables (full + diverse subsets) |
 | **Statistical Tests** | `run_statistical_comparisons.py` | 6 metrics, 12 comparisons |
 | **Brain-Behavior (Standard)** | `run_*_brain_behavior_enhanced.py` | Fast analysis, good correlations |
-| **Brain-Behavior (Optimized)** | `run_*_brain_behavior_optimized.py` | 🚀 Max Spearman ρ (+10-30%) |
+| **Brain-Behavior (Optimized - Universal)** | `run_all_cohorts_*_optimized.py` | 🚀 ADHD cohorts only |
+| **Brain-Behavior (Optimized - Dedicated)** | `run_stanford/abide/nki_*_optimized.py` | 🚀 Stanford/ABIDE/NKI (best) |
 | **Optimization Summary** | `create_optimization_summary_figure.py` | Summary tables & figures (significant only) |
 | **Brain Age** | `plot_brain_age_*.py` | Combined scatter plots |
 
@@ -189,7 +189,9 @@ Two modes available:
 - **5-fold cross-validation** maximizing Spearman ρ
 - **Expected improvement**: +10-30% higher correlations
 - **Runtime**: ~30-60 min per cohort
-- **Universal script**: `python run_all_cohorts_brain_behavior_optimized.py --cohort {cohort}`
+- **Scripts**:
+  - Universal (ADHD only): `run_all_cohorts_brain_behavior_optimized.py`
+  - Dedicated (recommended): `run_stanford/abide/nki_*_optimized.py`
 - **Quick start**: See `scripts/UNIVERSAL_OPTIMIZATION_GUIDE.md`
 
 #### Common Features (Both Modes)

@@ -172,56 +172,59 @@ python scripts/create_region_tables.py --top_n 100 --output_dir results/custom_t
 
 **Purpose**: Comprehensive optimization to maximize brain-behavior correlations using multiple strategies.
 
-#### **Universal Optimized Script** (Recommended for Most Cohorts)
+#### **Universal Optimized Script** (ADHD Cohorts Only)
 
 **`scripts/run_all_cohorts_brain_behavior_optimized.py`**
-- **Supports**: ABIDE ASD, ADHD200 (TD & ADHD), CMI-HBN (TD & ADHD)
+- **Supports**: ADHD200 (TD & ADHD), CMI-HBN (TD & ADHD)
+- **Note**: ABIDE, Stanford, and NKI use dedicated scripts below (recommended for better data handling)
 - **Usage**: 
   ```bash
-  # Analyze a specific cohort
-  python scripts/run_all_cohorts_brain_behavior_optimized.py --cohort abide_asd
+  # Analyze a specific ADHD cohort
   python scripts/run_all_cohorts_brain_behavior_optimized.py --cohort adhd200_td
   python scripts/run_all_cohorts_brain_behavior_optimized.py --cohort adhd200_adhd
   python scripts/run_all_cohorts_brain_behavior_optimized.py --cohort cmihbn_td
   python scripts/run_all_cohorts_brain_behavior_optimized.py --cohort cmihbn_adhd
   
-  # Test mode (2 measures, ~5 min)
-  python scripts/run_all_cohorts_brain_behavior_optimized.py --cohort abide_asd --max-measures 2
-  
-  # Run ALL cohorts sequentially
+  # Run ALL ADHD cohorts
   python scripts/run_all_cohorts_brain_behavior_optimized.py --all
   ```
 
 **Supported Cohorts**:
 | Cohort Key | Name | Behavioral Measures |
 |------------|------|---------------------|
-| `abide_asd` | ABIDE ASD | ADOS (Total, Communication, Social) |
 | `adhd200_td` | ADHD200 TD | Hyperactivity/Impulsivity, Inattention |
 | `adhd200_adhd` | ADHD200 ADHD | Hyperactivity/Impulsivity, Inattention |
 | `cmihbn_td` | CMI-HBN TD | C3SR T-scores |
 | `cmihbn_adhd` | CMI-HBN ADHD | C3SR T-scores |
 
-#### **Cohort-Specific Optimized Scripts**
+#### **Cohort-Specific Optimized Scripts** (Recommended)
+
+These scripts use the exact same data loading logic as their enhanced counterparts, ensuring reliability.
 
 **`scripts/run_stanford_asd_brain_behavior_optimized.py`**
 - **Dataset**: Stanford ASD
 - **Behavioral Measures**: SRS Total Score, Social Awareness
+- **Data handling**: SRS-specific format
 - **Usage**: `python scripts/run_stanford_asd_brain_behavior_optimized.py`
 
-**`scripts/run_nki_brain_behavior_optimized.py`**
+**`scripts/run_abide_asd_brain_behavior_optimized.py`** ⭐ NEW
+- **Dataset**: ABIDE ASD
+- **Behavioral Measures**: ADOS (Total, Communication, Social)
+- **Data handling**: Handles ID stripping for better subject matching
+- **Usage**: `python scripts/run_abide_asd_brain_behavior_optimized.py`
+- **Why dedicated script**: ABIDE requires special ID matching (strips leading zeros for better overlap)
+
+**`scripts/run_nki_brain_behavior_optimized.py`** ⭐ UPDATED
 - **Dataset**: NKI-RS TD
 - **Behavioral Measures**: CAARS (multiple files merged)
-- **Location**: Works both locally and on Oak (syncs when cloned)
+- **Data handling**: Merges CAARS, Conners Parent, Conners Self, RBS files
+- **Location**: Syncs to Oak when you clone/push
 - **Usage**:
   ```bash
-  # Local
+  # Local or on Oak (after syncing)
   python scripts/run_nki_brain_behavior_optimized.py
-  
-  # Or on Oak (after cloning/syncing)
-  ssh oak
-  cd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/scripts
-  python run_nki_brain_behavior_optimized.py
   ```
+- **Why dedicated script**: NKI has unique data structure (multiple CSV files to merge, 'Anonymized ID' column)
 
 #### **Key Features** (All Optimized Scripts)
 - **4 Optimization Strategies**:

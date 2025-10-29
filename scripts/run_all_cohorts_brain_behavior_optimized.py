@@ -245,6 +245,16 @@ def load_abide_behavioral(config):
             print_info(f"  {col}: {non_null} valid values (after removing missing codes)", 0)
             if non_null > 0:
                 print_info(f"    Range: [{asd_df[col].min():.2f}, {asd_df[col].max():.2f}]", 0)
+        
+        # CRITICAL FIX: Only keep subjects with at least one valid ADOS score
+        # This prevents all-NaN situation after merge
+        has_any_ados = asd_df[ados_cols].notna().any(axis=1)
+        n_before = len(asd_df)
+        asd_df = asd_df[has_any_ados].copy()
+        n_removed = n_before - len(asd_df)
+        
+        if n_removed > 0:
+            print_info(f"Filtered to subjects with valid ADOS: {len(asd_df)} (removed {n_removed} with all-NaN)", 0)
     
     print_info(f"Final subjects: {len(asd_df)}, Measures: {ados_cols}", 0)
     
