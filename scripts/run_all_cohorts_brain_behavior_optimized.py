@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from logging_utils import (print_section_header, print_step, print_success, 
                            print_warning, print_error, print_info, print_completion)
 from plot_styles import create_standardized_scatter, get_dataset_title, setup_arial_font, DPI, FIGURE_FACECOLOR
-from optimized_brain_behavior_core import optimize_comprehensive, evaluate_model, remove_outliers
+from optimized_brain_behavior_core import optimize_comprehensive, evaluate_model, remove_outliers, apply_fdr_correction
 
 # Setup Arial font globally
 setup_arial_font()

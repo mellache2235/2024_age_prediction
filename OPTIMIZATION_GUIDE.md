@@ -125,7 +125,28 @@ Sample predictions (first 5):
 
 ---
 
-### Step 4: Files Produced
+### Step 4: FDR Correction Applied
+
+If multiple behavioral measures are analyzed (>1), the script automatically applies **Benjamini-Hochberg FDR correction**:
+
+```
+[STEP Applying FDR correction] Benjamini-Hochberg across 8 measures
+----------------------------------------------------------------------------------------------------
+
+Significant before FDR: 5/8
+Significant after FDR:  3/8
+
+✅ Measures surviving FDR correction (α = 0.05):
+  B T-SCORE (HYPERACTIVITY/RESTLESSNESS)........................ ρ=0.412, p<0.001, p_FDR=0.002
+  A TOTAL (INATTENTION/MEMORY PROBLEMS)......................... ρ=0.353, p=0.001, p_FDR=0.004
+  F TOTAL (DSM-5 HYPERACTIVE-IMPULSIVE SYMPTOMS)................ ρ=0.334, p=0.002, p_FDR=0.006
+```
+
+**Use only measures that survive FDR correction** for publication!
+
+---
+
+### Step 5: Files Produced
 
 For each cohort, in `/oak/.../brain_behavior/{cohort}_optimized/`:
 

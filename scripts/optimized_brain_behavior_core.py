@@ -32,6 +32,61 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.feature_selection import SelectKBest, f_regression, mutual_info_regression
 
+# ============================================================================
+# FDR CORRECTION
+# ============================================================================
+
+def apply_fdr_correction(p_values, alpha=0.05):
+    """
+    Apply Benjamini-Hochberg FDR correction to p-values.
+    
+    Args:
+        p_values: Array of p-values
+        alpha: Significance level (default: 0.05)
+    
+    Returns:
+        corrected_p_values: FDR-corrected p-values
+        rejected: Boolean array indicating significance after correction
+    """
+    try:
+        # Try to use statsmodels if available
+        from statsmodels.stats.multitest import multipletests
+        rejected, corrected_p, _, _ = multipletests(p_values, alpha=alpha, method='fdr_bh')
+        return corrected_p, rejected
+    except ImportError:
+        # Fallback: Benjamini-Hochberg implementation
+        p_values = np.array(p_values)
+        n = len(p_values)
+        
+        if n == 0:
+            return np.array([]), np.array([])
+        
+        sorted_indices = np.argsort(p_values)
+        sorted_p_values = p_values[sorted_indices]
+        
+        # BH critical values
+        bh_critical = (np.arange(1, n + 1) / n) * alpha
+        
+        # Find rejected hypotheses
+        rejected = np.zeros(n, dtype=bool)
+        corrected_p = np.ones(n)
+        
+        # Find largest k where p(k) <= (k/n)*alpha
+        max_k = -1
+        for i in range(n):
+            if sorted_p_values[i] <= bh_critical[i]:
+                max_k = i
+        
+        # Mark all up to max_k as rejected
+        if max_k >= 0:
+            for i in range(max_k + 1):
+                idx = sorted_indices[i]
+                rejected[idx] = True
+                corrected_p[idx] = min(1.0, sorted_p_values[i] * n / (i + 1))
+        
+        return corrected_p, rejected
+
+
 # Configuration constants
 MAX_N_PCS = 50
 PC_STEP = 5
@@ -343,9 +398,9 @@ def optimize_comprehensive(X, y, measure_name, verbose=True, random_seed=None):
             
             # Try different models on selected features
             models = {
-                'Linear': LinearRegression(),
-                'Ridge': Ridge(),
-                'Lasso': Lasso(max_iter=10000)
+                'Linear': LinearRegression,  # Pass class, not instance
+                'Ridge': Ridge,              # Pass class, not instance
+                'Lasso': Lasso               # Pass class, not instance
             }
             
             for model_name, model_class in models.items():

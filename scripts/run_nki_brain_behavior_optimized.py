@@ -32,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from logging_utils import (print_section_header, print_step, print_success, 
                            print_warning, print_error, print_info, print_completion)
 from plot_styles import create_standardized_scatter, get_dataset_title, setup_arial_font, DPI, FIGURE_FACECOLOR
-from optimized_brain_behavior_core import optimize_comprehensive, evaluate_model, remove_outliers
+from optimized_brain_behavior_core import optimize_comprehensive, evaluate_model, remove_outliers, apply_fdr_correction
 
 # Setup Arial font globally
 setup_arial_font()
@@ -422,9 +422,39 @@ def main():
                 'Final_MAE': float(np.asarray(eval_results['mae']).item())
             })
         
-        # Save summary
+        # Apply FDR correction and save summary
         if all_results:
             summary_df = pd.DataFrame(all_results)
+            
+            # Apply FDR correction across all measures
+            if len(all_results) > 1:
+                print()
+                print_step("Applying FDR correction", f"Benjamini-Hochberg across {len(all_results)} measures")
+                
+                p_values = summary_df['Final_P_Value'].values
+                corrected_p, rejected = apply_fdr_correction(p_values, alpha=0.05)
+                
+                summary_df['FDR_Corrected_P'] = corrected_p
+                summary_df['FDR_Significant'] = rejected
+                
+                n_sig_uncorrected = (summary_df['Final_P_Value'] < 0.05).sum()
+                n_sig_corrected = rejected.sum()
+                
+                print_info("Significant before FDR", f"{n_sig_uncorrected}/{len(all_results)}")
+                print_info("Significant after FDR", f"{n_sig_corrected}/{len(all_results)}")
+                
+                if n_sig_corrected > 0:
+                    print()
+                    print("  ✅ Measures surviving FDR correction (α = 0.05):")
+                    for _, row in summary_df[summary_df['FDR_Significant']].iterrows():
+                        p_str = '< 0.001' if row['Final_P_Value'] < 0.001 else f"{row['Final_P_Value']:.4f}"
+                        p_fdr = '< 0.001' if row['FDR_Corrected_P'] < 0.001 else f"{row['FDR_Corrected_P']:.4f}"
+                        print(f"    {row['Measure']:.<60} ρ={row['Final_Spearman']:.3f}, p={p_str}, p_FDR={p_fdr}")
+            else:
+                print_info("Single measure - no FDR correction needed", "")
+                summary_df['FDR_Corrected_P'] = summary_df['Final_P_Value']
+                summary_df['FDR_Significant'] = summary_df['Final_P_Value'] < 0.05
+            
             summary_df.to_csv(Path(OUTPUT_DIR) / "optimization_summary.csv", index=False)
             
             print()
