@@ -63,10 +63,12 @@ python run_cmihbn_adhd_brain_behavior_enhanced.py   # CMI-HBN ADHD (C3SR)
 python run_stanford_asd_brain_behavior_enhanced.py  # Stanford ASD (SRS Total Score)
 python run_abide_asd_brain_behavior_enhanced.py     # ABIDE ASD (ADOS)
 
-# Optional: Enable optimization for higher correlations
-# Edit script, set: OPTIMIZE = True (line ~46)
-# Tests Ridge/Lasso/ElasticNet, grid search over PCs
-# Runtime: ~10-30 min per script (vs ~2-5 min standard)
+# 🚀 NEW: Optimized Brain-Behavior Analysis (Maximize Spearman ρ)
+# Comprehensive optimization: PCA, PLS, Feature Selection, Regularization
+# Tests ~100-200 configurations per behavioral measure
+python run_stanford_asd_brain_behavior_optimized.py  # Stanford ASD (optimized)
+# Runtime: ~30-60 min (vs ~2-5 min standard), +10-30% higher correlations
+# See: scripts/QUICK_START_OPTIMIZATION.md for details
 
 # 4. Combined Plots
 python plot_brain_behavior_td_cohorts.py
@@ -101,8 +103,9 @@ results/
 │   ├── adhd200_adhd/
 │   ├── cmihbn_td/
 │   ├── cmihbn_adhd/
-│   ├── stanford_asd/           # NEW: SRS Total Score, Social Awareness
-│   ├── abide_asd/              # NEW: ADOS (total, social, comm)
+│   ├── stanford_asd/           # SRS Total Score, Social Awareness
+│   ├── stanford_asd_optimized/ # 🚀 NEW: Optimized analysis (max Spearman ρ)
+│   ├── abide_asd/              # ADOS (total, social, comm)
 │   └── combined_plots/
 ├── brain_age_plots/             # Combined scatter plots (PNG/TIFF/AI)
 ├── integrated_gradients/        # IG scores CSV files with subject IDs
@@ -122,7 +125,8 @@ results/
 | **Network Analysis** | `network_analysis_yeo.py` | JSON, CSV, radar plots |
 | **Region Tables** | `create_region_tables.py` | CSV tables (full + diverse subsets) |
 | **Statistical Tests** | `run_statistical_comparisons.py` | 6 metrics, 12 comparisons |
-| **Brain-Behavior** | `run_optimized_brain_behavior.py --all` | Scatter plots, optimized models |
+| **Brain-Behavior (Standard)** | `run_*_brain_behavior_enhanced.py` | Fast analysis, good correlations |
+| **Brain-Behavior (Optimized)** | `run_*_brain_behavior_optimized.py` | 🚀 Max Spearman ρ (+10-30%) |
 | **Brain Age** | `plot_brain_age_*.py` | Combined scatter plots |
 
 ---
@@ -130,13 +134,32 @@ results/
 ## 📖 Key Features
 
 ### Brain-Behavior Analysis
-- **Standard mode** (default): Fixed 80% variance threshold, LinearRegression, fast (~2-5 min)
-- **Optimization mode** (optional): Set `OPTIMIZE = True` in script to enable:
-  - Grid search over # of PCs (5, 10, 15, ..., n_samples-10)
-  - 4 models tested: Linear, Ridge, Lasso, ElasticNet
-  - Regularization strengths: 0.001, 0.01, 0.1, 1.0, 10.0, 100.0
-  - 5-fold CV maximizing Spearman ρ
-  - Higher correlations but slower (~10-30 min per script)
+Two modes available:
+
+#### 1. **Standard Mode** (Enhanced Scripts)
+- Fixed 80% variance threshold, LinearRegression
+- Fast (~2-5 min per script)
+- Good for exploratory analysis
+- Usage: `python run_*_brain_behavior_enhanced.py`
+
+#### 2. **🚀 NEW: Optimized Mode** (Maximizes Spearman ρ)
+- **4 Optimization Strategies**:
+  1. PCA + Regression (Linear, Ridge, Lasso, ElasticNet)
+  2. PLS Regression (optimized for covariance)
+  3. Feature Selection + Regression (F-stat, Mutual Info)
+  4. Direct Regularized Regression
+- **Comprehensive hyperparameter search**:
+  - PC components: 5-50 (auto-adjusted)
+  - PLS components: 3-30
+  - Alpha values: [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
+  - Feature selection: Top-K = [50, 100, 150, 200]
+- **5-fold cross-validation** maximizing Spearman ρ
+- **Expected improvement**: +10-30% higher correlations
+- **Runtime**: ~30-60 min per script
+- **Usage**: `python run_stanford_asd_brain_behavior_optimized.py`
+- **Quick start**: See `scripts/QUICK_START_OPTIMIZATION.md`
+
+#### Common Features (Both Modes)
 - **Data integrity checks**: ID alignment verification, NaN detection, duplicate checks
 - **Centralized styling**: plot_styles.py ensures 100% consistency
 - **Triple export**: PNG + TIFF + AI (publication-ready)

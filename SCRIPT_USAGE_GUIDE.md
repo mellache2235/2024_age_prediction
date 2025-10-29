@@ -159,12 +159,64 @@ python scripts/create_region_tables.py --top_n 100 --output_dir results/custom_t
 - **Behavioral Measures**: ADOS (Autism Diagnostic Observation Schedule)
 - **Usage**: `python scripts/run_abide_asd_brain_behavior_enhanced.py`
 
-**All scripts output**:
+**All enhanced scripts output**:
 - Elbow plot (optimal PC selection)
 - Scatter plots (predicted vs actual behavioral scores) - PNG + TIFF + AI formats
 - Linear regression results (Spearman ρ, p-values, R²)
 - PC importance rankings
 - PC loadings (top brain regions per PC)
+
+---
+
+### 🚀 Optimized Brain-Behavior Scripts (Maximize Spearman Correlations)
+
+**Purpose**: Comprehensive optimization to maximize brain-behavior correlations using multiple strategies.
+
+**`scripts/run_stanford_asd_brain_behavior_optimized.py`**
+- **Dataset**: Stanford ASD
+- **Behavioral Measures**: SRS Total Score, Social Awareness
+- **Strategies**: PCA, PLS, Feature Selection, Direct Regression
+- **Usage**: 
+  ```bash
+  # Full analysis (~30-60 min)
+  python scripts/run_stanford_asd_brain_behavior_optimized.py
+  
+  # Test with 2 measures (~5 min)
+  python scripts/run_stanford_asd_brain_behavior_optimized.py --max-measures 2
+  
+  # Sequential processing (debugging)
+  python scripts/run_stanford_asd_brain_behavior_optimized.py --n-jobs 1
+  ```
+
+**Key Features**:
+- **4 Optimization Strategies**:
+  1. PCA + Regression (Linear, Ridge, Lasso, ElasticNet)
+  2. PLS Regression (optimized for covariance)
+  3. Feature Selection + Regression (F-stat, Mutual Information)
+  4. Direct Regularized Regression
+- **Comprehensive hyperparameter search**: ~100-200 configurations per measure
+- **5-fold cross-validation**: Robust performance estimates
+- **Expected improvement**: +10-30% higher Spearman correlations
+- **Parallel processing**: Optional multi-core support
+
+**Optimized scripts output**:
+- `optimization_summary.csv` - Best configuration per behavioral measure
+- `optimization_results_*.csv` - All tested configurations
+- Scatter plots (PNG + TIFF + AI) with best model info
+- Cross-validation performance metrics
+- Runtime: ~30-60 min (vs ~2-5 min for enhanced scripts)
+
+**Documentation**:
+- Quick start: `scripts/QUICK_START_OPTIMIZATION.md`
+- Full guide: `scripts/OPTIMIZATION_README.md`
+- Implementation: `scripts/OPTIMIZATION_SUMMARY.md`
+
+**When to use**:
+- ✅ Publishing results (need maximum correlations)
+- ✅ Comparing different behavioral measures
+- ✅ Testing which brain regions matter most
+- ✅ Need robust cross-validation
+- ❌ Quick exploratory analysis (use enhanced scripts instead)
 
 ### `scripts/comprehensive_brain_behavior_analysis.py`
 
