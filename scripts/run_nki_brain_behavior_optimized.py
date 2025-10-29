@@ -383,11 +383,11 @@ def main():
             
             # Evaluate
             eval_results = evaluate_model(best_model, X_valid, y_valid)
-            
-            # Create visualization
+        
+        # Create visualization
             create_scatter_plot(eval_results, measure, best_params, OUTPUT_DIR)
-            
-            # Save optimization results
+        
+        # Save optimization results
             safe_name = measure.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
             opt_results.to_csv(Path(OUTPUT_DIR) / f"optimization_results_{safe_name}.csv", index=False)
             
@@ -405,8 +405,8 @@ def main():
             predictions_df.to_csv(Path(OUTPUT_DIR) / pred_filename, index=False)
             
             # Store summary (ensure all numeric values are scalars)
-            all_results.append({
-                'Measure': measure,
+        all_results.append({
+            'Measure': measure,
                 'N_Subjects': int(len(y_valid)),
                 'N_Outliers_Removed': int(n_outliers),
                 'Best_Strategy': best_params.get('strategy', 'N/A'),
@@ -440,8 +440,8 @@ def main():
                 n_sig_uncorrected = (summary_df['Final_P_Value'] < 0.05).sum()
                 n_sig_corrected = rejected.sum()
                 
-                print_info("Significant before FDR", f"{n_sig_uncorrected}/{len(all_results)}")
-                print_info("Significant after FDR", f"{n_sig_corrected}/{len(all_results)}")
+                print_info(f"Significant before FDR: {n_sig_uncorrected}/{len(all_results)}")
+                print_info(f"Significant after FDR: {n_sig_corrected}/{len(all_results)}")
                 
                 if n_sig_corrected > 0:
                     print()
@@ -451,7 +451,7 @@ def main():
                         p_fdr = '< 0.001' if row['FDR_Corrected_P'] < 0.001 else f"{row['FDR_Corrected_P']:.4f}"
                         print(f"    {row['Measure']:.<60} ρ={row['Final_Spearman']:.3f}, p={p_str}, p_FDR={p_fdr}")
             else:
-                print_info("Single measure - no FDR correction needed", "")
+                print_info("Single measure - no FDR correction needed")
                 summary_df['FDR_Corrected_P'] = summary_df['Final_P_Value']
                 summary_df['FDR_Significant'] = summary_df['Final_P_Value'] < 0.05
             
@@ -471,7 +471,16 @@ def main():
                 lambda p: '< 0.001' if p < 0.001 else f'{p:.4f}'
             )
             
-            print(summary_sorted[['Measure', 'N_Subjects', 'Final_Spearman', 'P_Display', 'Best_Strategy', 'Best_Model']].to_string(index=False))
+            # Format FDR-corrected p-values if available
+            if 'FDR_Corrected_P' in summary_sorted.columns:
+                summary_sorted['P_FDR'] = summary_sorted['FDR_Corrected_P'].apply(
+                    lambda p: '< 0.001' if p < 0.001 else f'{p:.4f}'
+                )
+                summary_sorted['Sig'] = summary_sorted['FDR_Significant'].apply(lambda x: '***' if x else '')
+                
+                print(summary_sorted[['Measure', 'N_Subjects', 'Final_Spearman', 'P_Display', 'P_FDR', 'Sig', 'Best_Strategy']].to_string(index=False))
+            else:
+                print(summary_sorted[['Measure', 'N_Subjects', 'Final_Spearman', 'P_Display', 'Best_Strategy', 'Best_Model']].to_string(index=False))
             print()
             
             best_row = summary_sorted.iloc[0]

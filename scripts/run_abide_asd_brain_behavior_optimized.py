@@ -461,7 +461,16 @@ def main():
                 lambda p: '< 0.001' if p < 0.001 else f'{p:.4f}'
             )
             
-            print(summary_sorted[['Measure', 'N_Subjects', 'Final_Spearman', 'P_Display', 'Best_Strategy', 'Best_Model']].to_string(index=False))
+            # Format FDR-corrected p-values if available
+            if 'FDR_Corrected_P' in summary_sorted.columns:
+                summary_sorted['P_FDR'] = summary_sorted['FDR_Corrected_P'].apply(
+                    lambda p: '< 0.001' if p < 0.001 else f'{p:.4f}'
+                )
+                summary_sorted['Sig'] = summary_sorted['FDR_Significant'].apply(lambda x: '***' if x else '')
+                
+                print(summary_sorted[['Measure', 'N_Subjects', 'Final_Spearman', 'P_Display', 'P_FDR', 'Sig', 'Best_Strategy']].to_string(index=False))
+            else:
+                print(summary_sorted[['Measure', 'N_Subjects', 'Final_Spearman', 'P_Display', 'Best_Strategy', 'Best_Model']].to_string(index=False))
             print()
             
             best_row = summary_sorted.iloc[0]

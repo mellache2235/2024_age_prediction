@@ -63,27 +63,52 @@ python run_cmihbn_adhd_brain_behavior_enhanced.py   # CMI-HBN ADHD (C3SR)
 python run_stanford_asd_brain_behavior_enhanced.py  # Stanford ASD (SRS Total Score)
 python run_abide_asd_brain_behavior_enhanced.py     # ABIDE ASD (ADOS)
 
-# 🚀 NEW: Optimized Brain-Behavior Analysis (Maximize Spearman ρ)
-# Comprehensive optimization: PCA, PLS, Feature Selection, Regularization
-# Tests ~100-200 configurations per behavioral measure
+# 🚀 OPTIMIZED Brain-Behavior Analysis (Comprehensive Strategy Testing)
+# Tests 6 strategies with ~200-400 configurations per behavioral measure
+# Features: TopK-IG, Network Aggregation, FDR Correction, PLS stability limits
 
-# Universal script for ADHD cohorts
+# Optimization Strategies:
+# 1. PCA + Regression (Linear, Ridge, Lasso, ElasticNet)
+# 2. PLS Regression (adaptive component limits for numerical stability)
+# 3. Feature Selection + Regression
+# 4. Direct Regularized Regression
+# 5. TopK-IG (selects top ROIs by IG importance - excellent for small N)
+# 6. Network Aggregation (246 ROIs → 7-17 Yeo networks - best for N<100)
+
+# Universal script for all cohorts
 python run_all_cohorts_brain_behavior_optimized.py --cohort adhd200_td
 python run_all_cohorts_brain_behavior_optimized.py --cohort adhd200_adhd
 python run_all_cohorts_brain_behavior_optimized.py --cohort cmihbn_td
 python run_all_cohorts_brain_behavior_optimized.py --cohort cmihbn_adhd
+python run_all_cohorts_brain_behavior_optimized.py --cohort abide_asd
 
-# Cohort-specific scripts (better data handling, recommended)
-python run_stanford_asd_brain_behavior_optimized.py  # Stanford ASD (SRS)
-python run_abide_asd_brain_behavior_optimized.py     # ABIDE ASD (ADOS, handles ID stripping)
-python run_nki_brain_behavior_optimized.py           # NKI (filters to core ADHD measures: Hyperactivity/Inattention/Impulsivity)
-# Note: All scripts sync to Oak when you clone/push
+# Cohort-specific scripts (recommended - better data handling)
+python run_stanford_asd_brain_behavior_optimized.py   # Stanford ASD (SRS, parallel processing)
+python run_abide_asd_brain_behavior_optimized.py      # ABIDE ASD (ADOS, ID matching)
+python run_nki_brain_behavior_optimized.py            # NKI (Hyperactivity/Inattention/Impulsivity only)
 
-# Runtime: ~30-60 min per cohort (vs ~2-5 min standard), +10-30% higher correlations
-# See: scripts/UNIVERSAL_OPTIMIZATION_GUIDE.md for details
+# All optimized scripts now include:
+# ✓ 6 optimization strategies (including TopK-IG and Network Aggregation)
+# ✓ FDR correction (Benjamini-Hochberg) for multiple comparisons
+# ✓ Prediction integrity checks (detects model collapse, numerical instability)
+# ✓ Sample size reporting (N_Subjects in summary tables)
+# ✓ Enhanced data cleaning (missing code filtering, pickle/gzip auto-detection)
 
-# Optional: Create publication summary (filters for significant results only)
-python create_optimization_summary_figure.py --cohort stanford_asd
+# Runtime: ~30-90 min per cohort
+# Expected: +10-30% higher correlations vs. standard analysis
+# Docs: scripts/TOP_K_IG_STRATEGY.md, scripts/NETWORK_AGGREGATION_STRATEGY.md
+
+# Validation & Visualization Tools
+python check_optimization_predictions.py --cohort stanford_asd        # Verify integrity
+python create_optimization_summary_figure.py --cohort stanford_asd    # Summary plots
+python create_optimization_summary_figure.py --cohort abide_asd --min-rho 0.25  # Filter
+
+# 🧠 Network-Level Analysis (Separate from optimization)
+# Dedicated analysis using Yeo network-aggregated features (7-17 networks)
+# For detailed network-level insights and interpretation
+python run_network_brain_behavior_analysis.py --cohort nki_rs_td
+python run_network_brain_behavior_analysis.py --cohort cmihbn_td --method pos_share
+python run_network_brain_behavior_analysis.py --all  # All cohorts
 
 # 4. Combined Plots
 python plot_brain_behavior_td_cohorts.py
@@ -148,14 +173,18 @@ results/
 
 | Purpose | Script | Output |
 |---------|--------|--------|
-| **Network Analysis** | `network_analysis_yeo.py` | JSON, CSV, radar plots |
+| **Network Analysis (IG Attribution)** | `network_analysis_yeo.py` | JSON, CSV, radar plots |
 | **Region Tables** | `create_region_tables.py` | CSV tables (full + diverse subsets) |
 | **Statistical Tests** | `run_statistical_comparisons.py` | 6 metrics, 12 comparisons |
 | **Brain-Behavior (Standard)** | `run_*_brain_behavior_enhanced.py` | Fast analysis, good correlations |
-| **Brain-Behavior (Optimized - Universal)** | `run_all_cohorts_*_optimized.py` | 🚀 ADHD cohorts only |
-| **Brain-Behavior (Optimized - Dedicated)** | `run_stanford/abide/nki_*_optimized.py` | 🚀 Stanford/ABIDE/NKI (best) |
-| **Optimization Summary** | `create_optimization_summary_figure.py` | Summary tables & figures (significant only) |
+| **Brain-Behavior (Optimized - Universal)** | `run_all_cohorts_*_optimized.py` | 6 strategies, FDR correction |
+| **Brain-Behavior (Optimized - Dedicated)** | `run_stanford/abide/nki_*_optimized.py` | Better data handling, cohort-specific |
+| **Brain-Behavior (Network-Level)** ⭐ | `run_network_brain_behavior_analysis.py` | Network predictors (7-17 networks) |
+| **Optimization Validation** | `check_optimization_predictions.py` | Integrity verification |
+| **Optimization Summary** | `create_optimization_summary_figure.py` | Bar plots, tables (FDR corrected) |
 | **Brain Age** | `plot_brain_age_*.py` | Combined scatter plots |
+
+**Note**: CMI-HBN TD currently uses enhanced script (optimized version to be created). CMI-HBN ADHD now has optimized version! ✅
 
 ---
 
@@ -170,17 +199,40 @@ Two modes available:
 - Good for exploratory analysis
 - Usage: `python run_*_brain_behavior_enhanced.py`
 
-#### 2. **🚀 NEW: Optimized Mode** (Maximizes Spearman ρ)
-- **Comprehensive hyperparameter search**: ~200 configurations tested per behavioral measure
-- **4 strategies**: PCA+Regression, PLS, Feature Selection, Direct Regression
-- **5 models**: Linear, Ridge, Lasso, ElasticNet, PLS
-- **Cross-validation**: 5-fold CV for robust estimates
-- **Reproducibility**: Fixed random seed (seed=42) ensures identical results across runs
-- **FDR correction**: Benjamini-Hochberg correction applied across multiple measures
-- **Expected improvement**: +0-30% higher correlations (some measures already optimal)
-- **Runtime**: ~30-60 min per cohort
-- **Output**: Scatter plots with method in filename, predictions CSV, integrity checks
-- **Complete guide**: See `OPTIMIZATION_GUIDE.md` for step-by-step workflow ⭐
+#### 2. **🚀 OPTIMIZED Mode** (Comprehensive Strategy Testing)
+Maximizes Spearman ρ through exhaustive testing of 6 distinct strategies:
+
+**Optimization Strategies:**
+1. **PCA + Regression**: Dimensionality reduction (5-50 components) + 4 models
+2. **PLS Regression**: Adaptive component limits (safe N/5 for small N, prevents numerical instability)
+3. **Feature Selection + Regression**: SelectKBest + models
+4. **Direct Regularized**: Ridge/Lasso/ElasticNet on all 246 ROIs
+5. **TopK-IG** ⭐: Select 5-10 most important ROIs by IG magnitude (best for N<100)
+   - Adaptive K: N/15, N/10, N/8 for small samples
+   - Interpretable: "These 8 ROIs predict both age AND behavior"
+6. **Network Aggregation** ⭐⭐: 246 ROIs → 7-17 Yeo networks (excellent for N<100)
+   - Multiple methods: mean, abs_mean, pos_share, neg_share, signed_share
+   - Ratio improvement: 0.3:1 → 12:1 for N=84
+   - Highly interpretable: Network-level insights
+
+**Key Features:**
+- **Adaptive to sample size**: Strategies auto-adjust to N (strict limits for small N)
+- **Numerical stability**: Catches model collapse, numerical explosions (±10^15)
+- **FDR correction**: Benjamini-Hochberg across all measures (controls multiple comparisons)
+- **Reproducibility**: Fixed random seed (42), deterministic results
+- **Integrity checks**: Automatic validation, flags unreliable results
+- **Sample size reporting**: N shown in all tables
+
+**Performance:**
+- **~200-400 configurations** tested per measure
+- **+10-30% higher correlations** (when signal exists)
+- **Small N handling**: TopK-IG and Network strategies prevent overfitting
+- **Runtime**: 30-90 min per cohort
+
+**Documentation:**
+- `scripts/TOP_K_IG_STRATEGY.md` - Feature selection for small N
+- `scripts/NETWORK_AGGREGATION_STRATEGY.md` - Network-level analysis
+- `scripts/OPTIMIZATION_TOOLS_README.md` - Validation tools
 
 #### Common Features (Both Modes)
 - **Data integrity checks**: ID alignment verification, NaN detection, duplicate checks
@@ -220,6 +272,43 @@ bash SYNC_NOW.sh  # Or use git/rsync
 **Missing packages**: Run `python scripts/verify_imports.py`
 
 **Font not found**: Arial loaded automatically from HPC path
+
+---
+
+## 🧠 Network Aggregation Methods
+
+For small sample sizes (N<100), network-level features provide better statistical power and interpretability.
+
+### Aggregation Methods (All Tested in Optimization):
+
+**Simple Methods:**
+- `mean`: Average IG scores within network
+- `abs_mean`: Average absolute IG scores (preserves magnitude)
+
+**Signed Mass Methods** (Recommended - from research):
+For each network *g* with ROIs, compute:
+- \( P_g = \sum_{i \in g} \max(IG_i, 0) \) (positive mass)
+- \( N_g = \sum_{i \in g} \max(-IG_i, 0) \) (negative mass)  
+- \( A = \sum_j |IG_j| \) (total absolute mass across ALL 246 ROIs)
+
+Then create features:
+- `pos_share`: \( P_g / A \) (positive mass fraction)
+- `neg_share`: \( N_g / A \) (negative mass fraction)
+- `signed_share`: \( (P_g - N_g) / A \) (net mass fraction)
+
+**Benefits:**
+- Normalizes by total IG magnitude (comparable across subjects)
+- Separates positive/negative contributions
+- Values in [0,1] for shares (interpretable as proportions)
+
+### Performance by Sample Size:
+
+| N | Best Approach | Expected ρ | Ratio |
+|---|---------------|------------|-------|
+| 81 (NKI) | Network (7) + Ridge | 0.30-0.40 | 12:1 ✅ |
+| 84 (CMI-HBN) | Network (7) + Linear | 0.30-0.40 | 12:1 ✅ |
+| 169 (ABIDE) | Network or TopK-IG | 0.35-0.45 | 24:1 ✓ |
+| 238 (ADHD200) | PCA/PLS | 0.40-0.50 | 3:1 ✓ |
 
 ---
 

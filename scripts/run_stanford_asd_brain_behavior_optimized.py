@@ -51,7 +51,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from logging_utils import (print_section_header, print_step, print_success, 
                            print_warning, print_error, print_info, print_completion)
 from plot_styles import create_standardized_scatter, get_dataset_title, setup_arial_font, DPI, FIGURE_FACECOLOR
-from optimized_brain_behavior_core import optimize_comprehensive, evaluate_model, remove_outliers, apply_fdr_correction
+from optimized_brain_behavior_core import (optimize_comprehensive, evaluate_model, remove_outliers, 
+                                           apply_fdr_correction, load_yeo_network_mapping, 
+                                           aggregate_rois_to_networks)
 
 # Setup Arial font globally
 setup_arial_font()
@@ -319,26 +321,42 @@ def merge_data(ig_df, srs_df):
 # OPTIMIZATION
 # ============================================================================
 
-def optimize_comprehensive(X, y, measure_name, n_jobs=-1):
+def optimize_comprehensive(X, y, measure_name, n_jobs=-1, verbose=True, random_seed=None):
     """
     Comprehensive optimization to maximize Spearman correlation.
+    
+    Args:
+        X: Feature matrix
+        y: Target variable
+        measure_name: Name of behavioral measure
+        n_jobs: Number of parallel jobs (default: -1 for all CPUs)
+        verbose: Print progress (default: True)
+        random_seed: Random seed for reproducibility (default: 42)
     
     Tests multiple strategies:
     1. PCA + various regression models
     2. PLS regression (optimized for prediction)
     3. Feature selection + regression
     4. Direct regression with regularization
+    5. TopK-IG feature selection
     
     Returns best model, best parameters, and CV performance.
     """
-    print_step(f"COMPREHENSIVE OPTIMIZATION for {measure_name}", 
-               "Testing PCA, PLS, Feature Selection + Multiple Regression Models")
+    # Set random seed for reproducibility
+    if random_seed is None:
+        random_seed = 42
+    
+    np.random.seed(random_seed)
+    
+    if verbose:
+        print_step(f"COMPREHENSIVE OPTIMIZATION for {measure_name}", 
+                   "Testing PCA, PLS, Feature Selection + Multiple Regression Models")
     
     # Create custom scorer
     spearman_score = make_scorer(spearman_scorer)
     
     # Outer CV for evaluation
-    outer_cv = KFold(n_splits=OUTER_CV_FOLDS, shuffle=True, random_state=42)
+    outer_cv = KFold(n_splits=OUTER_CV_FOLDS, shuffle=True, random_state=random_seed)
     
     # Track best performance globally
     best_score = -np.inf
@@ -347,9 +365,30 @@ def optimize_comprehensive(X, y, measure_name, n_jobs=-1):
     all_results = []
     
     # ========================================================================
+    # PREPROCESSING: Create Network-Level Features (if available)
+    # ========================================================================
+    network_map = load_yeo_network_mapping()
+    network_features = {}  # Store all network aggregation variants
+    n_networks = 0
+    
+    if network_map is not None:
+        # Test multiple aggregation methods (recommended from research)
+        aggregation_methods = ['mean', 'abs_mean', 'pos_share', 'neg_share', 'signed_share']
+        
+        for method in aggregation_methods:
+            X_net, network_names = aggregate_rois_to_networks(X, network_map, method=method)
+            if X_net is not None:
+                network_features[method] = X_net
+                n_networks = X_net.shape[1]
+        
+        if verbose and n_networks > 0:
+            print(f"    Network features created: 246 ROIs → {n_networks} networks ({len(network_features)} methods)")
+    
+    # ========================================================================
     # STRATEGY 1: PCA + REGRESSION MODELS
     # ========================================================================
-    print(f"\n  [1/4] Testing PCA + Regression Models...")
+    if verbose:
+        print(f"\n  [1/4] Testing PCA + Regression Models...")
     
     n_pcs_range = determine_pc_range(len(y), X.shape[1])
     
@@ -428,14 +467,25 @@ def optimize_comprehensive(X, y, measure_name, n_jobs=-1):
                     ])
                     best_model.fit(X, y)
     
-    print(f"    Best PCA result: ρ = {best_score:.4f}")
+    if verbose:
+        print(f"    Best PCA result: ρ = {best_score:.4f}")
     
     # ========================================================================
     # STRATEGY 2: PLS REGRESSION (often better for brain-behavior)
     # ========================================================================
-    print(f"\n  [2/4] Testing PLS Regression...")
+    if verbose:
+        print(f"\n  [2/4] Testing PLS Regression...")
     
-    max_pls = min(MAX_PLS_COMPONENTS, len(y) - 10, X.shape[1])
+    # CRITICAL: PLS needs MUCH stricter limits than PCA to avoid numerical instability
+    n_samples = len(y)
+    if n_samples < 100:
+        max_pls_safe = n_samples // 5  # Very conservative for small N
+    elif n_samples < 200:
+        max_pls_safe = n_samples // 4  # Moderate for medium N
+    else:
+        max_pls_safe = min(30, n_samples // 3)  # Can be more aggressive with large N
+    
+    max_pls = min(MAX_PLS_COMPONENTS, max_pls_safe, X.shape[1])
     pls_range = list(range(PLS_STEP, max_pls + 1, PLS_STEP))
     
     for n_components in pls_range:
@@ -471,12 +521,14 @@ def optimize_comprehensive(X, y, measure_name, n_jobs=-1):
             ])
             best_model.fit(X, y)
     
-    print(f"    Best PLS result: ρ = {best_score:.4f}")
+    if verbose:
+        print(f"    Best PLS result: ρ = {best_score:.4f}")
     
     # ========================================================================
     # STRATEGY 3: FEATURE SELECTION + REGRESSION
     # ========================================================================
-    print(f"\n  [3/4] Testing Feature Selection + Regression...")
+    if verbose:
+        print(f"\n  [3/4] Testing Feature Selection + Regression...")
     
     # Determine which k values to try based on feature count
     max_k = min(max(TOP_K_FEATURES), X.shape[1])
@@ -536,12 +588,14 @@ def optimize_comprehensive(X, y, measure_name, n_jobs=-1):
                         ])
                         best_model.fit(X, y)
     
-    print(f"    Best Feature Selection result: ρ = {best_score:.4f}")
+    if verbose:
+        print(f"    Best Feature Selection result: ρ = {best_score:.4f}")
     
     # ========================================================================
     # STRATEGY 4: DIRECT REGULARIZED REGRESSION (no dimensionality reduction)
     # ========================================================================
-    print(f"\n  [4/4] Testing Direct Regularized Regression...")
+    if verbose:
+        print(f"\n  [4/4] Testing Direct Regularized Regression...")
     
     for model_name, model_class in [('Ridge', Ridge), ('Lasso', Lasso), ('ElasticNet', ElasticNet)]:
         for alpha in ALPHA_RANGE:
@@ -578,12 +632,14 @@ def optimize_comprehensive(X, y, measure_name, n_jobs=-1):
                 ])
                 best_model.fit(X, y)
     
-    print(f"    Best Direct Regression result: ρ = {best_score:.4f}")
+    if verbose:
+        print(f"    Best Direct Regression result: ρ = {best_score:.4f}")
     
     # ========================================================================
     # STRATEGY 5: Top-K IG Features (NEW - especially good for small N)
     # ========================================================================
-    print(f"\n  Testing Top-K IG feature selection...")
+    if verbose:
+        print(f"\n  [5/5] Testing Top-K IG feature selection...")
     
     # Determine appropriate K values based on sample size
     n_samples = X.shape[0]
@@ -715,7 +771,133 @@ def optimize_comprehensive(X, y, measure_name, n_jobs=-1):
                             ])
                             best_model.fit(X, y)
         
-        print(f"    Best Top-K IG result: ρ = {best_score:.4f}")
+        if verbose:
+            print(f"    Best Top-K IG result: ρ = {best_score:.4f}")
+    
+    # ========================================================================
+    # STRATEGY 6: Network-Level Features (Pre-aggregated in preprocessing)
+    # ========================================================================
+    if verbose:
+        print(f"\n  [6/6] Testing Network Aggregation...")
+    
+    if network_features:
+        # Test all aggregation methods created in preprocessing
+        for agg_method, X_net in network_features.items():
+            if X_net is None:
+                continue
+            
+            # Test simple models on network features (already compact - 7 networks)
+            models_network = {
+                'Linear': LinearRegression,
+                'Ridge': Ridge,
+                'Lasso': Lasso
+            }
+            
+            for model_name, model_class in models_network.items():
+                if model_name == 'Linear':
+                    pipe = Pipeline([
+                        ('scaler', StandardScaler()),
+                        ('regressor', LinearRegression())
+                    ])
+                    
+                    cv_scores = cross_val_score(pipe, X_net, y, cv=outer_cv, scoring=spearman_score, n_jobs=1)
+                    mean_score = np.mean(cv_scores)
+                    
+                    all_results.append({
+                        'strategy': f'Network-{agg_method}',
+                        'n_components': None,
+                        'model': model_name,
+                        'alpha': None,
+                        'feature_selection': 'YeoNetworks',
+                        'n_features': n_networks,
+                        'mean_cv_spearman': mean_score,
+                        'std_cv_spearman': np.std(cv_scores)
+                    })
+                    
+                    if mean_score > best_score:
+                        best_score = mean_score
+                        best_params = {
+                            'strategy': f'Network-{agg_method}',
+                            'n_components': None,
+                            'model': model_name,
+                            'alpha': None,
+                            'n_features': n_networks,
+                            'feature_selection': 'YeoNetworks',
+                            'aggregation_method': agg_method,
+                            'network_map': network_map
+                        }
+                        # Create network aggregator
+                        class NetworkAggregator:
+                            def __init__(self, network_map, method):
+                                self.network_map = network_map
+                                self.method = method
+                            def fit(self, X, y=None):
+                                return self
+                            def transform(self, X):
+                                X_net, _ = aggregate_rois_to_networks(X, self.network_map, self.method)
+                                return X_net
+                        
+                        best_model = Pipeline([
+                            ('aggregator', NetworkAggregator(network_map, agg_method)),
+                            ('scaler', StandardScaler()),
+                            ('regressor', LinearRegression())
+                        ])
+                        best_model.fit(X, y)
+                
+                else:
+                    # Ridge/Lasso: test alphas
+                    alpha_range = [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
+                    for alpha in alpha_range:
+                        pipe = Pipeline([
+                            ('scaler', StandardScaler()),
+                            ('regressor', model_class(alpha=alpha, max_iter=10000))
+                        ])
+                        
+                        cv_scores = cross_val_score(pipe, X_net, y, cv=outer_cv, scoring=spearman_score, n_jobs=1)
+                        mean_score = np.mean(cv_scores)
+                        
+                        all_results.append({
+                            'strategy': f'Network-{agg_method}',
+                            'n_components': None,
+                            'model': model_name,
+                            'alpha': alpha,
+                            'feature_selection': 'YeoNetworks',
+                            'n_features': n_networks,
+                            'mean_cv_spearman': mean_score,
+                            'std_cv_spearman': np.std(cv_scores)
+                        })
+                        
+                        if mean_score > best_score:
+                            best_score = mean_score
+                            best_params = {
+                                'strategy': f'Network-{agg_method}',
+                                'n_components': None,
+                                'model': model_name,
+                                'alpha': alpha,
+                                'n_features': n_networks,
+                                'feature_selection': 'YeoNetworks',
+                                'aggregation_method': agg_method,
+                                'network_map': network_map
+                            }
+                            class NetworkAggregator:
+                                def __init__(self, network_map, method):
+                                    self.network_map = network_map
+                                    self.method = method
+                                def fit(self, X, y=None):
+                                    return self
+                                def transform(self, X):
+                                    X_net, _ = aggregate_rois_to_networks(X, self.network_map, self.method)
+                                    return X_net
+                            
+                            best_model = Pipeline([
+                                ('aggregator', NetworkAggregator(network_map, agg_method)),
+                                ('scaler', StandardScaler()),
+                                ('regressor', model_class(alpha=alpha, max_iter=10000))
+                            ])
+                            best_model.fit(X, y)
+        
+        if verbose:
+            print(f"    Best Network result: ρ = {best_score:.4f}")
     
     # ========================================================================
     # SUMMARY
@@ -723,20 +905,21 @@ def optimize_comprehensive(X, y, measure_name, n_jobs=-1):
     results_df = pd.DataFrame(all_results)
     results_df = results_df.sort_values('mean_cv_spearman', ascending=False)
     
-    print(f"\n  ✓ BEST CONFIGURATION (Max Spearman ρ):")
-    print(f"    - Strategy: {best_params.get('strategy', 'N/A')}")
-    print(f"    - Model: {best_params.get('model', 'N/A')}")
-    if best_params.get('n_components'):
-        print(f"    - N Components: {best_params['n_components']}")
-    if best_params.get('alpha'):
-        print(f"    - Alpha: {best_params['alpha']}")
-    if best_params.get('feature_selection'):
-        print(f"    - Feature Selection: {best_params['feature_selection']}")
-    if best_params.get('n_features'):
-        print(f"    - N Features: {best_params['n_features']}")
-    print(f"    - CV Spearman: {best_score:.4f}")
-    print(f"\n  Top 5 configurations:")
-    print(results_df.head(5)[['strategy', 'model', 'mean_cv_spearman']].to_string(index=False))
+    if verbose:
+        print(f"\n  ✓ BEST CONFIGURATION (Max Spearman ρ):")
+        print(f"    - Strategy: {best_params.get('strategy', 'N/A')}")
+        print(f"    - Model: {best_params.get('model', 'N/A')}")
+        if best_params.get('n_components'):
+            print(f"    - N Components: {best_params['n_components']}")
+        if best_params.get('alpha'):
+            print(f"    - Alpha: {best_params['alpha']}")
+        if best_params.get('feature_selection'):
+            print(f"    - Feature Selection: {best_params['feature_selection']}")
+        if best_params.get('n_features'):
+            print(f"    - N Features: {best_params['n_features']}")
+        print(f"    - CV Spearman: {best_score:.4f}")
+        print(f"\n  Top 5 configurations:")
+        print(results_df.head(5)[['strategy', 'model', 'mean_cv_spearman']].to_string(index=False))
     
     return best_model, best_params, best_score, results_df
 
@@ -1102,6 +1285,36 @@ def main():
         # 4. Save summary
         if all_results:
             summary_df = pd.DataFrame(all_results)
+            
+            # Apply FDR correction across all measures
+            if len(all_results) > 1:
+                print()
+                print_step("Applying FDR correction", f"Benjamini-Hochberg across {len(all_results)} measures")
+                
+                p_values = summary_df['Final_P_Value'].values
+                corrected_p, rejected = apply_fdr_correction(p_values, alpha=0.05)
+                
+                summary_df['FDR_Corrected_P'] = corrected_p
+                summary_df['FDR_Significant'] = rejected
+                
+                n_sig_uncorrected = (summary_df['Final_P_Value'] < 0.05).sum()
+                n_sig_corrected = rejected.sum()
+                
+                print_info(f"Significant before FDR: {n_sig_uncorrected}/{len(all_results)}")
+                print_info(f"Significant after FDR: {n_sig_corrected}/{len(all_results)}")
+                
+                if n_sig_corrected > 0:
+                    print()
+                    print("  ✅ Measures surviving FDR correction (α = 0.05):")
+                    for _, row in summary_df[summary_df['FDR_Significant']].iterrows():
+                        p_str = '< 0.001' if row['Final_P_Value'] < 0.001 else f"{row['Final_P_Value']:.4f}"
+                        p_fdr = '< 0.001' if row['FDR_Corrected_P'] < 0.001 else f"{row['FDR_Corrected_P']:.4f}"
+                        print(f"    {row['Measure']:.<60} ρ={row['Final_Spearman']:.3f}, p={p_str}, p_FDR={p_fdr}")
+            else:
+                print_info("Single measure - no FDR correction needed")
+                summary_df['FDR_Corrected_P'] = summary_df['Final_P_Value']
+                summary_df['FDR_Significant'] = summary_df['Final_P_Value'] < 0.05
+            
             summary_df.to_csv(Path(OUTPUT_DIR) / "optimization_summary.csv", index=False)
             
             print()
@@ -1118,7 +1331,16 @@ def main():
                 lambda p: '< 0.001' if p < 0.001 else f'{p:.4f}'
             )
             
-            print(summary_sorted[['Measure', 'N_Subjects', 'Final_Spearman', 'P_Display', 'Best_Strategy', 'Best_Model']].to_string(index=False))
+            # Format FDR-corrected p-values if available
+            if 'FDR_Corrected_P' in summary_sorted.columns:
+                summary_sorted['P_FDR'] = summary_sorted['FDR_Corrected_P'].apply(
+                    lambda p: '< 0.001' if p < 0.001 else f'{p:.4f}'
+                )
+                summary_sorted['Sig'] = summary_sorted['FDR_Significant'].apply(lambda x: '***' if x else '')
+                
+                print(summary_sorted[['Measure', 'N_Subjects', 'Final_Spearman', 'P_Display', 'P_FDR', 'Sig', 'Best_Strategy']].to_string(index=False))
+            else:
+                print(summary_sorted[['Measure', 'N_Subjects', 'Final_Spearman', 'P_Display', 'Best_Strategy', 'Best_Model']].to_string(index=False))
             print()
             
             best_row = summary_sorted.iloc[0]

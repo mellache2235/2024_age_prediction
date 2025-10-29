@@ -674,6 +674,36 @@ def analyze_cohort(cohort_key, max_measures=None):
         # Save summary
         if all_results:
             summary_df = pd.DataFrame(all_results)
+            
+            # Apply FDR correction across all measures
+            if len(all_results) > 1:
+                print()
+                print_step("Applying FDR correction", f"Benjamini-Hochberg across {len(all_results)} measures")
+                
+                p_values = summary_df['Final_P_Value'].values
+                corrected_p, rejected = apply_fdr_correction(p_values, alpha=0.05)
+                
+                summary_df['FDR_Corrected_P'] = corrected_p
+                summary_df['FDR_Significant'] = rejected
+                
+                n_sig_uncorrected = (summary_df['Final_P_Value'] < 0.05).sum()
+                n_sig_corrected = rejected.sum()
+                
+                print_info(f"Significant before FDR: {n_sig_uncorrected}/{len(all_results)}")
+                print_info(f"Significant after FDR: {n_sig_corrected}/{len(all_results)}")
+                
+                if n_sig_corrected > 0:
+                    print()
+                    print("  ✅ Measures surviving FDR correction (α = 0.05):")
+                    for _, row in summary_df[summary_df['FDR_Significant']].iterrows():
+                        p_str = '< 0.001' if row['Final_P_Value'] < 0.001 else f"{row['Final_P_Value']:.4f}"
+                        p_fdr = '< 0.001' if row['FDR_Corrected_P'] < 0.001 else f"{row['FDR_Corrected_P']:.4f}"
+                        print(f"    {row['Measure']:.<60} ρ={row['Final_Spearman']:.3f}, p={p_str}, p_FDR={p_fdr}")
+            else:
+                print_info("Single measure - no FDR correction needed")
+                summary_df['FDR_Corrected_P'] = summary_df['Final_P_Value']
+                summary_df['FDR_Significant'] = summary_df['Final_P_Value'] < 0.05
+            
             summary_df.to_csv(Path(config['output_dir']) / "optimization_summary.csv", index=False)
             
             print()
@@ -690,7 +720,16 @@ def analyze_cohort(cohort_key, max_measures=None):
                 lambda p: '< 0.001' if p < 0.001 else f'{p:.4f}'
             )
             
-            print(summary_sorted[['Measure', 'N_Subjects', 'Final_Spearman', 'P_Display', 'Best_Strategy', 'Best_Model']].to_string(index=False))
+            # Format FDR-corrected p-values if available
+            if 'FDR_Corrected_P' in summary_sorted.columns:
+                summary_sorted['P_FDR'] = summary_sorted['FDR_Corrected_P'].apply(
+                    lambda p: '< 0.001' if p < 0.001 else f'{p:.4f}'
+                )
+                summary_sorted['Sig'] = summary_sorted['FDR_Significant'].apply(lambda x: '***' if x else '')
+                
+                print(summary_sorted[['Measure', 'N_Subjects', 'Final_Spearman', 'P_Display', 'P_FDR', 'Sig', 'Best_Strategy']].to_string(index=False))
+            else:
+                print(summary_sorted[['Measure', 'N_Subjects', 'Final_Spearman', 'P_Display', 'Best_Strategy', 'Best_Model']].to_string(index=False))
             print()
             
             best_row = summary_sorted.iloc[0]
