@@ -66,9 +66,21 @@ python run_abide_asd_brain_behavior_enhanced.py     # ABIDE ASD (ADOS)
 # 🚀 NEW: Optimized Brain-Behavior Analysis (Maximize Spearman ρ)
 # Comprehensive optimization: PCA, PLS, Feature Selection, Regularization
 # Tests ~100-200 configurations per behavioral measure
-python run_stanford_asd_brain_behavior_optimized.py  # Stanford ASD (optimized)
-# Runtime: ~30-60 min (vs ~2-5 min standard), +10-30% higher correlations
-# See: scripts/QUICK_START_OPTIMIZATION.md for details
+
+# Universal script for most cohorts (recommended)
+python run_all_cohorts_brain_behavior_optimized.py --cohort abide_asd
+python run_all_cohorts_brain_behavior_optimized.py --cohort adhd200_td
+python run_all_cohorts_brain_behavior_optimized.py --cohort adhd200_adhd
+python run_all_cohorts_brain_behavior_optimized.py --cohort cmihbn_td
+python run_all_cohorts_brain_behavior_optimized.py --cohort cmihbn_adhd
+python run_all_cohorts_brain_behavior_optimized.py --all  # Run all cohorts
+
+# Cohort-specific scripts (special data requirements)
+python run_stanford_asd_brain_behavior_optimized.py  # Stanford ASD (SRS)
+python run_nki_brain_behavior_optimized.py           # NKI (CAARS/Conners)
+
+# Runtime: ~30-60 min per cohort (vs ~2-5 min standard), +10-30% higher correlations
+# See: scripts/UNIVERSAL_OPTIMIZATION_GUIDE.md for details
 
 # 4. Combined Plots
 python plot_brain_behavior_td_cohorts.py
@@ -104,8 +116,14 @@ results/
 │   ├── cmihbn_td/
 │   ├── cmihbn_adhd/
 │   ├── stanford_asd/           # SRS Total Score, Social Awareness
-│   ├── stanford_asd_optimized/ # 🚀 NEW: Optimized analysis (max Spearman ρ)
 │   ├── abide_asd/              # ADOS (total, social, comm)
+│   ├── stanford_asd_optimized/ # 🚀 Optimized (max Spearman ρ)
+│   ├── abide_asd_optimized/    # 🚀 Optimized
+│   ├── adhd200_td_optimized/   # 🚀 Optimized
+│   ├── adhd200_adhd_optimized/ # 🚀 Optimized
+│   ├── cmihbn_td_optimized/    # 🚀 Optimized
+│   ├── cmihbn_adhd_optimized/  # 🚀 Optimized
+│   ├── nki_rs_td_optimized/    # 🚀 Optimized
 │   └── combined_plots/
 ├── brain_age_plots/             # Combined scatter plots (PNG/TIFF/AI)
 ├── integrated_gradients/        # IG scores CSV files with subject IDs
@@ -153,11 +171,12 @@ Two modes available:
   - PLS components: 3-30
   - Alpha values: [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
   - Feature selection: Top-K = [50, 100, 150, 200]
+  - **~100-200 configurations tested per behavioral measure**
 - **5-fold cross-validation** maximizing Spearman ρ
 - **Expected improvement**: +10-30% higher correlations
-- **Runtime**: ~30-60 min per script
-- **Usage**: `python run_stanford_asd_brain_behavior_optimized.py`
-- **Quick start**: See `scripts/QUICK_START_OPTIMIZATION.md`
+- **Runtime**: ~30-60 min per cohort
+- **Universal script**: `python run_all_cohorts_brain_behavior_optimized.py --cohort {cohort}`
+- **Quick start**: See `scripts/UNIVERSAL_OPTIMIZATION_GUIDE.md`
 
 #### Common Features (Both Modes)
 - **Data integrity checks**: ID alignment verification, NaN detection, duplicate checks

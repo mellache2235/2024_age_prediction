@@ -172,23 +172,48 @@ python scripts/create_region_tables.py --top_n 100 --output_dir results/custom_t
 
 **Purpose**: Comprehensive optimization to maximize brain-behavior correlations using multiple strategies.
 
+#### **Universal Optimized Script** (Recommended for Most Cohorts)
+
+**`scripts/run_all_cohorts_brain_behavior_optimized.py`**
+- **Supports**: ABIDE ASD, ADHD200 (TD & ADHD), CMI-HBN (TD & ADHD)
+- **Usage**: 
+  ```bash
+  # Analyze a specific cohort
+  python scripts/run_all_cohorts_brain_behavior_optimized.py --cohort abide_asd
+  python scripts/run_all_cohorts_brain_behavior_optimized.py --cohort adhd200_td
+  python scripts/run_all_cohorts_brain_behavior_optimized.py --cohort adhd200_adhd
+  python scripts/run_all_cohorts_brain_behavior_optimized.py --cohort cmihbn_td
+  python scripts/run_all_cohorts_brain_behavior_optimized.py --cohort cmihbn_adhd
+  
+  # Test mode (2 measures, ~5 min)
+  python scripts/run_all_cohorts_brain_behavior_optimized.py --cohort abide_asd --max-measures 2
+  
+  # Run ALL cohorts sequentially
+  python scripts/run_all_cohorts_brain_behavior_optimized.py --all
+  ```
+
+**Supported Cohorts**:
+| Cohort Key | Name | Behavioral Measures |
+|------------|------|---------------------|
+| `abide_asd` | ABIDE ASD | ADOS (Total, Communication, Social) |
+| `adhd200_td` | ADHD200 TD | Hyperactivity/Impulsivity, Inattention |
+| `adhd200_adhd` | ADHD200 ADHD | Hyperactivity/Impulsivity, Inattention |
+| `cmihbn_td` | CMI-HBN TD | C3SR T-scores |
+| `cmihbn_adhd` | CMI-HBN ADHD | C3SR T-scores |
+
+#### **Cohort-Specific Optimized Scripts**
+
 **`scripts/run_stanford_asd_brain_behavior_optimized.py`**
 - **Dataset**: Stanford ASD
 - **Behavioral Measures**: SRS Total Score, Social Awareness
-- **Strategies**: PCA, PLS, Feature Selection, Direct Regression
-- **Usage**: 
-  ```bash
-  # Full analysis (~30-60 min)
-  python scripts/run_stanford_asd_brain_behavior_optimized.py
-  
-  # Test with 2 measures (~5 min)
-  python scripts/run_stanford_asd_brain_behavior_optimized.py --max-measures 2
-  
-  # Sequential processing (debugging)
-  python scripts/run_stanford_asd_brain_behavior_optimized.py --n-jobs 1
-  ```
+- **Usage**: `python scripts/run_stanford_asd_brain_behavior_optimized.py`
 
-**Key Features**:
+**`scripts/run_nki_brain_behavior_optimized.py`**
+- **Dataset**: NKI-RS TD
+- **Behavioral Measures**: CAARS (multiple files merged)
+- **Usage**: `python scripts/run_nki_brain_behavior_optimized.py`
+
+#### **Key Features** (All Optimized Scripts)
 - **4 Optimization Strategies**:
   1. PCA + Regression (Linear, Ridge, Lasso, ElasticNet)
   2. PLS Regression (optimized for covariance)
@@ -197,21 +222,21 @@ python scripts/create_region_tables.py --top_n 100 --output_dir results/custom_t
 - **Comprehensive hyperparameter search**: ~100-200 configurations per measure
 - **5-fold cross-validation**: Robust performance estimates
 - **Expected improvement**: +10-30% higher Spearman correlations
-- **Parallel processing**: Optional multi-core support
 
-**Optimized scripts output**:
+#### **Output Files** (All Optimized Scripts)
 - `optimization_summary.csv` - Best configuration per behavioral measure
 - `optimization_results_*.csv` - All tested configurations
 - Scatter plots (PNG + TIFF + AI) with best model info
 - Cross-validation performance metrics
-- Runtime: ~30-60 min (vs ~2-5 min for enhanced scripts)
+- Runtime: ~30-60 min per cohort (vs ~2-5 min for enhanced scripts)
 
-**Documentation**:
-- Quick start: `scripts/QUICK_START_OPTIMIZATION.md`
+#### **Documentation**
+- Quick start: `scripts/UNIVERSAL_OPTIMIZATION_GUIDE.md` ⭐
 - Full guide: `scripts/OPTIMIZATION_README.md`
 - Implementation: `scripts/OPTIMIZATION_SUMMARY.md`
+- Verification: `scripts/OPTIMIZATION_VERIFICATION.md`
 
-**When to use**:
+#### **When to Use**
 - ✅ Publishing results (need maximum correlations)
 - ✅ Comparing different behavioral measures
 - ✅ Testing which brain regions matter most
