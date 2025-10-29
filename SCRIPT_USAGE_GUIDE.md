@@ -264,6 +264,29 @@ These scripts use the exact same data loading logic as their enhanced counterpar
 - ✅ Need robust cross-validation
 - ❌ Quick exploratory analysis (use enhanced scripts instead)
 
+#### **Common Warnings (Expected and Normal)**
+
+During optimization, you may see many warnings like:
+```
+SpearmanRConstantInputWarning: An input array is constant
+```
+
+**This is EXPECTED and NORMAL!** Here's why:
+- Optimization tests ~100-200 different configurations
+- Some configurations (e.g., too much regularization, wrong parameters) predict constant values
+- These bad configurations get score=0 and are automatically rejected
+- The best working configuration is selected automatically
+- **Your final result will NOT have these issues** (verified by integrity checks)
+
+**Think of it like**: Testing 200 keys to find the right one - most won't work, but we find the best!
+
+**After optimization completes**, check for:
+```
+✅ No major issues detected  ← Final model is good!
+```
+
+If you see this, the warnings during search were just part of the process.
+
 ---
 
 ### 📊 Optimization Results Summary Script

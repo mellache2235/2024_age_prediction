@@ -816,10 +816,14 @@ def analyze_single_measure(X, merged_df, measure, output_dir, n_jobs_inner=1):
         opt_results.to_csv(Path(output_dir) / f"optimization_results_{safe_name}.csv", index=False)
         
         # INTEGRITY CHECK: Save actual vs predicted values (with method in filename)
+        # Ensure arrays are 1-dimensional (flatten if needed)
+        y_actual_flat = np.asarray(eval_results['y_actual']).flatten()
+        y_pred_flat = np.asarray(eval_results['y_pred']).flatten()
+        
         predictions_df = pd.DataFrame({
-            'Actual': eval_results['y_actual'],
-            'Predicted': eval_results['y_pred'],
-            'Residual': eval_results['y_actual'] - eval_results['y_pred']
+            'Actual': y_actual_flat,
+            'Predicted': y_pred_flat,
+            'Residual': y_actual_flat - y_pred_flat
         })
         pred_filename = f"predictions_{safe_name}_{method_name}.csv"
         predictions_df.to_csv(Path(output_dir) / pred_filename, index=False)

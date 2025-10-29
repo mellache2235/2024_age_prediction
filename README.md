@@ -82,12 +82,8 @@ python run_nki_brain_behavior_optimized.py           # NKI (CAARS/Conners, multi
 # Runtime: ~30-60 min per cohort (vs ~2-5 min standard), +10-30% higher correlations
 # See: scripts/UNIVERSAL_OPTIMIZATION_GUIDE.md for details
 
-# Create publication-ready summary figures from optimization results
+# Optional: Create publication summary (filters for significant results only)
 python create_optimization_summary_figure.py --cohort stanford_asd
-python create_optimization_summary_figure.py --cohort abide_asd --min-rho 0.25
-
-# Check prediction integrity (verifies models are working correctly)
-python check_optimization_predictions.py --cohort stanford_asd
 
 # 4. Combined Plots
 python plot_brain_behavior_td_cohorts.py
@@ -175,40 +171,34 @@ Two modes available:
 - Usage: `python run_*_brain_behavior_enhanced.py`
 
 #### 2. **🚀 NEW: Optimized Mode** (Maximizes Spearman ρ)
-- **4 Optimization Strategies**:
-  1. PCA + Regression (Linear, Ridge, Lasso, ElasticNet)
-  2. PLS Regression (optimized for covariance)
-  3. Feature Selection + Regression (F-stat, Mutual Info)
-  4. Direct Regularized Regression
-- **Comprehensive hyperparameter search**:
-  - PC components: 5-50 (auto-adjusted)
-  - PLS components: 3-30
-  - Alpha values: [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
-  - Feature selection: Top-K = [50, 100, 150, 200]
-  - **~100-200 configurations tested per behavioral measure**
-- **5-fold cross-validation** maximizing Spearman ρ
-- **Expected improvement**: +10-30% higher correlations
+- **Comprehensive hyperparameter search**: ~200 configurations tested per behavioral measure
+- **4 strategies**: PCA+Regression, PLS, Feature Selection, Direct Regression
+- **5 models**: Linear, Ridge, Lasso, ElasticNet, PLS
+- **Cross-validation**: 5-fold CV for robust estimates
+- **Expected improvement**: +0-30% higher correlations (some measures already optimal)
 - **Runtime**: ~30-60 min per cohort
-- **Scripts**:
-  - Universal (ADHD only): `run_all_cohorts_brain_behavior_optimized.py`
-  - Dedicated (recommended): `run_stanford/abide/nki_*_optimized.py`
-- **Quick start**: See `scripts/UNIVERSAL_OPTIMIZATION_GUIDE.md`
+- **Output**: Scatter plots with method in filename, predictions CSV, integrity checks
+- **Complete guide**: See `OPTIMIZATION_GUIDE.md` for step-by-step workflow ⭐
 
 #### Common Features (Both Modes)
 - **Data integrity checks**: ID alignment verification, NaN detection, duplicate checks
 - **Centralized styling**: plot_styles.py ensures 100% consistency
 - **Triple export**: PNG + TIFF + AI (publication-ready)
 
-#### Optimized Mode Output Features
-- **Descriptive filenames**: Include method used (e.g., `scatter_measure_PLS_comp15_optimized.png`)
-- **Prediction integrity checks**: Automatic verification of actual vs predicted values
-- **P-values displayed**: In console output and on all plots
-- **Predictions saved**: Full actual/predicted/residual values in CSV format
-- **Issue detection**: Automatic flagging of constant predictions, overfitting, etc.
+#### Optimized Mode Output
+- **Scatter plots**: Filename includes method (e.g., `scatter_measure_PLS_comp15_optimized.png`)
+- **Predictions CSV**: Actual vs predicted values for all subjects
+- **Summary CSV**: Best configuration per measure (CV_Spearman, Final_Spearman, p-value, R²)
+- **Integrity checks**: Automatic verification printed to console (✅ = good, ❌ = don't use)
+- See `OPTIMIZATION_GUIDE.md` for complete details ⭐
 
-#### Note on Cloning to Oak
-This repository is cloned from local (`2024_age_prediction`) to Oak (`2024_age_prediction_test`).
-All optimization scripts will automatically sync when you clone/push to Oak.
+#### Syncing Between Local and Oak
+This repo clones from local to Oak. After making changes, sync:
+```bash
+bash SYNC_NOW.sh  # Or use git/rsync
+```
+
+**Note**: Many `SpearmanRConstantInputWarning` messages during optimization are **normal** - they're from bad configurations being tested and rejected. See `OPTIMIZATION_GUIDE.md` for details.
 
 ### Statistical Comparisons
 6 complementary metrics per comparison:
