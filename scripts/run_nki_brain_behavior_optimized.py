@@ -273,10 +273,52 @@ def main():
         # 2. Merge data
         merged_df = merge_data(ig_df, behavioral_df)
         
-        # Extract IG matrix
+        # Extract IG matrix FROM MERGED DATAFRAME (critical for alignment!)
         ig_matrix = merged_df[roi_cols].values
         
         print_info(f"IG matrix shape: {ig_matrix.shape} (subjects x ROIs)")
+        print()
+        
+        # VERIFICATION: Test baseline method (same as enhanced script)
+        print_step("BASELINE VERIFICATION", "Testing PCA 80% + LinearRegression (like enhanced script)")
+        test_measure = [col for col in behavioral_cols if 'HYPERACTIVITY' in col.upper() and 'T-SCORE' in col.upper()]
+        if test_measure:
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.decomposition import PCA
+            from sklearn.linear_model import LinearRegression
+            
+            test_col = test_measure[0]
+            y_test = pd.to_numeric(merged_df[test_col], errors='coerce').values
+            valid_mask = ~np.isnan(y_test)
+            X_test = ig_matrix[valid_mask]
+            y_test = y_test[valid_mask]
+            
+            scaler = StandardScaler()
+            X_scaled = scaler.fit_transform(X_test)
+            pca = PCA(n_components=min(50, len(y_test)-1, X_test.shape[1]))
+            pca_scores = pca.fit_transform(X_scaled)
+            cumvar = np.cumsum(pca.explained_variance_ratio_)
+            n_comp_80 = np.argmax(cumvar >= 0.80) + 1
+            pca_scores_80 = pca_scores[:, :n_comp_80]
+            
+            model_baseline = LinearRegression()
+            model_baseline.fit(pca_scores_80, y_test)
+            y_pred_baseline = model_baseline.predict(pca_scores_80)
+            rho_baseline, p_baseline = spearmanr(y_test, y_pred_baseline)
+            
+            print(f"\n  Baseline for '{test_col}':")
+            print(f"    PCA components (80% var): {n_comp_80}")
+            print(f"    Spearman ρ: {rho_baseline:.3f}")
+            print(f"    P-value: {p_baseline:.4f}")
+            print(f"    Expected: ρ ≈ 0.35-0.41 (from enhanced script)")
+            
+            if rho_baseline < 0.3:
+                print(f"\n  ⚠️  WARNING: Baseline is poor! Data may be different from enhanced script!")
+                print(f"  ⚠️  Optimization will also perform poorly!")
+            else:
+                print(f"\n  ✅ Baseline looks good! Optimization should find this or better.")
+        print()
+        print("="*100)
         print()
         
         # Limit measures if specified

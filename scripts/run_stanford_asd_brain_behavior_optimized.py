@@ -580,6 +580,143 @@ def optimize_comprehensive(X, y, measure_name, n_jobs=-1):
     print(f"    Best Direct Regression result: ρ = {best_score:.4f}")
     
     # ========================================================================
+    # STRATEGY 5: Top-K IG Features (NEW - especially good for small N)
+    # ========================================================================
+    print(f"\n  Testing Top-K IG feature selection...")
+    
+    # Determine appropriate K values based on sample size
+    n_samples = X.shape[0]
+    k_values = []
+    
+    if n_samples < 100:
+        # Very small N: use N/15, N/10, N/8
+        k_values = [max(5, n_samples // 15), max(8, n_samples // 10), max(10, n_samples // 8)]
+    elif n_samples < 200:
+        # Small N: use N/10, N/8, N/5
+        k_values = [n_samples // 10, n_samples // 8, n_samples // 5]
+    else:
+        # Larger N: can use more features
+        k_values = [20, 30, 50, 100]
+    
+    # Remove duplicates and ensure valid range
+    k_values = sorted(list(set([k for k in k_values if 3 <= k <= X.shape[1]])))
+    
+    if k_values:
+        for k in k_values:
+            # Select top K features by mean absolute value (IG importance)
+            feature_importance = np.abs(X).mean(axis=0)
+            top_k_idx = np.argsort(feature_importance)[-k:]
+            
+            # Try different models on selected features
+            models = {
+                'Linear': LinearRegression(),
+                'Ridge': Ridge(),
+                'Lasso': Lasso(max_iter=10000)
+            }
+            
+            for model_name, model_class in models.items():
+                if model_name == 'Linear':
+                    pipe = Pipeline([
+                        ('scaler', StandardScaler()),
+                        ('regressor', LinearRegression())
+                    ])
+                    
+                    # Use only top K features
+                    X_topk = X[:, top_k_idx]
+                    cv_scores = cross_val_score(pipe, X_topk, y, cv=outer_cv, scoring=spearman_score, n_jobs=1)
+                    mean_score = np.mean(cv_scores)
+                    
+                    all_results.append({
+                        'strategy': f'TopK-IG',
+                        'n_components': None,
+                        'model': model_name,
+                        'alpha': None,
+                        'feature_selection': 'MeanAbsValue',
+                        'n_features': k,
+                        'mean_cv_spearman': mean_score,
+                        'std_cv_spearman': np.std(cv_scores)
+                    })
+                    
+                    if mean_score > best_score:
+                        best_score = mean_score
+                        best_params = {
+                            'strategy': f'TopK-IG',
+                            'n_components': None,
+                            'model': model_name,
+                            'alpha': None,
+                            'n_features': k,
+                            'feature_selection': 'MeanAbsValue',
+                            'top_k_idx': top_k_idx
+                        }
+                        # Create a custom pipeline that selects features
+                        class TopKSelector:
+                            def __init__(self, indices):
+                                self.indices = indices
+                            def fit(self, X, y=None):
+                                return self
+                            def transform(self, X):
+                                return X[:, self.indices]
+                        
+                        best_model = Pipeline([
+                            ('selector', TopKSelector(top_k_idx)),
+                            ('scaler', StandardScaler()),
+                            ('regressor', LinearRegression())
+                        ])
+                        best_model.fit(X, y)
+                
+                else:
+                    # Ridge/Lasso: test different alphas
+                    alpha_range = [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
+                    for alpha in alpha_range:
+                        pipe = Pipeline([
+                            ('scaler', StandardScaler()),
+                            ('regressor', model_class(alpha=alpha, max_iter=10000))
+                        ])
+                        
+                        X_topk = X[:, top_k_idx]
+                        cv_scores = cross_val_score(pipe, X_topk, y, cv=outer_cv, scoring=spearman_score, n_jobs=1)
+                        mean_score = np.mean(cv_scores)
+                        
+                        all_results.append({
+                            'strategy': f'TopK-IG',
+                            'n_components': None,
+                            'model': model_name,
+                            'alpha': alpha,
+                            'feature_selection': 'MeanAbsValue',
+                            'n_features': k,
+                            'mean_cv_spearman': mean_score,
+                            'std_cv_spearman': np.std(cv_scores)
+                        })
+                        
+                        if mean_score > best_score:
+                            best_score = mean_score
+                            best_params = {
+                                'strategy': f'TopK-IG',
+                                'n_components': None,
+                                'model': model_name,
+                                'alpha': alpha,
+                                'n_features': k,
+                                'feature_selection': 'MeanAbsValue',
+                                'top_k_idx': top_k_idx
+                            }
+                            class TopKSelector:
+                                def __init__(self, indices):
+                                    self.indices = indices
+                                def fit(self, X, y=None):
+                                    return self
+                                def transform(self, X):
+                                    return X[:, self.indices]
+                            
+                            best_model = Pipeline([
+                                ('selector', TopKSelector(top_k_idx)),
+                                ('scaler', StandardScaler()),
+                                ('regressor', model_class(alpha=alpha, max_iter=10000))
+                            ])
+                            best_model.fit(X, y)
+        
+        print(f"    Best Top-K IG result: ρ = {best_score:.4f}")
+    
+    # ========================================================================
     # SUMMARY
     # ========================================================================
     results_df = pd.DataFrame(all_results)
