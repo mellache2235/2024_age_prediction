@@ -124,7 +124,7 @@ results/
 │   ├── cmihbn_adhd/
 │   ├── stanford_asd/           # SRS Total Score, Social Awareness
 │   ├── abide_asd/              # ADOS (total, social, comm)
-│   ├── stanford_asd_optimized/ # 🚀 Optimized (max Spearman ρ)
+│   ├── stanford_asd_optimized/ # 🚀 Optimized (filenames include method!)
 │   ├── abide_asd_optimized/    # 🚀 Optimized
 │   ├── adhd200_td_optimized/   # 🚀 Optimized
 │   ├── adhd200_adhd_optimized/ # 🚀 Optimized
@@ -132,6 +132,11 @@ results/
 │   ├── cmihbn_adhd_optimized/  # 🚀 Optimized
 │   ├── nki_rs_td_optimized/    # 🚀 Optimized
 │   └── combined_plots/
+```
+
+**Note**: Optimized output filenames include the method used (e.g., `scatter_measure_PLS_comp15_optimized.png`) for easy identification of which optimization strategy worked best.
+
+```
 ├── brain_age_plots/             # Combined scatter plots (PNG/TIFF/AI)
 ├── integrated_gradients/        # IG scores CSV files with subject IDs
 └── count_data/                  # Consensus features CSVs
@@ -190,6 +195,13 @@ Two modes available:
 - **Data integrity checks**: ID alignment verification, NaN detection, duplicate checks
 - **Centralized styling**: plot_styles.py ensures 100% consistency
 - **Triple export**: PNG + TIFF + AI (publication-ready)
+
+#### Optimized Mode Output Features
+- **Descriptive filenames**: Include method used (e.g., `scatter_measure_PLS_comp15_optimized.png`)
+- **Prediction integrity checks**: Automatic verification of actual vs predicted values
+- **P-values displayed**: In console output and on all plots
+- **Predictions saved**: Full actual/predicted/residual values in CSV format
+- **Issue detection**: Automatic flagging of constant predictions, overfitting, etc.
 
 ### Statistical Comparisons
 6 complementary metrics per comparison:

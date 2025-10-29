@@ -300,12 +300,66 @@ def optimize_comprehensive(X, y, measure_name, verbose=True):
     return best_model, best_params, best_score, results_df
 
 
-def evaluate_model(model, X, y):
+def evaluate_model(model, X, y, verbose=True):
     """Evaluate the best model on all data and return metrics."""
     y_pred = model.predict(X)
     rho, p_value = spearmanr(y, y_pred)
     r2 = r2_score(y, y_pred)
     mae = mean_absolute_error(y, y_pred)
+    
+    if verbose:
+        print(f"\n  📊 PREDICTION INTEGRITY CHECK:")
+        print(f"  {'='*80}")
+        print(f"\n  Actual values:")
+        print(f"    N = {len(y)}")
+        print(f"    Mean = {y.mean():.2f}")
+        print(f"    Std = {y.std():.2f}")
+        print(f"    Range = [{y.min():.2f}, {y.max():.2f}]")
+        print(f"    Unique values = {len(np.unique(y))}")
+        
+        print(f"\n  Predicted values:")
+        print(f"    Mean = {y_pred.mean():.2f}")
+        print(f"    Std = {y_pred.std():.2f}")
+        print(f"    Range = [{y_pred.min():.2f}, {y_pred.max():.2f}]")
+        print(f"    Unique values = {len(np.unique(y_pred))}")
+        
+        print(f"\n  Metrics:")
+        print(f"    Spearman ρ = {rho:.3f}")
+        print(f"    P-value = {p_value:.4f}")
+        print(f"    R² = {r2:.3f}")
+        print(f"    MAE = {mae:.2f}")
+        
+        # Check for problems
+        issues = []
+        if len(np.unique(y_pred)) == 1:
+            issues.append("❌ CONSTANT PREDICTIONS - model predicting same value for all!")
+        elif y_pred.std() < 0.01:
+            issues.append(f"⚠️  Very low prediction variance: std={y_pred.std():.4f}")
+        
+        mean_diff = abs(y_pred.mean() - y.mean())
+        if mean_diff > 2 * y.std():
+            issues.append(f"⚠️  Large mean shift: {mean_diff:.2f} (>{2*y.std():.2f})")
+        
+        if abs(r2) > 10:
+            issues.append(f"⚠️  Extreme R²: {r2:.1f} (indicates overfitting)")
+        
+        if mae > 2 * y.std():
+            issues.append(f"⚠️  High MAE: {mae:.2f} (>{2*y.std():.2f})")
+        
+        if issues:
+            print(f"\n  🚨 ISSUES DETECTED:")
+            for issue in issues:
+                print(f"    {issue}")
+        else:
+            print(f"\n  ✅ No major issues detected")
+        
+        # Show sample predictions
+        print(f"\n  Sample predictions (first 5):")
+        print(f"    {'Actual':>10} {'Predicted':>10} {'Residual':>10}")
+        for i in range(min(5, len(y))):
+            residual = y[i] - y_pred[i]
+            print(f"    {y[i]:>10.2f} {y_pred[i]:>10.2f} {residual:>10.2f}")
+        print(f"  {'='*80}\n")
     
     return {
         'y_actual': y,

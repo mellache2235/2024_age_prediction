@@ -265,108 +265,115 @@ def determine_pc_range(n_samples):
 # ============================================================================
 
 def load_nki_behavioral_data():
-    """Load and merge all NKI behavioral data files."""
+    """Load and merge all NKI behavioral data files (same logic as enhanced version)."""
     print_step("Loading NKI behavioral data from multiple files")
     
-    behavioral_dfs = []
-    file_info = []
+    # Look for multiple behavioral files
+    behavioral_files = []
+    for pattern in ['*CAARS*.csv', '*Conners*.csv', '*RBS*.csv']:
+        behavioral_files.extend(BEHAVIORAL_DIR.glob(pattern))
     
-    def standardize_subject_id(df, file_name):
-        """Standardize subject_id column name."""
-        # Try common variations
-        id_columns = ['subject_id', 'Identifiers', 'ID', 'id', 'Subject_ID', 'SubjectID', 'record_id']
-        for col in id_columns:
-            if col in df.columns:
-                if col != 'subject_id':
-                    df = df.rename(columns={col: 'subject_id'})
-                return df
+    if not behavioral_files:
+        raise ValueError(f"No behavioral files found in {BEHAVIORAL_DIR}")
+    
+    print_info(f"Found {len(behavioral_files)} behavioral files:")
+    for f in behavioral_files:
+        print(f"    • {f.name}")
+    
+    # Load and merge all behavioral files
+    all_dfs = []
+    for bf in behavioral_files:
+        df = pd.read_csv(bf)
         
-        # If no ID column found, raise error
-        raise ValueError(f"No subject ID column found in {file_name}. Available columns: {list(df.columns)}")
-    
-    # Load CAARS
-    if CAARS_FILE.exists():
-        caars_df = pd.read_csv(CAARS_FILE)
-        caars_df = standardize_subject_id(caars_df, "CAARS")
-        behavioral_dfs.append(caars_df)
-        file_info.append(f"CAARS: {len(caars_df)} subjects, {len(caars_df.columns)} columns")
-    
-    # Load Conners Parent
-    if CONNERS_PARENT_FILE.exists():
-        conners_p_df = pd.read_csv(CONNERS_PARENT_FILE)
-        conners_p_df = standardize_subject_id(conners_p_df, "Conners Parent")
-        behavioral_dfs.append(conners_p_df)
-        file_info.append(f"Conners Parent: {len(conners_p_df)} subjects, {len(conners_p_df.columns)} columns")
-    
-    # Load Conners Self-Report
-    if CONNERS_SELF_FILE.exists():
-        conners_s_df = pd.read_csv(CONNERS_SELF_FILE)
-        conners_s_df = standardize_subject_id(conners_s_df, "Conners Self")
-        behavioral_dfs.append(conners_s_df)
-        file_info.append(f"Conners Self: {len(conners_s_df)} subjects, {len(conners_s_df.columns)} columns")
-    
-    # Load RBS
-    if RBS_FILE.exists():
-        rbs_df = pd.read_csv(RBS_FILE)
-        rbs_df = standardize_subject_id(rbs_df, "RBS")
-        behavioral_dfs.append(rbs_df)
-        file_info.append(f"RBS: {len(rbs_df)} subjects, {len(rbs_df.columns)} columns")
-    
-    if not behavioral_dfs:
-        raise ValueError("No behavioral data files found!")
-    
-    # Merge all behavioral files
-    merged_df = behavioral_dfs[0]
-    for i, df in enumerate(behavioral_dfs[1:], 1):
-        # Verify subject_id exists in both DataFrames before merge
-        if 'subject_id' not in merged_df.columns:
-            raise ValueError(f"'subject_id' column missing from merged DataFrame before merging file {i}")
-        if 'subject_id' not in df.columns:
-            raise ValueError(f"'subject_id' column missing from DataFrame {i} before merge")
+        # Identify subject ID column (flexible search like enhanced version)
+        id_col = None
+        for col in df.columns:
+            if 'id' in col.lower() or 'subject' in col.lower():
+                id_col = col
+                break
         
-        merged_df = merged_df.merge(df, on='subject_id', how='outer', suffixes=('', '_dup'))
+        if id_col is None:
+            print(f"  ⚠ No subject ID column in {bf.name}, skipping")
+            continue
+        
+        # Standardize to 'subject_id'
+        if id_col != 'subject_id':
+            df = df.rename(columns={id_col: 'subject_id'})
+        
+        # Convert subject IDs to string
+        df['subject_id'] = df['subject_id'].astype(str)
+        
+        all_dfs.append(df)
     
-    # Remove duplicate columns
-    merged_df = merged_df.loc[:, ~merged_df.columns.str.endswith('_dup')]
+    # Merge all dataframes on subject_id
+    if not all_dfs:
+        raise ValueError("No valid behavioral files found")
     
-    for info in file_info:
-        print(f"  {info}")
+    merged_df = all_dfs[0]
+    for df in all_dfs[1:]:
+        merged_df = pd.merge(merged_df, df, on='subject_id', how='outer')
     
-    print_info("Total merged subjects", len(merged_df))
-    print_info("Total columns", len(merged_df.columns))
+    # Remove duplicates in behavioral data (keep first)
+    merged_df = merged_df.drop_duplicates(subset='subject_id', keep='first')
     
-    # Select relevant behavioral columns
-    behavioral_cols = [col for col in merged_df.columns if any(x in col for x in [
-        'CAARS', 'Conners', 'C3SR', 'RBS', '_T', '_Raw'
-    ]) and col != 'subject_id']
+    # Auto-detect behavioral columns (same as enhanced version)
+    behavioral_cols = [col for col in merged_df.columns if 
+                       'CAARS' in col.upper() or 
+                       'CONNERS' in col.upper() or
+                       'RBS' in col.upper() or
+                       ('TOTAL' in col.upper() and ('INATTENTION' in col.upper() or 'HYPERACTIVITY' in col.upper())) or
+                       ('T-SCORE' in col.upper() or 'T_SCORE' in col.upper())]
     
+    # Exclude subject_id if it got included
+    behavioral_cols = [col for col in behavioral_cols if col != 'subject_id']
+    
+    if not behavioral_cols:
+        raise ValueError("No behavioral columns found")
+    
+    print_info("Total behavioral subjects", len(merged_df))
     print_info("Behavioral measures available", len(behavioral_cols))
+    print_info(f"Sample columns: {behavioral_cols[:5]}...")
     
     return merged_df, behavioral_cols
 
 def load_ig_scores():
-    """Load IG scores from CSV with integrity checks."""
+    """Load IG scores from CSV (same logic as enhanced version)."""
     print_step("Loading IG scores")
     print(f"From {Path(IG_CSV).name}")
     print("-" * 100)
     
     ig_df = pd.read_csv(IG_CSV)
     
-    # Integrity check on raw DataFrame
-    check_data_integrity(ig_df, "IG DataFrame (raw)")
+    # Drop Unnamed: 0 if present
+    if 'Unnamed: 0' in ig_df.columns:
+        ig_df = ig_df.drop(columns=['Unnamed: 0'])
     
-    # Extract subject IDs and IG scores
-    subject_ids = ig_df['subject_id'].values
-    ig_cols = [col for col in ig_df.columns if col.startswith('ROI_')]
-    ig_matrix = ig_df[ig_cols].values
+    # Identify subject ID column (flexible like enhanced version)
+    id_col = None
+    for col in ['subject_id', 'id', 'ID', 'Subject_ID']:
+        if col in ig_df.columns:
+            id_col = col
+            break
     
-    # Integrity check on IG matrix
-    check_data_integrity(ig_matrix, "IG matrix", subject_ids)
+    if id_col is None:
+        raise ValueError("No subject ID column found in IG CSV")
     
-    print_info("IG subjects", len(subject_ids))
-    print_info("IG features (ROIs)", ig_matrix.shape[1])
+    # Standardize to 'subject_id'
+    if id_col != 'subject_id':
+        ig_df = ig_df.rename(columns={id_col: 'subject_id'})
     
-    return subject_ids, ig_matrix, ig_cols
+    # Convert subject IDs to string
+    ig_df['subject_id'] = ig_df['subject_id'].astype(str)
+    
+    # ROI columns are all columns except subject_id
+    roi_cols = [col for col in ig_df.columns if col != 'subject_id']
+    
+    print_info("IG subjects", len(ig_df))
+    print_info("IG features (ROIs)", len(roi_cols))
+    print_info(f"Sample ROI columns: {roi_cols[:3]}...")
+    
+    # Return DataFrame instead of separate arrays for easier merging
+    return ig_df, roi_cols
 
 # ============================================================================
 # OPTIMIZATION
@@ -619,49 +626,28 @@ def main():
     print(f"  Alpha range: {ALPHA_RANGE}")
     print(f"  CV folds: {OUTER_CV_FOLDS} (outer)")
     
-    # Load data
+    # Load data (same as enhanced version)
+    ig_df, roi_cols = load_ig_scores()
     behavioral_df, behavioral_cols = load_nki_behavioral_data()
     
-    # Integrity check on behavioral data
-    check_data_integrity(behavioral_df, "Behavioral DataFrame")
-    
-    subject_ids_ig, ig_matrix, ig_cols = load_ig_scores()
-    
-    # Merge datasets with ID verification
-    print_step("Merging IG and behavioral data with ID alignment")
+    # Merge datasets (same as enhanced version)
+    print_step("Merging IG and behavioral data")
     print("-" * 100)
     
-    ig_df_full = pd.DataFrame({
-        'subject_id': subject_ids_ig,
-        **{col: ig_matrix[:, i] for i, col in enumerate(ig_cols)}
-    })
+    print_info("IG subjects", len(ig_df))
+    print_info("Behavioral subjects", len(behavioral_df))
     
-    # Verify ID alignment before merge
-    common_ids, idx_ig, idx_beh = verify_id_alignment(
-        subject_ids_ig,
-        behavioral_df['subject_id'].values,
-        "IG data",
-        "Behavioral data"
-    )
+    # Merge on subject_id
+    merged_df = pd.merge(ig_df, behavioral_df, on='subject_id', how='inner')
     
-    # Perform merge
-    merged_df = ig_df_full.merge(behavioral_df, on='subject_id', how='inner')
+    common_subjects = len(merged_df)
+    print_info("Common subjects after merge", common_subjects)
     
-    # Verify merge results
-    print(f"\n  📊 MERGE VERIFICATION")
-    print("  " + "-" * 80)
-    print_info("Common subjects after merge", len(merged_df))
-    print_info("Expected common subjects", len(common_ids))
+    if common_subjects < 10:
+        raise ValueError(f"Insufficient overlap: only {common_subjects} common subjects")
     
-    if len(merged_df) != len(common_ids):
-        print(f"  ⚠ WARNING: Merge count mismatch!")
-    else:
-        print(f"  ✓ Merge successful: counts match")
-    
-    # Final integrity check on merged data
-    check_data_integrity(merged_df, "Merged DataFrame")
-    
-    X = merged_df[ig_cols].values
+    # Extract IG matrix
+    X = merged_df[roi_cols].values
     
     print_info("Final IG matrix shape", f"{X.shape} (subjects x ROIs)")
     
@@ -671,13 +657,18 @@ def main():
     for measure in behavioral_cols[:5]:  # Process first 5 measures as example
         print_header(f"ANALYZING: {measure}")
         
-        # Get behavioral scores for this measure
-        y = merged_df[measure].values
+        # Get behavioral scores for this measure (convert to numeric, same as enhanced version)
+        behavioral_scores = pd.to_numeric(merged_df[measure], errors='coerce').values
+        y = behavioral_scores
         
         # Remove NaN values
         valid_mask = ~np.isnan(y)
         X_valid = X[valid_mask]
         y_valid = y[valid_mask]
+        
+        n_invalid = np.sum(~valid_mask)
+        if n_invalid > 0:
+            print_info("Removed subjects with missing/invalid data", n_invalid)
         
         if len(y_valid) < 20:
             print(f"⚠ Insufficient data for {measure}: only {len(y_valid)} subjects")

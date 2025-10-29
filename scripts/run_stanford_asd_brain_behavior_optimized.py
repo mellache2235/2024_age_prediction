@@ -616,23 +616,61 @@ def evaluate_best_model(model, X, y, measure_name):
     r2 = r2_score(y, y_pred)
     mae = mean_absolute_error(y, y_pred)
     
-    print_info(f"N subjects: {len(y)}", 0)
-    print_info(f"Spearman ρ: {rho:.3f}", 0)
-    print_info(f"P-value: {p_value:.4f}", 0)
-    print_info(f"R²: {r2:.3f}", 0)
-    print_info(f"MAE: {mae:.2f}", 0)
-    
-    # Diagnostic info
+    # Comprehensive integrity check output
     print()
-    print("  Predictions summary:")
-    print(f"    Actual:    mean={y.mean():.2f}, std={y.std():.2f}, range=[{y.min():.2f}, {y.max():.2f}]")
-    print(f"    Predicted: mean={y_pred.mean():.2f}, std={y_pred.std():.2f}, range=[{y_pred.min():.2f}, {y_pred.max():.2f}]")
+    print(f"  📊 PREDICTION INTEGRITY CHECK:")
+    print(f"  {'='*80}")
+    
+    print(f"\n  Actual values:")
+    print(f"    N = {len(y)}")
+    print(f"    Mean = {y.mean():.2f}")
+    print(f"    Std = {y.std():.2f}")
+    print(f"    Range = [{y.min():.2f}, {y.max():.2f}]")
+    print(f"    Unique values = {len(np.unique(y))}")
+    
+    print(f"\n  Predicted values:")
+    print(f"    Mean = {y_pred.mean():.2f}")
+    print(f"    Std = {y_pred.std():.2f}")
+    print(f"    Range = [{y_pred.min():.2f}, {y_pred.max():.2f}]")
+    print(f"    Unique values = {len(np.unique(y_pred))}")
+    
+    print(f"\n  Metrics:")
+    print(f"    Spearman ρ = {rho:.3f}")
+    print(f"    P-value = {p_value:.4f}")
+    print(f"    R² = {r2:.3f}")
+    print(f"    MAE = {mae:.2f}")
     
     # Check for problems
-    if y_pred.std() < 0.01:
-        print_warning("  ⚠️  Predictions are nearly constant!")
-    if abs(y.mean() - y_pred.mean()) > 2 * y.std():
-        print_warning(f"  ⚠️  Mean prediction is far from actual mean (shift={y_pred.mean()-y.mean():.2f})")
+    issues = []
+    if len(np.unique(y_pred)) == 1:
+        issues.append("❌ CONSTANT PREDICTIONS - model predicting same value for all!")
+    elif y_pred.std() < 0.01:
+        issues.append(f"⚠️  Very low prediction variance: std={y_pred.std():.4f}")
+    
+    mean_diff = abs(y_pred.mean() - y.mean())
+    if mean_diff > 2 * y.std():
+        issues.append(f"⚠️  Large mean shift: {mean_diff:.2f} (>{2*y.std():.2f})")
+    
+    if abs(r2) > 10:
+        issues.append(f"⚠️  Extreme R²: {r2:.1f} (indicates overfitting)")
+    
+    if mae > 2 * y.std():
+        issues.append(f"⚠️  High MAE: {mae:.2f} (>{2*y.std():.2f})")
+    
+    if issues:
+        print(f"\n  🚨 ISSUES DETECTED:")
+        for issue in issues:
+            print(f"    {issue}")
+    else:
+        print(f"\n  ✅ No major issues detected")
+    
+    # Show sample predictions
+    print(f"\n  Sample predictions (first 5):")
+    print(f"    {'Actual':>10} {'Predicted':>10} {'Residual':>10}")
+    for i in range(min(5, len(y))):
+        residual = y[i] - y_pred[i]
+        print(f"    {y[i]:>10.2f} {y_pred[i]:>10.2f} {residual:>10.2f}")
+    print(f"  {'='*80}\n")
     
     return {
         'y_actual': y,
@@ -673,14 +711,25 @@ def create_scatter_plot(results, measure_name, best_params, output_dir):
         info_parts.append(f"k={best_params['n_features']}")
     
     model_info = "\n".join(info_parts)
-    stats_text = f"r = {rho:.3f}\np {p_str}\n{model_info}"
+    stats_text = f"r = {rho:.3f}\np {p_str}\n{model_info}"  # Using "r =" not "ρ ="
     
     # Get standardized title
     title = get_dataset_title(DATASET)
     
-    # Create safe filename
+    # Create safe filename with method info
     safe_name = measure_name.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
-    save_path = Path(output_dir) / f'scatter_{safe_name}_optimized'
+    method_name = best_params.get('strategy', 'Unknown').replace('+', '_')
+    model_name = best_params.get('model', '')
+    
+    # Create descriptive filename
+    if best_params.get('n_components'):
+        filename = f'scatter_{safe_name}_{method_name}_comp{best_params["n_components"]}_optimized'
+    elif best_params.get('n_features'):
+        filename = f'scatter_{safe_name}_{method_name}_k{best_params["n_features"]}_optimized'
+    else:
+        filename = f'scatter_{safe_name}_{method_name}_optimized'
+    
+    save_path = Path(output_dir) / filename
     
     # Use centralized plotting function
     fig, ax = plt.subplots(figsize=(6, 6))
@@ -761,15 +810,18 @@ def analyze_single_measure(X, merged_df, measure, output_dir, n_jobs_inner=1):
         
         # Save optimization results
         safe_name = measure.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
+        method_name = best_params.get('strategy', 'Unknown').replace('+', '_')
+        
         opt_results.to_csv(Path(output_dir) / f"optimization_results_{safe_name}.csv", index=False)
         
-        # INTEGRITY CHECK: Save actual vs predicted values
+        # INTEGRITY CHECK: Save actual vs predicted values (with method in filename)
         predictions_df = pd.DataFrame({
             'Actual': eval_results['y_actual'],
             'Predicted': eval_results['y_pred'],
             'Residual': eval_results['y_actual'] - eval_results['y_pred']
         })
-        predictions_df.to_csv(Path(output_dir) / f"predictions_{safe_name}.csv", index=False)
+        pred_filename = f"predictions_{safe_name}_{method_name}.csv"
+        predictions_df.to_csv(Path(output_dir) / pred_filename, index=False)
         
         # Check for constant predictions (warning sign)
         if predictions_df['Predicted'].nunique() == 1:

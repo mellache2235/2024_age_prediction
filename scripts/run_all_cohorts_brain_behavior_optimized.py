@@ -466,7 +466,20 @@ def create_scatter_plot(results, measure_name, best_params, output_dir, dataset_
     
     title = get_dataset_title(dataset_name)
     safe_name = measure_name.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
-    save_path = Path(output_dir) / f'scatter_{safe_name}_optimized'
+    
+    # Add method info to filename
+    method_name = best_params.get('strategy', 'Unknown').replace('+', '_')
+    model_name = best_params.get('model', '')
+    
+    # Create descriptive filename
+    if best_params.get('n_components'):
+        filename = f'scatter_{safe_name}_{method_name}_comp{best_params["n_components"]}_optimized'
+    elif best_params.get('n_features'):
+        filename = f'scatter_{safe_name}_{method_name}_k{best_params["n_features"]}_optimized'
+    else:
+        filename = f'scatter_{safe_name}_{method_name}_optimized'
+    
+    save_path = Path(output_dir) / filename
     
     fig, ax = plt.subplots(figsize=(6, 6))
     
@@ -537,12 +550,18 @@ def analyze_cohort(cohort_key, max_measures=None):
                 print_warning(f"Column '{measure}' not found - skipping")
                 continue
             
-            y = merged_df[measure].values
+            # Convert to numeric, coercing errors to NaN
+            y_series = pd.to_numeric(merged_df[measure], errors='coerce')
+            y = y_series.values
             
             # Remove NaN
             valid_mask = ~np.isnan(y)
             X_valid = X[valid_mask]
             y_valid = y[valid_mask]
+            
+            n_invalid = np.sum(~valid_mask)
+            if n_invalid > 0:
+                print_info(f"Removed {n_invalid} subjects with missing/invalid data", 0)
             
             # Remove outliers
             X_valid, y_valid, n_outliers = remove_outliers(X_valid, y_valid)
@@ -560,15 +579,27 @@ def analyze_cohort(cohort_key, max_measures=None):
             best_model, best_params, cv_score, opt_results = \
                 optimize_comprehensive(X_valid, y_valid, measure, verbose=True)
             
-            # Evaluate
-            eval_results = evaluate_model(best_model, X_valid, y_valid)
+            # Evaluate with integrity checking
+            eval_results = evaluate_model(best_model, X_valid, y_valid, verbose=True)
             
             # Create visualization
             create_scatter_plot(eval_results, measure, best_params, config['output_dir'], config['dataset'])
             
             # Save optimization results
             safe_name = measure.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
+            method_name = best_params.get('strategy', 'Unknown').replace('+', '_')
+            
             opt_results.to_csv(Path(config['output_dir']) / f"optimization_results_{safe_name}.csv", index=False)
+            
+            # Save predictions for integrity verification (with method in filename)
+            predictions_df = pd.DataFrame({
+                'Actual': eval_results['y_actual'],
+                'Predicted': eval_results['y_pred'],
+                'Residual': eval_results['y_actual'] - eval_results['y_pred']
+            })
+            pred_filename = f"predictions_{safe_name}_{method_name}.csv"
+            predictions_df.to_csv(Path(config['output_dir']) / pred_filename, index=False)
+            print_info(f"Saved predictions to: {pred_filename}", 0)
             
             # Store summary
             all_results.append({

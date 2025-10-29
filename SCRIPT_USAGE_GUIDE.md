@@ -225,10 +225,18 @@ python scripts/create_region_tables.py --top_n 100 --output_dir results/custom_t
 
 #### **Output Files** (All Optimized Scripts)
 - `optimization_summary.csv` - Best configuration per behavioral measure
-- `optimization_results_*.csv` - All tested configurations
-- Scatter plots (PNG + TIFF + AI) with best model info
+- `optimization_results_{measure}.csv` - All tested configurations
+- `scatter_{measure}_{method}_{params}_optimized.png/tiff/ai` - **Descriptive filenames with method!**
+  - Examples: 
+    - `scatter_ados_total_PLS_comp15_optimized.png`
+    - `scatter_social_awareness_FeatureSelection_Lasso_k100_optimized.png`
+    - `scatter_Hyper_Impulsive_PCA_Ridge_comp25_optimized.png`
+- `predictions_{measure}_{method}.csv` - Actual vs predicted values for verification
+- `{cohort}_optimization_summary_significant.csv` - Filtered significant results
 - Cross-validation performance metrics
 - Runtime: ~30-60 min per cohort (vs ~2-5 min for enhanced scripts)
+
+**Filename Convention**: Method and parameters are automatically included in filenames, making it easy to identify which optimization strategy worked best for each measure. See `scripts/FILENAME_CONVENTION.md` for details.
 
 #### **Documentation**
 - Quick start: `scripts/UNIVERSAL_OPTIMIZATION_GUIDE.md` ⭐
