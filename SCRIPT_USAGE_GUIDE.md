@@ -243,6 +243,71 @@ python scripts/create_region_tables.py --top_n 100 --output_dir results/custom_t
 - ✅ Need robust cross-validation
 - ❌ Quick exploratory analysis (use enhanced scripts instead)
 
+---
+
+### 📊 Optimization Results Summary Script
+
+**`scripts/create_optimization_summary_figure.py`**
+
+**Purpose**: Create publication-ready summary figures and tables from optimization results.
+
+**What it does**:
+1. Reads `optimization_summary.csv` from optimization run
+2. Filters for significant correlations (customizable thresholds)
+3. Creates summary tables (CSV, Markdown)
+4. Creates multi-panel summary figure (significant measures only)
+5. Creates bar plot showing all correlations
+
+**Usage**:
+```bash
+# Default thresholds (|ρ| ≥ 0.2, p ≤ 0.05)
+python scripts/create_optimization_summary_figure.py --cohort stanford_asd
+
+# Custom thresholds (stricter)
+python scripts/create_optimization_summary_figure.py --cohort abide_asd --min-rho 0.3 --max-pvalue 0.01
+
+# More lenient
+python scripts/create_optimization_summary_figure.py --cohort adhd200_td --min-rho 0.15
+```
+
+**Options**:
+- `--cohort, -c`: Cohort name (required)
+- `--min-rho`: Minimum absolute Spearman correlation (default: 0.2)
+- `--max-pvalue`: Maximum p-value (default: 0.05)
+
+**Output Files**:
+- `{cohort}_optimization_summary_significant.csv` - Table of significant results
+- `{cohort}_optimization_summary_significant.md` - Markdown table
+- `{cohort}_optimization_summary_figure.png/tiff/ai` - Multi-panel summary
+- `{cohort}_correlations_barplot.png/tiff` - Bar plot of all correlations
+
+**Example Output**:
+```
+📊 Significant Measures:
+  ✓ social_awareness_tscore.......................... ρ=  0.293, p=0.0033, R²= 0.095
+
+Total measures analyzed: 2
+Significant correlations: 1
+
+Files created:
+- stanford_asd_optimization_summary_significant.csv
+- stanford_asd_optimization_summary_figure.png
+- stanford_asd_correlations_barplot.png
+```
+
+**Filters automatically**:
+- ✅ Excludes non-significant results (p > threshold)
+- ✅ Excludes weak correlations (|ρ| < threshold)
+- ✅ Excludes failed models (extreme R² values indicating overfitting)
+
+**When to use**:
+- ✅ After running optimization to identify best measures
+- ✅ Creating manuscript figures (shows only significant results)
+- ✅ Quick overview of which behaviors correlate with brain features
+- ✅ Comparing multiple measures at once
+
+---
+
 ### `scripts/comprehensive_brain_behavior_analysis.py`
 
 **Purpose**: Comprehensive brain-behavior correlation analysis with PCA and FDR correction

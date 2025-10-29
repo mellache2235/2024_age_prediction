@@ -159,9 +159,16 @@ def load_pklz_behavioral(config):
     
     all_data = {}
     for pklz_file in pklz_files:
-        with gzip.open(pklz_file, 'rb') as f:
-            data = pickle.load(f, encoding='latin1')
-            all_data.update(data)
+        # Try gzipped first, then fall back to plain pickle
+        try:
+            with gzip.open(pklz_file, 'rb') as f:
+                data = pickle.load(f, encoding='latin1')
+                all_data.update(data)
+        except gzip.BadGzipFile:
+            # File is not gzipped, try plain pickle
+            with open(pklz_file, 'rb') as f:
+                data = pickle.load(f, encoding='latin1')
+                all_data.update(data)
     
     # Extract subject IDs and behavioral measures
     subject_ids = []
@@ -194,9 +201,16 @@ def load_c3sr_behavioral(config):
     pklz_files = list(Path(config['data_path']).glob("*.pklz"))
     all_data = {}
     for pklz_file in pklz_files:
-        with gzip.open(pklz_file, 'rb') as f:
-            data = pickle.load(f, encoding='latin1')
-            all_data.update(data)
+        # Try gzipped first, then fall back to plain pickle
+        try:
+            with gzip.open(pklz_file, 'rb') as f:
+                data = pickle.load(f, encoding='latin1')
+                all_data.update(data)
+        except gzip.BadGzipFile:
+            # File is not gzipped, try plain pickle
+            with open(pklz_file, 'rb') as f:
+                data = pickle.load(f, encoding='latin1')
+                all_data.update(data)
     
     # Load C3SR CSV
     c3sr_df = pd.read_csv(config['beh_csv'])

@@ -82,6 +82,10 @@ python run_nki_brain_behavior_optimized.py           # NKI (CAARS/Conners)
 # Runtime: ~30-60 min per cohort (vs ~2-5 min standard), +10-30% higher correlations
 # See: scripts/UNIVERSAL_OPTIMIZATION_GUIDE.md for details
 
+# Create publication-ready summary figures from optimization results
+python create_optimization_summary_figure.py --cohort stanford_asd
+python create_optimization_summary_figure.py --cohort abide_asd --min-rho 0.25
+
 # 4. Combined Plots
 python plot_brain_behavior_td_cohorts.py
 python plot_pc_loadings_heatmap.py --dataset nki_rs_td
@@ -145,6 +149,7 @@ results/
 | **Statistical Tests** | `run_statistical_comparisons.py` | 6 metrics, 12 comparisons |
 | **Brain-Behavior (Standard)** | `run_*_brain_behavior_enhanced.py` | Fast analysis, good correlations |
 | **Brain-Behavior (Optimized)** | `run_*_brain_behavior_optimized.py` | 🚀 Max Spearman ρ (+10-30%) |
+| **Optimization Summary** | `create_optimization_summary_figure.py` | Summary tables & figures (significant only) |
 | **Brain Age** | `plot_brain_age_*.py` | Combined scatter plots |
 
 ---
