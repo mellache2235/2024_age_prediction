@@ -84,6 +84,9 @@ INNER_CV_FOLDS = 3  # For hyperparameter tuning (not used in current implementat
 # Parallel processing
 DEFAULT_N_JOBS = -1  # -1 means use all available cores
 
+# Random seed for reproducibility
+RANDOM_SEED = 42
+
 # ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
@@ -765,9 +768,12 @@ def create_scatter_plot(results, measure_name, best_params, output_dir):
 # PARALLEL PROCESSING
 # ============================================================================
 
-def analyze_single_measure(X, merged_df, measure, output_dir, n_jobs_inner=1):
+def analyze_single_measure(X, merged_df, measure, output_dir, n_jobs_inner=1, random_seed=RANDOM_SEED):
     """Analyze a single behavioral measure (for parallel processing)."""
     try:
+        # Set random seed for reproducibility
+        np.random.seed(random_seed)
+        
         print_section_header(f"ANALYZING: {measure}")
         
         # Get behavioral scores for this measure
@@ -801,7 +807,7 @@ def analyze_single_measure(X, merged_df, measure, output_dir, n_jobs_inner=1):
         
         # COMPREHENSIVE OPTIMIZATION (testing all strategies)
         best_model, best_params, cv_score, opt_results = \
-            optimize_comprehensive(X_valid, y_valid, measure, n_jobs=n_jobs_inner)
+            optimize_comprehensive(X_valid, y_valid, measure, verbose=True, random_seed=random_seed)
         
         # Evaluate on all data
         eval_results = evaluate_best_model(best_model, X_valid, y_valid, measure)

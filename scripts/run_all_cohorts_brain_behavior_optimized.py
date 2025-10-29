@@ -38,6 +38,9 @@ from optimized_brain_behavior_core import optimize_comprehensive, evaluate_model
 # Setup Arial font globally
 setup_arial_font()
 
+# Random seed for reproducibility
+RANDOM_SEED = 42
+
 # ============================================================================
 # COHORT CONFIGURATIONS
 # ============================================================================
@@ -617,9 +620,12 @@ def analyze_cohort(cohort_key, max_measures=None):
             
             print_info(f"Valid subjects: {len(y_valid)}", 0)
             
+            # Set random seed for reproducibility
+            np.random.seed(RANDOM_SEED)
+            
             # Optimize
             best_model, best_params, cv_score, opt_results = \
-                optimize_comprehensive(X_valid, y_valid, measure, verbose=True)
+                optimize_comprehensive(X_valid, y_valid, measure, verbose=True, random_seed=RANDOM_SEED)
             
             # Evaluate with integrity checking
             eval_results = evaluate_model(best_model, X_valid, y_valid, verbose=True)
@@ -647,22 +653,22 @@ def analyze_cohort(cohort_key, max_measures=None):
             predictions_df.to_csv(Path(config['output_dir']) / pred_filename, index=False)
             print_info(f"Saved predictions to: {pred_filename}", 0)
             
-            # Store summary
+            # Store summary (ensure all numeric values are scalars)
             all_results.append({
                 'Measure': measure,
-                'N_Subjects': len(y_valid),
-                'N_Outliers_Removed': n_outliers,
+                'N_Subjects': int(len(y_valid)),
+                'N_Outliers_Removed': int(n_outliers),
                 'Best_Strategy': best_params.get('strategy', 'N/A'),
                 'Best_Model': best_params.get('model', 'N/A'),
                 'Best_N_Components': best_params.get('n_components', None),
                 'Best_Alpha': best_params.get('alpha', None),
                 'Feature_Selection': best_params.get('feature_selection', None),
                 'N_Features': best_params.get('n_features', None),
-                'CV_Spearman': cv_score,
-                'Final_Spearman': eval_results['rho'],
-                'Final_P_Value': eval_results['p_value'],
-                'Final_R2': eval_results['r2'],
-                'Final_MAE': eval_results['mae']
+                'CV_Spearman': float(cv_score) if cv_score is not None else None,
+                'Final_Spearman': float(np.asarray(eval_results['rho']).item()),
+                'Final_P_Value': float(np.asarray(eval_results['p_value']).item()),
+                'Final_R2': float(np.asarray(eval_results['r2']).item()),
+                'Final_MAE': float(np.asarray(eval_results['mae']).item())
             })
         
         # Save summary
@@ -678,10 +684,19 @@ def analyze_cohort(cohort_key, max_measures=None):
             print("BEST PERFORMANCES (Sorted by Spearman ρ)")
             print("="*100)
             summary_sorted = summary_df.sort_values('Final_Spearman', ascending=False)
-            print(summary_sorted[['Measure', 'Final_Spearman', 'Best_Strategy', 'Best_Model']].to_string(index=False))
+            
+            # Format p-values for display
+            summary_sorted['P_Display'] = summary_sorted['Final_P_Value'].apply(
+                lambda p: '< 0.001' if p < 0.001 else f'{p:.4f}'
+            )
+            
+            print(summary_sorted[['Measure', 'Final_Spearman', 'P_Display', 'Best_Strategy', 'Best_Model']].to_string(index=False))
             print()
-            print(f"\n  HIGHEST CORRELATION: ρ = {summary_sorted.iloc[0]['Final_Spearman']:.4f}")
-            print(f"  Measure: {summary_sorted.iloc[0]['Measure']}")
+            
+            best_row = summary_sorted.iloc[0]
+            p_str = '< 0.001' if best_row['Final_P_Value'] < 0.001 else f"{best_row['Final_P_Value']:.4f}"
+            print(f"\n  HIGHEST CORRELATION: ρ = {best_row['Final_Spearman']:.4f}, p {p_str}")
+            print(f"  Measure: {best_row['Measure']}")
             print()
         
         return True

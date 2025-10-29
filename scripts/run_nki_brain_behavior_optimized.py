@@ -45,6 +45,9 @@ IG_CSV = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/
 BEHAVIORAL_DIR = "/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data"
 OUTPUT_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td_optimized"
 
+# Random seed for reproducibility
+RANDOM_SEED = 42
+
 # ============================================================================
 # DATA LOADING FUNCTIONS (EXACT COPY FROM ENHANCED VERSION)
 # ============================================================================
@@ -336,32 +339,35 @@ def main():
             safe_name = measure.replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
             opt_results.to_csv(Path(OUTPUT_DIR) / f"optimization_results_{safe_name}.csv", index=False)
             
-            # Save predictions
+            # Save predictions (flatten arrays to ensure 1D)
             method_name = best_params.get('strategy', 'Unknown').replace('+', '_')
+            y_actual_flat = np.asarray(eval_results['y_actual']).flatten()
+            y_pred_flat = np.asarray(eval_results['y_pred']).flatten()
+            
             predictions_df = pd.DataFrame({
-                'Actual': eval_results['y_actual'],
-                'Predicted': eval_results['y_pred'],
-                'Residual': eval_results['y_actual'] - eval_results['y_pred']
+                'Actual': y_actual_flat,
+                'Predicted': y_pred_flat,
+                'Residual': y_actual_flat - y_pred_flat
             })
             pred_filename = f"predictions_{safe_name}_{method_name}.csv"
             predictions_df.to_csv(Path(OUTPUT_DIR) / pred_filename, index=False)
             
-            # Store summary
+            # Store summary (ensure all numeric values are scalars)
             all_results.append({
                 'Measure': measure,
-                'N_Subjects': len(y_valid),
-                'N_Outliers_Removed': n_outliers,
+                'N_Subjects': int(len(y_valid)),
+                'N_Outliers_Removed': int(n_outliers),
                 'Best_Strategy': best_params.get('strategy', 'N/A'),
                 'Best_Model': best_params.get('model', 'N/A'),
                 'Best_N_Components': best_params.get('n_components', None),
                 'Best_Alpha': best_params.get('alpha', None),
                 'Feature_Selection': best_params.get('feature_selection', None),
                 'N_Features': best_params.get('n_features', None),
-                'CV_Spearman': cv_score,
-                'Final_Spearman': eval_results['rho'],
-                'Final_P_Value': eval_results['p_value'],
-                'Final_R2': eval_results['r2'],
-                'Final_MAE': eval_results['mae']
+                'CV_Spearman': float(cv_score) if cv_score is not None else None,
+                'Final_Spearman': float(np.asarray(eval_results['rho']).item()),
+                'Final_P_Value': float(np.asarray(eval_results['p_value']).item()),
+                'Final_R2': float(np.asarray(eval_results['r2']).item()),
+                'Final_MAE': float(np.asarray(eval_results['mae']).item())
             })
         
         # Save summary
@@ -377,10 +383,19 @@ def main():
             print("BEST PERFORMANCES (Sorted by Spearman ρ)")
             print("="*100)
             summary_sorted = summary_df.sort_values('Final_Spearman', ascending=False, key=abs)
-            print(summary_sorted[['Measure', 'Final_Spearman', 'Best_Strategy', 'Best_Model']].to_string(index=False))
+            
+            # Format p-values for display
+            summary_sorted['P_Display'] = summary_sorted['Final_P_Value'].apply(
+                lambda p: '< 0.001' if p < 0.001 else f'{p:.4f}'
+            )
+            
+            print(summary_sorted[['Measure', 'Final_Spearman', 'P_Display', 'Best_Strategy', 'Best_Model']].to_string(index=False))
             print()
-            print(f"\n  HIGHEST CORRELATION: ρ = {summary_sorted.iloc[0]['Final_Spearman']:.4f}")
-            print(f"  Measure: {summary_sorted.iloc[0]['Measure']}")
+            
+            best_row = summary_sorted.iloc[0]
+            p_str = '< 0.001' if best_row['Final_P_Value'] < 0.001 else f"{best_row['Final_P_Value']:.4f}"
+            print(f"\n  HIGHEST CORRELATION: ρ = {best_row['Final_Spearman']:.4f}, p {p_str}")
+            print(f"  Measure: {best_row['Measure']}")
             print()
         else:
             print_warning("No results generated - all measures had insufficient data")

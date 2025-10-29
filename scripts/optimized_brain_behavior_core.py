@@ -37,6 +37,9 @@ PLS_STEP = 3
 TOP_K_FEATURES = [50, 100, 150, 200]
 OUTER_CV_FOLDS = 5
 
+# Random seed for reproducibility
+RANDOM_SEED = 42
+
 
 def spearman_scorer(y_true, y_pred):
     """Custom scorer for Spearman correlation."""
@@ -64,17 +67,30 @@ def determine_pc_range(n_samples, n_features):
     return pc_range
 
 
-def optimize_comprehensive(X, y, measure_name, verbose=True):
+def optimize_comprehensive(X, y, measure_name, verbose=True, random_seed=None):
     """
     Comprehensive optimization to maximize Spearman correlation.
     
+    Args:
+        X: Feature matrix
+        y: Target variable
+        measure_name: Name of behavioral measure
+        verbose: Print progress
+        random_seed: Random seed for reproducibility (default: 42)
+    
     Returns best model, best parameters, and CV performance.
     """
+    if random_seed is None:
+        random_seed = RANDOM_SEED
+    
     if verbose:
-        print(f"\n  Optimizing {measure_name}...")
+        print(f"\n  Optimizing {measure_name}... (seed={random_seed})")
+    
+    # Set random seeds for reproducibility
+    np.random.seed(random_seed)
     
     spearman_score = make_scorer(spearman_scorer)
-    outer_cv = KFold(n_splits=OUTER_CV_FOLDS, shuffle=True, random_state=42)
+    outer_cv = KFold(n_splits=OUTER_CV_FOLDS, shuffle=True, random_state=random_seed)
     
     best_score = -np.inf
     best_params = {}
@@ -373,8 +389,18 @@ def evaluate_model(model, X, y, verbose=True):
     }
 
 
-def remove_outliers(X, y, iqr_multiplier=3):
-    """Remove outliers using IQR method."""
+def remove_outliers(X, y, iqr_multiplier=3, random_seed=None):
+    """
+    Remove outliers using IQR method.
+    
+    Args:
+        X: Feature matrix
+        y: Target variable
+        iqr_multiplier: IQR multiplier for outlier detection (default: 3)
+        random_seed: Random seed (unused here, but kept for API consistency)
+    
+    Returns: X_clean, y_clean, n_outliers
+    """
     q1 = np.percentile(y, 25)
     q3 = np.percentile(y, 75)
     iqr = q3 - q1

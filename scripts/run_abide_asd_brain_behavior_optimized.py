@@ -43,6 +43,9 @@ OUTPUT_DIR = "/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_t
 
 ABIDE_SITES = ['NYU', 'SDSU', 'STANFORD', 'Stanford', 'TCD-1', 'UM', 'USM', 'Yale']
 
+# Random seed for reproducibility
+RANDOM_SEED = 42
+
 # ============================================================================
 # DATA LOADING (EXACT SAME AS ENHANCED SCRIPT)
 # ============================================================================
@@ -362,9 +365,12 @@ def main():
             print_info(f"Valid subjects: {len(y_valid)}")
             print()
             
+            # Set random seed for reproducibility
+            np.random.seed(RANDOM_SEED)
+            
             # Optimize
             best_model, best_params, cv_score, opt_results = \
-                optimize_comprehensive(X_valid, y_valid, measure, verbose=True)
+                optimize_comprehensive(X_valid, y_valid, measure, verbose=True, random_seed=RANDOM_SEED)
             
             # Evaluate with integrity checking
             eval_results = evaluate_model(best_model, X_valid, y_valid, verbose=True)

@@ -5,6 +5,17 @@ Maximize Spearman correlations between brain features (IG scores) and behavioral
 
 ---
 
+## ✅ Reproducibility
+
+All scripts use **random seed = 42** for:
+- Cross-validation splits
+- Model initialization
+- Any stochastic processes
+
+**Result**: Running the same script twice produces **identical results** - critical for scientific reproducibility!
+
+---
+
 ## 📋 Step-by-Step Workflow
 
 ### Step 1: Run Optimization

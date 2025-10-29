@@ -175,6 +175,7 @@ Two modes available:
 - **4 strategies**: PCA+Regression, PLS, Feature Selection, Direct Regression
 - **5 models**: Linear, Ridge, Lasso, ElasticNet, PLS
 - **Cross-validation**: 5-fold CV for robust estimates
+- **Reproducibility**: Fixed random seed (seed=42) ensures identical results across runs
 - **Expected improvement**: +0-30% higher correlations (some measures already optimal)
 - **Runtime**: ~30-60 min per cohort
 - **Output**: Scatter plots with method in filename, predictions CSV, integrity checks
