@@ -28,8 +28,8 @@ from typing import Optional, Tuple
 FONT_PATH = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/clustering_analysis/arial.ttf'
 
 # Colors - Publication-ready, NO post-processing needed
-COLOR_DOTS = '#5A6FA8'           # Bluer dots (fill AND edge - same color)
-COLOR_LINE = '#D32F2F'           # Red regression line (vibrant, clearly visible)
+COLOR_DOTS = '#0A1281'           # Deep indigo for fill and edge
+COLOR_LINE = '#0A1281'           # Match scatter color for cohesion
 COLOR_BACKGROUND = '#FFFFFF'     # Pure white background
 COLOR_SPINE = '#000000'          # Black spines (crisp, professional)
 COLOR_TICK = '#000000'           # Black tick labels (high contrast)
@@ -37,31 +37,31 @@ COLOR_STATS_TEXT = '#000000'     # Black statistics text (clear, readable)
 
 # Scatter properties - Optimized for Affinity Designer readiness
 SCATTER_ALPHA = 0.7              # Slight transparency for overlapping points
-SCATTER_SIZE = 100               # Larger for better visibility (was 80)
-SCATTER_LINEWIDTH = 1.5          # Thicker edge for definition (was 0.8)
-SCATTER_EDGECOLOR = '#5A6FA8'    # SAME as fill color (uniform appearance)
+SCATTER_SIZE = 100               # Larger for better visibility
+SCATTER_LINEWIDTH = 1.2          # Slightly thinner edge for refined look
+SCATTER_EDGECOLOR = '#0A1281'    # SAME as fill color (uniform appearance)
 
 # Line properties - Bold and clearly visible
 LINE_ALPHA = 1.0                 # Fully opaque (no transparency)
-LINE_WIDTH = 3.0                 # Clear visibility without being too thick
+LINE_WIDTH = 1.6                 # Slimmer regression line for subtle fit
 LINE_STYLE = '-'                 # Solid line
 
 # Spine properties - Professional and crisp (not too heavy)
-SPINE_WIDTH = 1.5                # Balanced thickness
+SPINE_WIDTH = 1.0                # Lighter spine weight per spec
 SPINE_COLOR = '#000000'          # Black for professional look
 
 # Tick properties - Clear and readable
 TICK_LENGTH_MAJOR = 6            # Standard length for visibility
-TICK_WIDTH_MAJOR = 1.2           # Visible but not heavy
-TICK_LABELSIZE = 14              # Larger for readability (was 11)
+TICK_WIDTH_MAJOR = 1.0           # Slightly lighter tick marks
+TICK_LABELSIZE = 16              # Font size uniformity request
 TICK_COLOR = '#000000'           # Black for maximum contrast
 TICK_PAD = 6                     # Good spacing
 
 # Font sizes - Publication-ready (no need to increase later)
-FONTSIZE_LABEL = 16              # Large, clear labels (was 13)
-FONTSIZE_TITLE = 18              # Prominent title (was 15)
-FONTSIZE_STATS = 14              # Readable statistics (was 11)
-FONTSIZE_STATS_SUBPLOT = 12      # Readable in subplots (was 10)
+FONTSIZE_LABEL = 16              # Large, clear labels per spec
+FONTSIZE_TITLE = 18              # Prominent title
+FONTSIZE_STATS = 16              # Match requested font size
+FONTSIZE_STATS_SUBPLOT = 14      # Slightly smaller for subplots
 
 # Font weights
 FONTWEIGHT_LABEL = 'normal'
@@ -88,24 +88,25 @@ DATASET_TITLES = {
     'nki_rs': 'NKI-RS',
     'nki_rs_td': 'NKI-RS',
     'nki_td': 'NKI-RS',
-    
+
     'adhd200': 'ADHD-200',
-    'adhd200_td': 'ADHD-200 TD Subset (NYU)',
-    'adhd200_adhd': 'ADHD-200 ADHD',
-    
+    'adhd200_td': 'ADHD-200',
+    'adhd200_adhd': 'ADHD-200',
+
     'cmihbn': 'CMI-HBN',
-    'cmihbn_td': 'CMI-HBN TD Subset',
-    'cmihbn_adhd': 'CMI-HBN ADHD',
-    
+    'cmihbn_td': 'CMI-HBN',
+    'cmihbn_adhd': 'CMI-HBN',
+
     'abide': 'ABIDE',
     'abide_asd': 'ABIDE ASD',
     'abide_td': 'ABIDE TD',
-    
+
     'stanford': 'Stanford',
     'stanford_asd': 'Stanford ASD',
-    
-    'hcp_dev': 'HCP-Dev',
-    'dev': 'HCP-Dev'
+
+    'hcp_dev': 'HCP-Development',
+    'hcpdevelopment': 'HCP-Development',
+    'dev': 'HCP-Development'
 }
 
 

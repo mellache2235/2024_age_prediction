@@ -17,6 +17,7 @@ Date: 2024
 
 import os
 import sys
+import re
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -95,6 +96,48 @@ COHORTS = {
         'beh_columns': None  # Will be auto-detected from C3SR
     }
 }
+
+# =========================================================================
+# AXIS LABEL HELPERS
+# =========================================================================
+
+UPPER_TOKENS = {'ADHD', 'ASD', 'SRS', 'ADOS', 'IQ', 'CBCL', 'DSM', 'CAARS',
+                'T', 'TD', 'RS', 'B', 'A', 'C', 'D', 'CDI', 'BASC', 'SCQ'}
+
+
+def format_behavior_axis_label(measure_name: str) -> str:
+    """Generate clean axis label text from behavioral measure name."""
+    if not measure_name:
+        return 'Behavior'
+
+    label = measure_name.strip()
+
+    # Prefer text inside parentheses when present
+    match = re.search(r'\(([^)]+)\)', label)
+    if match:
+        label = match.group(1)
+
+    label = label.replace('_', ' ')
+    label = label.replace('-', ' ')
+    label = label.replace('/', ' / ')
+
+    # Normalize common phrases
+    label = re.sub(r'\bt score\b', 'T-Score', label, flags=re.IGNORECASE)
+    label = re.sub(r'\bt total\b', 'Total', label, flags=re.IGNORECASE)
+
+    words = []
+    for word in label.split():
+        upper_word = word.upper()
+        if upper_word in UPPER_TOKENS:
+            words.append(upper_word)
+        elif upper_word.endswith('S') and upper_word[:-1] in UPPER_TOKENS:
+            words.append(upper_word[:-1] + 'S')
+        else:
+            words.append(word.capitalize())
+
+    cleaned = ' '.join(words)
+    cleaned = re.sub(' +', ' ', cleaned)
+    return cleaned.strip()
 
 # ============================================================================
 # DATA LOADING FUNCTIONS (FROM ENHANCED SCRIPTS)
@@ -517,12 +560,14 @@ def create_scatter_plot(results, measure_name, best_params, output_dir, dataset_
     save_path = Path(output_dir) / filename
     
     fig, ax = plt.subplots(figsize=(6, 6))
-    
+
+    behavior_label = format_behavior_axis_label(measure_name)
+
     create_standardized_scatter(
         ax, y_actual, y_pred,
         title=title + " (Optimized)",
-        xlabel='Observed Behavioral Score',
-        ylabel='Predicted Behavioral Score',
+        xlabel=f'Observed {behavior_label}',
+        ylabel=f'Predicted {behavior_label}',
         stats_text=stats_text,
         is_subplot=False
     )

@@ -14,6 +14,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as font_manager
 import matplotlib.backends.backend_pdf as pdf
+from matplotlib.ticker import MultipleLocator
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from scipy.stats import pearsonr
@@ -124,11 +125,11 @@ def plot_combined_asd_cohorts(npz_files_dir: str, output_path: str,
             r_squared = r ** 2
             mae = mean_absolute_error(actual_ages, predicted_ages)
             
-            # Plot scatter with specific blue color (#5A6FA8)
-            ax.scatter(actual_ages, predicted_ages, 
-                      color='#5A6FA8', 
-                      edgecolors='#5A6FA8',
-                      alpha=0.7, s=80, linewidth=1)
+            # Plot scatter with standardized indigo color
+            ax.scatter(actual_ages, predicted_ages,
+                      color='#0A1281',
+                      edgecolors='#0A1281',
+                      alpha=0.7, s=100, linewidth=1.2)
             
             # Set axis limits with padding to prevent dots from being cut off
             min_age = min(min(actual_ages), min(predicted_ages))
@@ -139,10 +140,10 @@ def plot_combined_asd_cohorts(npz_files_dir: str, output_path: str,
             ax.set_xlim(lims)
             ax.set_ylim(lims)
             
-            # Add regression line (red, matching brain-behavior plots)
+            # Add regression line (thin indigo)
             z = np.polyfit(actual_ages, predicted_ages, 1)
             p_line = np.poly1d(z)
-            ax.plot(lims, p_line(lims), color='#D32F2F', alpha=0.9, linewidth=2.5)
+            ax.plot(lims, p_line(lims), color='#0A1281', alpha=0.9, linewidth=1.6)
             
             # Format p-value (short form)
             if p < 0.001:
@@ -154,26 +155,29 @@ def plot_combined_asd_cohorts(npz_files_dir: str, output_path: str,
             ax.text(0.95, 0.05,
                     f"$R^2$ = {r_squared:.3f}\n"
                     f"MAE = {mae:.2f} years\n"
-                    f"P {p_text}\n"
-                    f"N = {len(actual_ages)}",
-                    transform=ax.transAxes, fontsize=14, 
+                    f"P {p_text}",
+                    transform=ax.transAxes, fontsize=16,
                     verticalalignment='bottom', horizontalalignment='right')
             
             # Customize subplot
-            ax.set_xlabel('Chronological Age (years)', fontsize=14, fontweight='normal')
-            ax.set_ylabel('Predicted Brain Age (years)', fontsize=14, fontweight='normal')
-            ax.set_title(dataset_name, fontsize=16, fontweight='bold', pad=15)
+            ax.set_xlabel('Chronological Age (years)', fontsize=16, fontweight='normal')
+            ax.set_ylabel('Brain Age (years)', fontsize=16, fontweight='normal')
+            ax.set_title(dataset_name, fontsize=18, fontweight='bold', pad=15)
             
             # Clean style - NO top/right spines
             ax.grid(False)
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
-            ax.spines['left'].set_linewidth(1.5)
-            ax.spines['bottom'].set_linewidth(1.5)
+            ax.spines['left'].set_linewidth(1.0)
+            ax.spines['bottom'].set_linewidth(1.0)
             
-            # Tick styling - major ticks only (no minor ticks)
-            ax.tick_params(axis='both', which='major', labelsize=12, direction='out', 
-                          length=6, width=1.5, top=False, right=False)
+            # Tick styling - major ticks every 5 years
+            ax.tick_params(axis='both', which='major', labelsize=16, direction='out',
+                          length=6, width=1.0, top=False, right=False)
+            ax.minorticks_off()
+            locator = MultipleLocator(5)
+            ax.xaxis.set_major_locator(locator)
+            ax.yaxis.set_major_locator(locator)
             
             # Collect data for overall statistics
             all_actual.extend(actual_ages)
