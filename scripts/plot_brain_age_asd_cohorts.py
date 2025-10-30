@@ -129,7 +129,7 @@ def plot_combined_asd_cohorts(npz_files_dir: str, output_path: str,
             ax.scatter(actual_ages, predicted_ages,
                       color='#0A1281',
                       edgecolors='#0A1281',
-                      alpha=0.7, s=100, linewidth=1.2)
+                      alpha=0.7, s=100, linewidth=1.0)
             
             # Set axis limits with padding to prevent dots from being cut off
             min_age = min(min(actual_ages), min(predicted_ages))
@@ -143,7 +143,7 @@ def plot_combined_asd_cohorts(npz_files_dir: str, output_path: str,
             # Add regression line (thin indigo)
             z = np.polyfit(actual_ages, predicted_ages, 1)
             p_line = np.poly1d(z)
-            ax.plot(lims, p_line(lims), color='#0A1281', alpha=0.9, linewidth=1.6)
+            ax.plot(lims, p_line(lims), color='#0A1281', alpha=0.9, linewidth=1.0)
             
             # Format p-value (short form)
             if p < 0.001:
@@ -172,8 +172,8 @@ def plot_combined_asd_cohorts(npz_files_dir: str, output_path: str,
             ax.spines['bottom'].set_linewidth(1.0)
             
             # Tick styling - major ticks every 5 years
-            ax.tick_params(axis='both', which='major', labelsize=16, direction='out',
-                          length=6, width=1.0, top=False, right=False)
+            ax.tick_params(axis='both', which='major', labelsize=16, direction='inout',
+                          length=8, width=1.2, top=False, right=False)
             ax.minorticks_off()
             locator = MultipleLocator(5)
             ax.xaxis.set_major_locator(locator)

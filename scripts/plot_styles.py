@@ -38,12 +38,12 @@ COLOR_STATS_TEXT = '#000000'     # Black statistics text (clear, readable)
 # Scatter properties - Optimized for Affinity Designer readiness
 SCATTER_ALPHA = 0.7              # Slight transparency for overlapping points
 SCATTER_SIZE = 100               # Larger for better visibility
-SCATTER_LINEWIDTH = 1.2          # Slightly thinner edge for refined look
+SCATTER_LINEWIDTH = 1.0          # Slim edge for refined look
 SCATTER_EDGECOLOR = '#0A1281'    # SAME as fill color (uniform appearance)
 
 # Line properties - Bold and clearly visible
 LINE_ALPHA = 1.0                 # Fully opaque (no transparency)
-LINE_WIDTH = 1.6                 # Slimmer regression line for subtle fit
+LINE_WIDTH = 1.0                 # Slimmest regression line for subtle fit
 LINE_STYLE = '-'                 # Solid line
 
 # Spine properties - Professional and crisp (not too heavy)
@@ -51,8 +51,8 @@ SPINE_WIDTH = 1.0                # Lighter spine weight per spec
 SPINE_COLOR = '#000000'          # Black for professional look
 
 # Tick properties - Clear and readable
-TICK_LENGTH_MAJOR = 6            # Standard length for visibility
-TICK_WIDTH_MAJOR = 1.0           # Slightly lighter tick marks
+TICK_LENGTH_MAJOR = 8            # Longer ticks for visibility in vector formats
+TICK_WIDTH_MAJOR = 1.2           # Slightly bolder tick marks
 TICK_LABELSIZE = 16              # Font size uniformity request
 TICK_COLOR = '#000000'           # Black for maximum contrast
 TICK_PAD = 6                     # Good spacing
@@ -251,7 +251,7 @@ def create_standardized_scatter(
         axis='both',
         which='major',
         labelsize=TICK_LABELSIZE,
-        direction='out',
+        direction='inout',
         length=TICK_LENGTH_MAJOR,
         width=TICK_WIDTH_MAJOR,
         top=False,
