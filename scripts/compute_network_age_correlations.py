@@ -732,10 +732,12 @@ def main() -> None:
             print(f"✗ Skipping {dataset}: override path {ig_dir} is not a directory.")
             continue
 
-        ig_files = sorted(ig_dir.glob("*_ig.npz"), key=ig_file_sort_key)
+        ig_files = sorted(ig_dir.glob("*_ig*.npz"), key=ig_file_sort_key)
 
         if not ig_files:
-            print(f"✗ Skipping {dataset}: directory {ig_dir} contains no *_ig.npz files.")
+            print(
+                f"✗ Skipping {dataset}: directory {ig_dir} contains no files matching '*_ig*.npz'."
+            )
             continue
 
         print(

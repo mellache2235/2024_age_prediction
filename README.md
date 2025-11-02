@@ -112,18 +112,20 @@ python run_network_brain_behavior_analysis.py --all  # All cohorts
 
 # 4. Network IG Correlations (Age & Behavior)
 python compute_network_age_correlations.py \
-  --datasets nki_rs_td cmihbn_td adhd200_td \
+  --datasets hcp_dev nki_rs_td cmihbn_td adhd200_td \
   --root-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures \
   --parcellation yeo7 \
   --target-key Predicted_Brain_Age:brain_age_pred \
   --apply-fdr \
   --output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations \
+  --dataset-path hcp_dev=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/network_correlations/hcp_development_ig_files \
   --dataset-path nki_rs_td=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/nki_rs_td \
   --dataset-path cmihbn_td=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/cmihbn_td \
   --dataset-path adhd200_td=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/adhd200_td
 ```
 
-- Use `--dataset-path DATASET=/path/to/ig_files` to point the script at non-standard locations (e.g., the shared `integrated_gradients` folder) while still listing the dataset in `--datasets`.
+- Uses `--dataset-path DATASET=/path/to/ig_files` to point the script at non-standard locations (e.g., the shared `integrated_gradients` folder) while still listing the dataset in `--datasets`. The `hcp_dev` override keeps referencing the original repository, which still houses the HCP-Development IG bundles.
+- IG files can include dataset-specific suffixes (e.g., `dev_age_model_401_ig_cmihbn_td.npz`); the script now matches `*_ig*.npz` automatically.
 
 python compute_network_age_correlations.py \
   --datasets adhd200_adhd_optimized \
