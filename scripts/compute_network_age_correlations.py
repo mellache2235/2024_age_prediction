@@ -1101,31 +1101,31 @@ def main() -> None:
             dataset_path_overrides[dataset_key] = path
 
     preset_configs = load_presets(args.preset)
- 
-     target_key_map: Dict[str, str] = {}
-     for entry in args.target_key:
-         if ":" not in entry:
-             raise ValueError(
-                 f"Invalid --target-key '{entry}'. Expected format LABEL:KEY (e.g., Predicted:pred_age)."
-             )
-         label, key = entry.split(":", 1)
-         label = label.strip()
-         key = key.strip()
-         if not label or not key:
-             raise ValueError(
-                 f"Invalid --target-key '{entry}'. Both label and key must be non-empty."
-             )
-         target_key_map[label] = key
- 
-     collect_chronological = not args.skip_chronological
- 
-     if not collect_chronological and not target_key_map:
-         raise ValueError(
-             "At least one target is required. Enable chronological correlations or provide --target-key."
-         )
- 
-     age_sources = parse_age_sources(args.age_source)
-     target_sources_map = parse_target_sources(args.target_source)
+
+    target_key_map: Dict[str, str] = {}
+    for entry in args.target_key:
+        if ":" not in entry:
+            raise ValueError(
+                f"Invalid --target-key '{entry}'. Expected format LABEL:KEY (e.g., Predicted:pred_age)."
+            )
+        label, key = entry.split(":", 1)
+        label = label.strip()
+        key = key.strip()
+        if not label or not key:
+            raise ValueError(
+                f"Invalid --target-key '{entry}'. Both label and key must be non-empty."
+            )
+        target_key_map[label] = key
+
+    collect_chronological = not args.skip_chronological
+
+    if not collect_chronological and not target_key_map:
+        raise ValueError(
+            "At least one target is required. Enable chronological correlations or provide --target-key."
+        )
+
+    age_sources = parse_age_sources(args.age_source)
+    target_sources_map = parse_target_sources(args.target_source)
 
     for dataset, cfg in preset_configs.items():
         ig_dir_str = cfg.get("ig_dir")

@@ -111,14 +111,8 @@ python run_network_brain_behavior_analysis.py --cohort cmihbn_td --method pos_sh
 python run_network_brain_behavior_analysis.py --all  # All cohorts
 
 # 4. Network IG Correlations (Age & Behavior)
-python compute_network_age_correlations.py \
-  --preset brain_age_td \
-  --target-key Predicted_Brain_Age:brain_age_pred \
-  --apply-fdr \
-  --scatter-plots \
-  --scatter-output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/plots \
-  --output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations
-```
+- Run `compute_network_age_correlations.py --preset <name> --apply-fdr` with presets defined in `config/network_correlation_presets.yaml` (currently `brain_age_td` and `brain_behavior_adhd200`). Presets encapsulate IG directories, chronological ages, and behavior targets.
+- After summaries are generated, use `plot_combined_network_radar.py` with `--ig-column Spearman_rho` to render effect-size grids.
 
 Run TD correlations (ages and predicted brain age) using the built-in preset:
 ```bash
@@ -235,36 +229,9 @@ results/
 
 ### Network IG ↔ Target Correlations
 
-Run the TD cohorts (chronological + predicted brain age) with the preset—no manual paths required:
-```bash
-python compute_network_age_correlations.py \
-  --preset brain_age_td \
-  --apply-fdr
-```
-The preset (see `config/network_correlation_presets.yaml`) points to the IG directories, fold `.bin` ages, and the `Predicted_Brain_Age:brain_age_pred` target key for each cohort. Outputs land in `results/network_correlations/`.
-
-For brain-behavior cohorts, use the behavior preset:
-```bash
-python compute_network_age_correlations.py \
-  --preset brain_behavior_adhd200 \
-  --apply-fdr
-```
-That preset pulls observed/predicted scores directly from each cohort’s `predictions.csv` and aligns them to the IG rows. Update the YAML if you add new behaviors or datasets.
-
-Once the CSV summaries are generated, create radar plots that show Spearman ρ (effect size per network):
-```bash
-python scripts/plot_combined_network_radar.py \
-  --td /oak/.../shared_TD/shared_network_analysis.csv \
-  --adhd /oak/.../shared_ADHD/shared_network_analysis.csv \
-  --asd /oak/.../shared_ASD/shared_network_analysis.csv \
-  --output /oak/.../shared_network_radar \
-  --td-ig "HCP-Development=/oak/.../hcp_dev_Chronological_Age_network_correlations.csv" \
-  --td-ig "NKI-RS TD=/oak/.../nki_rs_td_Chronological_Age_network_correlations.csv" \
-  --td-ig "CMI-HBN TD=/oak/.../cmihbn_td_Chronological_Age_network_correlations.csv" \
-  --td-ig "ADHD-200 TD=/oak/.../adhd200_td_Chronological_Age_network_correlations.csv" \
-  --ig-column Spearman_rho
-```
-(Optional: add `--no-ig-abs` to keep the sign of ρ, or swap `Spearman_rho` for `Pearson_r`). The first row still shows count-based overlap; the TD 2×2 and ADHD/ASD 1×2 grids now encode correlation strength instead of mean IG.
+- Use the presets in `config/network_correlation_presets.yaml` to generate age and behavior correlation tables (`results/network_correlations/`). Presets already know the IG directories, chronological-age sources, and any behavior targets, so running the script requires only the preset name (e.g., `brain_age_td`, `brain_behavior_adhd200`).
+- Once the summaries are produced, call `scripts/plot_combined_network_radar.py` with `--ig-column Spearman_rho` (or `Pearson_r`) to render effect-size grids; the default row remains count-based overlap.
+- Update the YAML if paths or cohort definitions change; no README edits needed when adding new cohorts.
 
 ---
 
