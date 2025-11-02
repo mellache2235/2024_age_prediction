@@ -51,6 +51,9 @@ import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr, spearmanr
 
+import matplotlib.pyplot as plt
+import matplotlib.backends.backend_pdf as pdf_backend
+
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent
 
@@ -58,6 +61,15 @@ sys.path.append(str(PROJECT_ROOT / "scripts"))
 
 from optimized_brain_behavior_core import (  # noqa: E402
     aggregate_rois_to_networks,
+)
+
+from plot_styles import (  # noqa: E402
+    create_standardized_scatter,
+    get_dataset_title,
+    setup_arial_font,
+    FIGSIZE_SINGLE,
+    FIGURE_FACECOLOR,
+    DPI,
 )
 
 
@@ -590,6 +602,16 @@ def parse_args() -> argparse.Namespace:
         help="Directory where summary CSV files will be written.",
     )
     parser.add_argument(
+        "--dataset-path",
+        action="append",
+        metavar="DATASET=PATH",
+        help=(
+            "Override automatic directory discovery for a dataset. "
+            "Provide the dataset label used with --datasets followed by an absolute path to the "
+            "directory containing *_ig.npz files (e.g., nki_rs_td=/oak/.../integrated_gradients/nki_rs_td)."
+        ),
+    )
+    parser.add_argument(
         "--age-key",
         type=str,
         default=None,
@@ -646,6 +668,30 @@ def main() -> None:
 
     network_map = load_network_mapping(args.atlas_path, args.parcellation)
 
+    dataset_path_overrides: Dict[str, Path] = {}
+    if args.dataset_path:
+        for entry in args.dataset_path:
+            if "=" not in entry:
+                raise ValueError(
+                    f"Invalid --dataset-path '{entry}'. Expected format DATASET=/absolute/path."
+                )
+            dataset_key, raw_path = entry.split("=", 1)
+            dataset_key = dataset_key.strip()
+            path = Path(raw_path).expanduser()
+            if not dataset_key:
+                raise ValueError(
+                    f"Invalid --dataset-path '{entry}': dataset key cannot be empty."
+                )
+            if not path.exists():
+                raise FileNotFoundError(
+                    f"Override directory for dataset '{dataset_key}' does not exist: {path}"
+                )
+            if not path.is_dir():
+                raise NotADirectoryError(
+                    f"Override path for dataset '{dataset_key}' is not a directory: {path}"
+                )
+            dataset_path_overrides[dataset_key] = path
+
     target_key_map: Dict[str, str] = {}
     for entry in args.target_key:
         if ":" not in entry:
@@ -671,10 +717,19 @@ def main() -> None:
     all_dataset_rows: List[pd.DataFrame] = []
 
     for dataset in args.datasets:
-        ig_dir = discover_ig_directory(args.root_dir, dataset, prefer_td=args.prefer_td)
+        override_dir = dataset_path_overrides.get(dataset)
+
+        if override_dir is not None:
+            ig_dir = override_dir
+        else:
+            ig_dir = discover_ig_directory(args.root_dir, dataset, prefer_td=args.prefer_td)
 
         if ig_dir is None:
             print(f"✗ Skipping {dataset}: no IG directory found under {args.root_dir}.")
+            continue
+
+        if not ig_dir.exists() or not ig_dir.is_dir():
+            print(f"✗ Skipping {dataset}: override path {ig_dir} is not a directory.")
             continue
 
         ig_files = sorted(ig_dir.glob("*_ig.npz"), key=ig_file_sort_key)

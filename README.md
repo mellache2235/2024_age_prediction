@@ -117,7 +117,13 @@ python compute_network_age_correlations.py \
   --parcellation yeo7 \
   --target-key Predicted_Brain_Age:brain_age_pred \
   --apply-fdr \
-  --output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations
+  --output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations \
+  --dataset-path nki_rs_td=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/nki_rs_td \
+  --dataset-path cmihbn_td=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/cmihbn_td \
+  --dataset-path adhd200_td=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/adhd200_td
+```
+
+- Use `--dataset-path DATASET=/path/to/ig_files` to point the script at non-standard locations (e.g., the shared `integrated_gradients` folder) while still listing the dataset in `--datasets`.
 
 python compute_network_age_correlations.py \
   --datasets adhd200_adhd_optimized \
