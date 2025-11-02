@@ -241,26 +241,39 @@ def parse_age_sources(entries: Optional[Sequence[str]]) -> Dict[str, Tuple[Optio
     return sources
 
 
-def load_target_source(path: Path, id_key: str, value_key: str) -> Tuple[List[str], np.ndarray]:
+def load_target_source(path: Path, id_key: Optional[str], value_key: str) -> Tuple[List[str], np.ndarray]:
     suffix = path.suffix.lower()
+    id_key = id_key.strip() if isinstance(id_key, str) else None
 
     if suffix in {".csv", ".tsv"}:
         df = pd.read_csv(path)
-        if id_key not in df.columns or value_key not in df.columns:
+        if value_key not in df.columns:
+            raise KeyError(
+                f"Column '{value_key}' not found in {path}."
+            )
+        if id_key and id_key not in df.columns:
             raise KeyError(
                 f"Columns '{id_key}' and/or '{value_key}' not found in {path}."
             )
-        ids = df[id_key].astype(str).tolist()
+        ids = df[id_key].astype(str).tolist() if id_key else []
         values = df[value_key].to_numpy(dtype=float)
         return ids, values
 
     if suffix == ".npz":
         with np.load(path, allow_pickle=True) as data:
-            if id_key not in data or value_key not in data:
+            if value_key not in data:
+                raise KeyError(
+                    f"Key '{value_key}' not present in {path}."
+                )
+            if id_key and id_key not in data:
                 raise KeyError(
                     f"Keys '{id_key}' and/or '{value_key}' not present in {path}."
                 )
-            ids = np.asarray(data[id_key]).astype(str).tolist()
+            ids = (
+                np.asarray(data[id_key]).astype(str).tolist()
+                if id_key
+                else []
+            )
             values = np.asarray(data[value_key], dtype=float)
             return ids, values
 
@@ -270,11 +283,15 @@ def load_target_source(path: Path, id_key: str, value_key: str) -> Tuple[List[st
             raise ValueError(
                 f"Target source {path} is a plain array; provide a structured array with named fields."
             )
-        if id_key not in arr.dtype.names or value_key not in arr.dtype.names:
+        if value_key not in arr.dtype.names:
+            raise KeyError(
+                f"Field '{value_key}' not found in structured array {path}."
+            )
+        if id_key and id_key not in arr.dtype.names:
             raise KeyError(
                 f"Fields '{id_key}' and/or '{value_key}' not found in structured array {path}."
             )
-        ids = arr[id_key].astype(str).tolist()
+        ids = arr[id_key].astype(str).tolist() if id_key else []
         values = arr[value_key].astype(float)
         return ids, values
 
@@ -295,15 +312,21 @@ def parse_target_sources(entries: Optional[Sequence[str]]) -> Dict[str, List[Tup
         label, remainder = entry.split("=", 1)
         label = label.strip()
         parts = remainder.split("::")
-        if len(parts) != 4:
+        if len(parts) == 3:
+            dataset_key, path_str, value_key = parts
+            id_key = None
+        elif len(parts) == 4:
+            dataset_key, path_str, id_key, value_key = parts
+            id_key = id_key.strip()
+        else:
             raise ValueError(
                 f"Invalid --target-source '{entry}'. Expected format LABEL=DATASET::/path::id_col::value_col"
             )
 
-        dataset_key = parts[0].strip()
-        path = Path(parts[1]).expanduser()
-        id_key = parts[2].strip()
-        value_key = parts[3].strip()
+        dataset_key = dataset_key.strip()
+        path = Path(path_str).expanduser()
+        value_key = value_key.strip()
+        id_key = id_key.strip() if isinstance(id_key, str) else None
 
         if not label:
             raise ValueError(f"Invalid --target-source '{entry}': label cannot be empty.")
@@ -898,20 +921,31 @@ def compute_correlations(
     df.insert(0, "Target", target_label)
 
     if apply_fdr:
-        if multipletests is None:
-            warnings.warn(
-                "statsmodels is not installed; skipping FDR correction despite --apply-fdr."
-            )
-        else:
-            for col in ("Pearson_p", "Spearman_p"):
-                pvals = df[col].to_numpy()
-                finite_mask = np.isfinite(pvals)
-                if finite_mask.sum() == 0:
-                    continue
+        for col in ("Pearson_p", "Spearman_p"):
+            pvals = df[col].to_numpy()
+            finite_mask = np.isfinite(pvals)
+            if finite_mask.sum() == 0:
+                continue
+            if multipletests is not None:
                 _, corrected, _, _ = multipletests(pvals[finite_mask], method="fdr_bh")
+                df.loc[finite_mask, f"{col}_FDR"] = corrected
+            else:
+                corrected = benjamini_hochberg(pvals[finite_mask])
                 df.loc[finite_mask, f"{col}_FDR"] = corrected
 
     return df
+
+
+def benjamini_hochberg(pvals: np.ndarray) -> np.ndarray:
+    if pvals.size == 0:
+        return pvals
+    order = np.argsort(pvals)
+    ranked = pvals[order] * pvals.size / (np.arange(1, pvals.size + 1))
+    adjusted = np.minimum.accumulate(ranked[::-1])[::-1]
+    adjusted = np.clip(adjusted, 0.0, 1.0)
+    result = np.empty_like(pvals)
+    result[order] = adjusted
+    return result
 
 
 def parse_args() -> argparse.Namespace:
@@ -1153,7 +1187,7 @@ def main() -> None:
         for ts_cfg in cfg.get("target_sources", []) or []:
             label = ts_cfg.get("label")
             file_path = ts_cfg.get("file")
-            id_column = ts_cfg.get("id_column", "subject_id")
+            id_column = ts_cfg.get("id_column")
             value_column = ts_cfg.get("value_column")
             if not label or not file_path or not value_column:
                 raise ValueError(

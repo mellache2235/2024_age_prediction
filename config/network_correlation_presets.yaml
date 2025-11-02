@@ -5,21 +5,43 @@ presets:
       hcp_dev:
         ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/dev/ig_files
         age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/hcp_dev_age_five_fold/fold_0.bin
-        target_keys:
-          Predicted_Brain_Age: brain_age_pred
+        target_sources:
+          - label: Predicted_Brain_Age
+            file: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/predicted_hcp_dev_ages_most_updated.npz
+            value_column: predicted
       nki_rs_td:
         ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/nki/ig_files
         age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/nki_age_cog_dev/fold_0.bin
-        target_keys:
-          Predicted_Brain_Age: brain_age_pred
+        target_sources:
+          - label: Predicted_Brain_Age
+            file: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/predicted_nki_ages.npz
+            value_column: predicted
       cmihbn_td:
         ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files_td
         age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/cmihbn_age_TD_wIDs/fold_0.bin
-        target_keys:
-          Predicted_Brain_Age: brain_age_pred
+        target_sources:
+          - label: Predicted_Brain_Age
+            file: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/predicted_cmihbn_td_ages.npz
+            value_column: predicted
       adhd200_td:
         ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files_td
         age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/adhd200_regression_age_TD_wIDs/fold_0.bin
-        target_keys:
-          Predicted_Brain_Age: brain_age_pred
+        target_sources:
+          - label: Predicted_Brain_Age
+            file: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/predicted_adhd200_td_ages.npz
+            value_column: predicted
+  brain_behavior_adhd200:
+    description: Observed/predicted behavior correlations for ADHD-200 ADHD cohort.
+    datasets:
+      adhd200_adhd_optimized:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_adhd_optimized/ig_files
+        target_sources:
+          - label: Hyperactivity_Observed
+            file: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_adhd_optimized/predictions.csv
+            id_column: subject_id
+            value_column: Hyperactivity_Observed
+          - label: Hyperactivity_Predicted
+            file: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_adhd_optimized/predictions.csv
+            id_column: subject_id
+            value_column: Hyperactivity_Predicted
 

@@ -111,51 +111,22 @@ python run_network_brain_behavior_analysis.py --cohort cmihbn_td --method pos_sh
 python run_network_brain_behavior_analysis.py --all  # All cohorts
 
 # 4. Network IG Correlations (Age & Behavior)
-- Run `compute_network_age_correlations.py --preset <name> --apply-fdr` with presets defined in `config/network_correlation_presets.yaml` (currently `brain_age_td` and `brain_behavior_adhd200`). Presets encapsulate IG directories, chronological ages, and behavior targets.
-- After summaries are generated, use `plot_combined_network_radar.py` with `--ig-column Spearman_rho` to render effect-size grids.
-
-Run TD correlations (ages and predicted brain age) using the built-in preset:
-```bash
-python compute_network_age_correlations.py \
-  --preset brain_age_td \
-  --target-key Predicted_Brain_Age:brain_age_pred \
-  --apply-fdr \
-  --scatter-plots
-```
-
-For brain-behavior cohorts:
-```bash
-python compute_network_age_correlations.py \
-  --preset brain_behavior_adhd200 \
-  --apply-fdr \
-  --scatter-plots
-```
-Presets are defined in `config/network_correlation_presets.yaml` and include IG directories, age sources, and behavior target sources, so the CLI stays minimal.
-
-python compute_network_age_correlations.py \
-  --datasets adhd200_adhd_optimized \
-  --root-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior \
-  --parcellation yeo17 \
-  --aggregation-method pos_share \
-  --skip-chronological \
-  --target-key Hyperactivity_Observed:y_true_hyperactivity \
-  --target-key Hyperactivity_Predicted:y_pred_hyperactivity \
-  --target-source Hyperactivity_Observed=adhd200_adhd_optimized::/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_adhd_optimized/predictions.csv::subject_id::Hyperactivity_Observed \
-  --target-source Hyperactivity_Predicted=adhd200_adhd_optimized::/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_adhd_optimized/predictions.csv::subject_id::Hyperactivity_Predicted \
-  --apply-fdr \
-  --save-subject-level \
-  --output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations_behavior
+- Run `compute_network_age_correlations.py --preset brain_age_td --apply-fdr` to generate TD age summaries (paths/targets encoded in the preset).
+- Run `compute_network_age_correlations.py --preset brain_behavior_adhd200 --skip-chronological --apply-fdr` for the ADHD-200 behavior preset.
+- After summaries are generated, use `plot_combined_network_radar.py` to build effect-size grids (see Network IG ↔ Target Correlations section).
 
 # 5. Combined Plots
+```bash
 python plot_brain_behavior_td_cohorts.py
 python plot_pc_loadings_heatmap.py --dataset nki_rs_td
 python plot_pc_loadings_heatmap.py --dataset adhd200_td
 python plot_pc_loadings_heatmap.py --dataset cmihbn_td
+```
 
 # 6. Brain Age Plots
-# Note: TD cohorts (NKI, CMI-HBN TD, ADHD200 TD) use _oct25 NPZ files from:
+```bash
+# Note: TD cohorts (NKI, CMI-HBN TD, ADHD200 TD) use _oct25 NPZ files from the original repo:
 #   /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/
-#   (exception: these NPZ bundles remain in the original repo, not `_test`)
 
 python plot_brain_age_td_cohorts.py \
   --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots
@@ -229,38 +200,19 @@ results/
 
 ### Network IG ↔ Target Correlations
 
-- Use the presets in `config/network_correlation_presets.yaml` to generate age and behavior correlation tables (`results/network_correlations/`). Presets already know the IG directories, chronological-age sources, and any behavior targets, so running the script requires only the preset name (e.g., `brain_age_td`, `brain_behavior_adhd200`).
-- Once the summaries are produced, call `scripts/plot_combined_network_radar.py` with `--ig-column Spearman_rho` (or `Pearson_r`) to render effect-size grids; the default row remains count-based overlap.
-- Update the YAML if paths or cohort definitions change; no README edits needed when adding new cohorts.
+- Use the presets in `config/network_correlation_presets.yaml` to generate age and behavior correlation tables (`results/network_correlations/`). Presets already know the IG directories, chronological-age sources, and any behavior or predicted-brain-age targets, so running the script requires only the preset name (e.g., `brain_age_td`, `brain_behavior_adhd200`).
+- Signed IG averages (`--aggregation-method mean`) can yield near-zero correlations; prefer magnitude-preserving options such as `abs_mean`, `pos_share`, or `neg_share` when interpreting effect sizes.
+- `--apply-fdr` works even when `statsmodels` is unavailable—the script now performs a Benjamini–Hochberg correction internally.
 
 ---
 
 ### Network IG ↔ Behavior Correlations
 
-To correlate network-aggregated IG scores with behavioral targets (observed or predicted), point the script at the brain-behavior IG NPZ bundles and supply the desired array keys:
-
-```bash
-cd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/scripts
-
-python compute_network_age_correlations.py \
-  --datasets adhd200_adhd_optimized \
-  --root-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior \
-  --parcellation yeo17 \
-  --aggregation-method pos_share \
-  --skip-chronological \
-  --target-key Hyperactivity_Observed:y_true_hyperactivity \
-  --target-key Hyperactivity_Predicted:y_pred_hyperactivity \
-  --target-source Hyperactivity_Observed=adhd200_adhd_optimized::/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_adhd_optimized/predictions.csv::subject_id::Hyperactivity_Observed \
-  --target-source Hyperactivity_Predicted=adhd200_adhd_optimized::/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_adhd_optimized/predictions.csv::subject_id::Hyperactivity_Predicted \
-  --apply-fdr \
-  --save-subject-level \
-  --output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations_behavior
-```
-
-- `--target-key LABEL:NPZ_KEY` can be repeated for each behavioral endpoint (e.g., observed vs predicted). Adjust paths per cohort; ADHD example above pulls from the optimized IG directory.
-- Use `--skip-chronological` if the NPZs do not include age arrays.
-- `--save-subject-level` exports subject-aligned network matrices with all requested targets.
-- Outputs mirror the age workflow (`dataset_target_network_correlations.csv` plus an aggregated summary).
+- Use the `brain_behavior_adhd200` preset for ADHD-200 behavior correlations:
+  ```bash
+  python compute_network_age_correlations.py --preset brain_behavior_adhd200 --skip-chronological --apply-fdr
+  ```
+  This preset links to the optimized IG folder and pulls observed/predicted scores from `predictions.csv` automatically. Extend the YAML with additional behavior presets as needed.
 
 ---
 
@@ -328,4 +280,4 @@ This repo clones from local to Oak. After making changes, sync:
 bash SYNC_NOW.sh  # Or use git/rsync
 ```
 
-**Note**: Many `SpearmanRConstantInputWarning`
+**Note**: Many `

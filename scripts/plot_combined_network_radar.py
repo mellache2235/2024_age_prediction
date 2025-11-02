@@ -337,9 +337,21 @@ Example:
 """,
     )
 
-    parser.add_argument("--td", required=True, type=Path, help="CSV for TD cohorts")
-    parser.add_argument("--adhd", required=True, type=Path, help="CSV for ADHD cohorts")
-    parser.add_argument("--asd", required=True, type=Path, help="CSV for ASD cohorts")
+    parser.add_argument(
+        "--td",
+        type=Path,
+        help="Count-based CSV for TD cohorts (optional if only ADHD/ASD plots are desired)."
+    )
+    parser.add_argument(
+        "--adhd",
+        type=Path,
+        help="Count-based CSV for ADHD cohorts (optional)."
+    )
+    parser.add_argument(
+        "--asd",
+        type=Path,
+        help="Count-based CSV for ASD cohorts (optional)."
+    )
     parser.add_argument("--output", required=True, type=Path, help="Output path (without extension)")
     parser.add_argument(
         "--network-order",
@@ -447,33 +459,52 @@ def main() -> None:
 
     network_order = tuple(args.network_order) if args.network_order else DEFAULT_NETWORK_ORDER
 
-    td_series = extract_network_series(load_network_csv(args.td), network_order, args.prefer_total)
-    adhd_series = extract_network_series(load_network_csv(args.adhd), network_order, args.prefer_total)
-    asd_series = extract_network_series(load_network_csv(args.asd), network_order, args.prefer_total)
+    count_datasets: "OrderedDict[str, pd.Series]" = OrderedDict()
+    if args.td:
+        count_datasets["TD"] = extract_network_series(
+            load_network_csv(args.td),
+            network_order,
+            args.prefer_total,
+        )
+    if args.adhd:
+        count_datasets["ADHD"] = extract_network_series(
+            load_network_csv(args.adhd),
+            network_order,
+            args.prefer_total,
+        )
+    if args.asd:
+        count_datasets["ASD"] = extract_network_series(
+            load_network_csv(args.asd),
+            network_order,
+            args.prefer_total,
+        )
 
-    all_series = {"TD": td_series, "ADHD": adhd_series, "ASD": asd_series}
-    normalized = normalize_series(all_series)
+    if count_datasets:
+        normalized_counts = normalize_series(count_datasets)
 
-    colors = pastel_spectral(len(network_order))
+        fig, axes = plt.subplots(
+            1,
+            len(count_datasets),
+            subplot_kw={"projection": "polar"},
+            figsize=(6 * len(count_datasets), 6.5),
+        )
+        if len(count_datasets) == 1:
+            axes = [axes]
 
-    fig, axes = plt.subplots(
-        1,
-        3,
-        subplot_kw={"projection": "polar"},
-        figsize=(18, 6.5),
-    )
+        for ax, (label, series) in zip(axes, normalized_counts.items()):
+            create_radar_panel(ax, series.values, network_order, label, colors)
 
-    titles = ["(A) TD", "(B) ADHD", "(C) ASD"]
-    for ax, key, title in zip(axes, normalized.keys(), titles):
-        create_radar_panel(ax, normalized[key].values, network_order, title, colors)
+        if len(count_datasets) < len(axes):
+            for ax in axes[len(count_datasets) :]:
+                ax.set_visible(False)
 
-    # Shared label underneath panels
-    fig.text(0.5, 0.02, args.radius_label, ha="center", fontsize=15, fontweight="bold")
+        fig.text(0.5, 0.02, args.radius_label, ha="center", fontsize=15, fontweight="bold")
+        fig.subplots_adjust(wspace=0.35, bottom=0.12)
 
-    fig.subplots_adjust(wspace=0.35, bottom=0.12)
-
-    save_figure(fig, args.output)
-    print(f"✓ Saved radar panels to {args.output}")
+        save_figure(fig, args.output)
+        print(f"✓ Saved radar panels to {args.output}")
+    else:
+        colors = pastel_spectral(len(network_order))
 
     td_effect_entries = parse_labeled_paths(args.td_ig, "TD", expected_count=len(args.td_ig) if args.td_ig else None)
     adhd_effect_entries = parse_labeled_paths(args.adhd_ig, "ADHD", expected_count=len(args.adhd_ig) if args.adhd_ig else None)
