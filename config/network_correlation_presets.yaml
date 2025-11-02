@@ -15,21 +15,21 @@ presets:
         age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/nki_age_cog_dev/fold_0.bin
         target_sources:
           - label: Predicted_Brain_Age
-            file: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_predictions/npz_files/predicted_nki_ages.npz
+            file: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/nki_updated/predicted_nki_ages_oct25.npz
             value_column: predicted
       cmihbn_td:
         ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files_td
-        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/cmihbn_age_TD_wIDs/fold_0.bin
+        age_source: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/cmihbn_updated/actual_cmihbn_td_ages_oct25.npz
         target_sources:
           - label: Predicted_Brain_Age
-            file: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_predictions/npz_files/predicted_cmihbn_td_ages.npz
+            file: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/cmihbn_td/predicted_cmihbn_td_ages_oct25.npz
             value_column: predicted
       adhd200_td:
         ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files_td
-        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/adhd200_regression_age_TD_wIDs/fold_0.bin
+        age_source: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/adhd200_updated/actual_adhd200_td_ages_oct25.npz
         target_sources:
           - label: Predicted_Brain_Age
-            file: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_predictions/npz_files/predicted_adhd200_td_ages.npz
+            file: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/adhd200_td/predicted_adhd200_td_ages_oct25.npz
             value_column: predicted
   brain_behavior_adhd200:
     description: Observed/predicted behavior correlations for ADHD-200 ADHD cohort.
