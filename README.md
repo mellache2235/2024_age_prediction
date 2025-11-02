@@ -200,7 +200,7 @@ results/
 
 ### Network IG ↔ Target Correlations
 
-- Use the presets in `config/network_correlation_presets.yaml` to generate age and behavior correlation tables (`results/network_correlations/`). Presets already know the IG directories, chronological-age sources, and any behavior or predicted-brain-age targets, so running the script requires only the preset name (e.g., `brain_age_td`, `brain_behavior_adhd200`).
+- Use the presets in `config/network_correlation_presets.yaml` to generate age and behavior correlation tables (`results/network_correlations/`). Presets already know the IG directories, chronological-age sources, and any behavior or predicted-brain-age targets, so running the script requires only the preset name (e.g., `brain_age_td`, `brain_behavior_adhd200`). Set `parcellation: yeo17` inside a preset if you prefer the 17-network atlas.
 - Signed IG averages (`--aggregation-method mean`) can yield near-zero correlations; prefer magnitude-preserving options such as `abs_mean`, `pos_share`, or `neg_share` when interpreting effect sizes.
 - `--apply-fdr` works even when `statsmodels` is unavailable—the script now performs a Benjamini–Hochberg correction internally.
 

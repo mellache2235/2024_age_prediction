@@ -1,6 +1,6 @@
 presets:
   brain_age_td:
-    description: Chronological and predicted brain-age correlations for HCP-Development and TD cohorts.
+    description: Chronological and predicted brain-age correlations for HCP-Development and TD cohorts. Set `parcellation: yeo17` if you prefer the 17-network atlas.
     datasets:
       hcp_dev:
         ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/dev/ig_files
