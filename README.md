@@ -193,7 +193,7 @@ results/
 
 ### Network IG ↔ Target Correlations
 
-Aggregate Integrated Gradients across all 500 folds, collapse ROIs to Yeo networks, and correlate network importance with chronological age (default), predicted brain age, and any behavioral targets stored alongside the IG files:
+Aggregate Integrated Gradients across all 500 folds, collapse ROIs to Yeo networks, and correlate network importance with chronological age (default), predicted brain age, or any behavioral targets stored alongside the IG files:
 
 ```bash
 python scripts/compute_network_age_correlations.py \
@@ -225,6 +225,33 @@ network_correlations/
 ```
 
 Each CSV reports `Pearson_r`, `Spearman_rho`, descriptive stats (`Mean_IG`, `Std_IG`), and (optionally) FDR-adjusted p-values per network.
+
+---
+
+### Network IG ↔ Behavior Correlations
+
+To correlate network-aggregated IG scores with behavioral targets (observed or predicted), point the script at the brain-behavior IG NPZ bundles and supply the desired array keys:
+
+```bash
+cd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/scripts
+
+python compute_network_age_correlations.py \
+  --datasets adhd200_adhd_optimized \
+  --root-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior \
+  --parcellation yeo17 \
+  --aggregation-method pos_share \
+  --skip-chronological \
+  --target-key Hyperactivity_Observed:y_true_hyperactivity \
+  --target-key Hyperactivity_Predicted:y_pred_hyperactivity \
+  --apply-fdr \
+  --save-subject-level \
+  --output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations_behavior
+```
+
+- `--target-key LABEL:NPZ_KEY` can be repeated for each behavioral endpoint (e.g., observed vs predicted).
+- Use `--skip-chronological` if the NPZs do not include age arrays.
+- `--save-subject-level` exports subject-aligned network matrices with all requested targets.
+- Outputs mirror the age workflow (`dataset_target_network_correlations.csv` plus an aggregated summary).
 
 ---
 
