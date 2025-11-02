@@ -168,10 +168,21 @@ def load_age_source(path: Path) -> Tuple[Optional[List[str]], np.ndarray]:
     if suffix == ".bin":
         try:
             _, _, id_train, y_train, y_test, id_test = load_finetune_dataset_w_ids(str(path))
-            subjects = id_train + id_test if id_train is not None else None
+            ids_train = np.asarray(id_train).ravel() if id_train is not None else None
+            ids_test = np.asarray(id_test).ravel() if id_test is not None else None
+            if ids_train is not None and ids_test is not None:
+                subjects_array = np.concatenate([ids_train, ids_test])
+            elif ids_train is not None:
+                subjects_array = ids_train
+            elif ids_test is not None:
+                subjects_array = ids_test
+            else:
+                subjects_array = None
+
             ages = np.concatenate([np.asarray(y_train, dtype=float), np.asarray(y_test, dtype=float)])
-            if subjects is not None:
-                return [str(s) for s in subjects], ages
+
+            if subjects_array is not None:
+                return [str(s) for s in subjects_array], ages
             return None, ages
         except (KeyError, AttributeError):
             pass
