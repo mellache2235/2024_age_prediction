@@ -269,7 +269,7 @@ python compute_network_age_correlations.py \
   --output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations_behavior
 ```
 
-- `--target-key LABEL:NPZ_KEY` can be repeated for each behavioral endpoint (e.g., observed vs predicted).
+- `--target-key LABEL:NPZ_KEY` can be repeated for each behavioral endpoint (e.g., observed vs predicted). Adjust paths per cohort; ADHD example above pulls from the optimized IG directory.
 - Use `--skip-chronological` if the NPZs do not include age arrays.
 - `--save-subject-level` exports subject-aligned network matrices with all requested targets.
 - Outputs mirror the age workflow (`dataset_target_network_correlations.csv` plus an aggregated summary).
@@ -416,15 +416,21 @@ python scripts/plot_combined_network_radar.py \
   --adhd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_ADHD/shared_network_analysis.csv \
   --asd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_ASD/shared_network_analysis.csv \
   --output /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/radar_panels/shared_network_radar \
-  --td-ig /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/nki_rs_td_Chronological_Age_network_correlations.csv \
-  --adhd-ig /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/adhd200_adhd_Chronological_Age_network_correlations.csv \
-  --asd-ig /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/abide_asd_Chronological_Age_network_correlations.csv \
+  --td-ig "HCP-Development=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/network_correlations/hcp_development_Chronological_Age_network_correlations.csv" \
+  --td-ig "NKI-RS TD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/nki_rs_td_Chronological_Age_network_correlations.csv" \
+  --td-ig "CMI-HBN TD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/cmihbn_td_Chronological_Age_network_correlations.csv" \
+  --td-ig "ADHD-200 TD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/adhd200_td_Chronological_Age_network_correlations.csv" \
+  --adhd-ig "ADHD-200 ADHD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations_behavior/adhd200_adhd_Hyperactivity_Observed_network_correlations.csv" \
+  --adhd-ig "CMI-HBN ADHD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations_behavior/cmihbn_adhd_Hyperactivity_Observed_network_correlations.csv" \
+  --asd-ig "Stanford ASD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations_behavior/stanford_asd_SRS_total_network_correlations.csv" \
+  --asd-ig "ABIDE ASD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations_behavior/abide_asd_ADOS_total_network_correlations.csv" \
   --ig-target Chronological_Age \
   --ig-column Mean_IG
 ```
 
-- Saves the current count-based radar (`network_radar_counts.{png,tiff,ai}`) and an additional effect-size radar (`..._effect_Chronological_Age_Mean_IG.{png,tiff,ai}`) that reflects normalized |Mean IG| per network.
-- Set `--ig-target` to match the `Target` column in your IG correlation summaries (e.g., `Hyperactivity`, `Predicted_Brain_Age`).
+- Saves the count-based overlap radar (`shared_network_radar.{png,tiff,ai}`) across TD/ADHD/ASD.
+- Generates three mean-IG figures: a TD 2×2 grid (order required: HCP-Development, NKI-RS TD, CMI-HBN TD, ADHD-200 TD) plus 1×2 grids for ADHD and ASD cohorts.
+- HCP-Development IG summaries currently live in the non-`_test` repo; all other paths point to `_test` results.
 - Use `--ig-column` to switch to other metrics (e.g., `Pearson_r`), and `--ig-aggregation` (mean/sum/median) if multiple rows per network remain after filtering.
 - Pass `--no-ig-abs` if you need signed IG values; negative values are shifted so the minimum sits at zero before normalization.
 - Adjust `--ig-radius-label` to customize the legend beneath the effect-size panels.

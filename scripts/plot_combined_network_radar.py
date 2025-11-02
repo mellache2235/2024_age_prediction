@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Create three-panel radar plots comparing TD, ADHD, and ASD network attributions.
+"""Create publication-ready radar plots comparing TD, ADHD, and ASD network attributions.
 
-Generates the traditional count-based radar (default input CSVs) and, when
-provided with network correlation summaries from `compute_network_age_correlations.py`,
-produces an additional effect-size radar that visualizes mean IG magnitudes across
-500 folds (or other supplied metrics).
+- Default run: generates the count-based overlap radar (three panels: TD, ADHD, ASD).
+- When mean-IG summaries are supplied, produces cohort-specific grids:
+  * TD → 2×2 grid (HCP-Development, NKI-RS TD, CMI-HBN TD, ADHD-200 TD)
+  * ADHD → 1×2 grid
+  * ASD → 1×2 grid
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ import matplotlib.font_manager as font_manager
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from collections import OrderedDict
 
 # -----------------------------------------------------------------------------
 # GLOBAL STYLING CONSTANTS
@@ -289,6 +291,37 @@ def save_figure(fig: plt.Figure, output_path: Path) -> None:
     pdf.FigureCanvas(fig).print_pdf(str(ai_path))
 
 
+def parse_labeled_paths(
+    entries: Optional[Sequence[str]],
+    group_name: str,
+    expected_count: Optional[int] = None,
+) -> List[Tuple[str, Path]]:
+    if not entries:
+        return []
+
+    parsed: List[Tuple[str, Path]] = []
+    for raw in entries:
+        if "=" not in raw:
+            raise ValueError(
+                f"Invalid {group_name} entry '{raw}'. Expected format LABEL=/absolute/path/to.csv"
+            )
+        label, path_str = raw.split("=", 1)
+        label = label.strip()
+        path = Path(path_str).expanduser()
+        if not label:
+            raise ValueError(f"{group_name} entry '{raw}' missing label before '='.")
+        if not path.exists():
+            raise FileNotFoundError(f"File not found for {group_name} entry '{raw}': {path}")
+        parsed.append((label, path))
+
+    if expected_count is not None and len(parsed) != expected_count:
+        raise ValueError(
+            f"Expected {expected_count} labeled CSVs for {group_name}, received {len(parsed)}."
+        )
+
+    return parsed
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Create three-panel network radar plot for TD, ADHD, and ASD cohorts",
@@ -325,18 +358,21 @@ Example:
     )
     parser.add_argument(
         "--td-ig",
-        type=Path,
-        help="Optional network correlations CSV for TD cohort (Mean IG effect sizes).",
+        action="append",
+        metavar="LABEL=PATH",
+        help="Mean-IG CSVs for TD layout (provide four entries: HCP-Development, NKI-RS TD, CMI-HBN TD, ADHD-200 TD).",
     )
     parser.add_argument(
         "--adhd-ig",
-        type=Path,
-        help="Optional network correlations CSV for ADHD cohort (Mean IG effect sizes).",
+        action="append",
+        metavar="LABEL=PATH",
+        help="Mean-IG CSVs for ADHD layout (provide two entries, e.g., ADHD-200 ADHD, CMI-HBN ADHD).",
     )
     parser.add_argument(
         "--asd-ig",
-        type=Path,
-        help="Optional network correlations CSV for ASD cohort (Mean IG effect sizes).",
+        action="append",
+        metavar="LABEL=PATH",
+        help="Mean-IG CSVs for ASD layout (provide two entries, e.g., Stanford ASD, ABIDE ASD).",
     )
     parser.add_argument(
         "--ig-target",
@@ -369,6 +405,40 @@ Example:
     )
 
     return parser.parse_args()
+
+
+def render_radar_grid(
+    series_dict: "OrderedDict[str, pd.Series]",
+    network_order: Sequence[str],
+    colors: Sequence[str],
+    layout: Tuple[int, int],
+    title_prefix: str,
+    radius_label: str,
+    output_path: Path,
+) -> None:
+    rows, cols = layout
+    normalized = normalize_series(series_dict)
+
+    fig, axes = plt.subplots(
+        rows,
+        cols,
+        subplot_kw={"projection": "polar"},
+        figsize=(6 * cols, 6 * rows),
+    )
+
+    axes_iter = axes.flatten() if isinstance(axes, np.ndarray) else [axes]
+    for ax, (label, series) in zip(axes_iter, normalized.items()):
+        create_radar_panel(ax, series.values, network_order, label, colors)
+
+    # Hide any unused axes
+    for ax in axes_iter[len(series_dict) :]:
+        ax.set_visible(False)
+
+    fig.text(0.5, 0.02, radius_label, ha="center", fontsize=15, fontweight="bold")
+    fig.subplots_adjust(wspace=0.35, hspace=0.35, bottom=0.12)
+
+    save_figure(fig, output_path)
+    print(f"✓ Saved {title_prefix} radar panels to {output_path}")
 
 
 def main() -> None:
@@ -404,61 +474,83 @@ def main() -> None:
     save_figure(fig, args.output)
     print(f"✓ Saved radar panels to {args.output}")
 
-    effect_inputs = {
-        "TD": args.td_ig,
-        "ADHD": args.adhd_ig,
-        "ASD": args.asd_ig,
-    }
+    td_effect_entries = parse_labeled_paths(args.td_ig, "TD", expected_count=4 if args.td_ig else None)
+    adhd_effect_entries = parse_labeled_paths(args.adhd_ig, "ADHD", expected_count=2 if args.adhd_ig else None)
+    asd_effect_entries = parse_labeled_paths(args.asd_ig, "ASD", expected_count=2 if args.asd_ig else None)
 
-    provided_effect_paths = {k: v for k, v in effect_inputs.items() if v is not None}
-    if provided_effect_paths:
-        missing = [k for k, v in effect_inputs.items() if v is None]
-        if missing:
-            raise ValueError(
-                "Effect-size radar requested but missing IG summary for cohorts: "
-                + ", ".join(missing)
-            )
-
-        effect_series: Dict[str, pd.Series] = {}
-        for cohort, csv_path in effect_inputs.items():
-            effect_series[cohort] = load_effect_size_series(
-                csv_path,
-                network_order,
-                target_label=args.ig_target,
-                value_column=args.ig_column,
-                absolute_values=not args.no_ig_abs,
-                aggregation=args.ig_aggregation,
-            )
-
-        normalized_effect = normalize_series(effect_series)
-
-        fig_effect, axes_effect = plt.subplots(
-            1,
-            3,
-            subplot_kw={"projection": "polar"},
-            figsize=(18, 6.5),
-        )
-
-        for ax, cohort, title in zip(axes_effect, normalized_effect.keys(), titles):
-            create_radar_panel(ax, normalized_effect[cohort].values, network_order, title, colors)
-
-        fig_effect.text(
-            0.5,
-            0.02,
-            args.ig_radius_label,
-            ha="center",
-            fontsize=15,
-            fontweight="bold",
-        )
-
-        fig_effect.subplots_adjust(wspace=0.35, bottom=0.12)
-
+    if td_effect_entries or adhd_effect_entries or asd_effect_entries:
         target_slug = re.sub(r"[^A-Za-z0-9]+", "_", args.ig_target).strip("_") or "target"
         column_slug = re.sub(r"[^A-Za-z0-9]+", "_", args.ig_column).strip("_") or "metric"
-        effect_output = args.output.parent / f"{args.output.name}_effect_{target_slug}_{column_slug}"
+        base_output = args.output.parent / args.output.name
 
-        save_figure(fig_effect, effect_output)
-        print(f"✓ Saved effect-size radar panels to {effect_output}")
+        if td_effect_entries:
+            td_series_dict: "OrderedDict[str, pd.Series]" = OrderedDict()
+            for label, csv_path in td_effect_entries:
+                td_series_dict[label] = load_effect_size_series(
+                    csv_path,
+                    network_order,
+                    target_label=args.ig_target,
+                    value_column=args.ig_column,
+                    absolute_values=not args.no_ig_abs,
+                    aggregation=args.ig_aggregation,
+                )
+
+            td_output = base_output.parent / f"{base_output.name}_td_effect_{target_slug}_{column_slug}"
+            render_radar_grid(
+                td_series_dict,
+                network_order,
+                colors,
+                layout=(2, 2),
+                title_prefix="TD",
+                radius_label=args.ig_radius_label,
+                output_path=td_output,
+            )
+
+        if adhd_effect_entries:
+            adhd_series_dict: "OrderedDict[str, pd.Series]" = OrderedDict()
+            for label, csv_path in adhd_effect_entries:
+                adhd_series_dict[label] = load_effect_size_series(
+                    csv_path,
+                    network_order,
+                    target_label=args.ig_target,
+                    value_column=args.ig_column,
+                    absolute_values=not args.no_ig_abs,
+                    aggregation=args.ig_aggregation,
+                )
+
+            adhd_output = base_output.parent / f"{base_output.name}_adhd_effect_{target_slug}_{column_slug}"
+            render_radar_grid(
+                adhd_series_dict,
+                network_order,
+                colors,
+                layout=(1, 2),
+                title_prefix="ADHD",
+                radius_label=args.ig_radius_label,
+                output_path=adhd_output,
+            )
+
+        if asd_effect_entries:
+            asd_series_dict: "OrderedDict[str, pd.Series]" = OrderedDict()
+            for label, csv_path in asd_effect_entries:
+                asd_series_dict[label] = load_effect_size_series(
+                    csv_path,
+                    network_order,
+                    target_label=args.ig_target,
+                    value_column=args.ig_column,
+                    absolute_values=not args.no_ig_abs,
+                    aggregation=args.ig_aggregation,
+                )
+
+            asd_output = base_output.parent / f"{base_output.name}_asd_effect_{target_slug}_{column_slug}"
+            render_radar_grid(
+                asd_series_dict,
+                network_order,
+                colors,
+                layout=(1, 2),
+                title_prefix="ASD",
+                radius_label=args.ig_radius_label,
+                output_path=asd_output,
+            )
 
 
 if __name__ == "__main__":
