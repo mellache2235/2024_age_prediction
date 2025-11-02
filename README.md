@@ -110,13 +110,34 @@ python run_network_brain_behavior_analysis.py --cohort nki_rs_td
 python run_network_brain_behavior_analysis.py --cohort cmihbn_td --method pos_share
 python run_network_brain_behavior_analysis.py --all  # All cohorts
 
-# 4. Combined Plots
+# 4. Network IG Correlations (Age & Behavior)
+python compute_network_age_correlations.py \
+  --datasets nki_rs_td cmihbn_td adhd200_td \
+  --root-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures \
+  --parcellation yeo7 \
+  --target-key Predicted_Brain_Age:brain_age_pred \
+  --apply-fdr \
+  --output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations
+
+python compute_network_age_correlations.py \
+  --datasets adhd200_adhd_optimized \
+  --root-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior \
+  --parcellation yeo17 \
+  --aggregation-method pos_share \
+  --skip-chronological \
+  --target-key Hyperactivity_Observed:y_true_hyperactivity \
+  --target-key Hyperactivity_Predicted:y_pred_hyperactivity \
+  --apply-fdr \
+  --save-subject-level \
+  --output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations_behavior
+
+# 5. Combined Plots
 python plot_brain_behavior_td_cohorts.py
 python plot_pc_loadings_heatmap.py --dataset nki_rs_td
 python plot_pc_loadings_heatmap.py --dataset adhd200_td
 python plot_pc_loadings_heatmap.py --dataset cmihbn_td
 
-# 5. Brain Age Plots
+# 6. Brain Age Plots
 # Note: TD cohorts (NKI, CMI-HBN TD, ADHD200 TD) use _oct25 NPZ files from:
 #   /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/
 #   (exception: these NPZ bundles remain in the original repo, not `_test`)
