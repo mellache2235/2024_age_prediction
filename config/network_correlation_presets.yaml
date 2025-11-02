@@ -22,14 +22,14 @@ presets:
         age_source: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/cmihbn_updated/actual_cmihbn_td_ages_oct25.npz
         target_sources:
           - label: Predicted_Brain_Age
-            file: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/cmihbn_td/predicted_cmihbn_td_ages_oct25.npz
+            file: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/cmihbn_updated/predicted_cmihbn_td_ages_oct25.npz
             value_column: predicted
       adhd200_td:
         ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files_td
         age_source: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/adhd200_updated/actual_adhd200_td_ages_oct25.npz
         target_sources:
           - label: Predicted_Brain_Age
-            file: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/adhd200_td/predicted_adhd200_td_ages_oct25.npz
+            file: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/adhd200_updated/predicted_adhd200_td_ages_oct25.npz
             value_column: predicted
   brain_behavior_adhd200:
     description: Observed/predicted behavior correlations for ADHD-200 ADHD cohort.
