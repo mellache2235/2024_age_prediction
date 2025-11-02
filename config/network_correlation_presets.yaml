@@ -1,0 +1,25 @@
+presets:
+  brain_age_td:
+    description: Chronological and predicted brain-age correlations for HCP-Development and TD cohorts.
+    datasets:
+      hcp_dev:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/dev/ig_files
+        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/hcp_dev_age_five_fold/fold_0.bin
+        target_keys:
+          Predicted_Brain_Age: brain_age_pred
+      nki_rs_td:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/nki/ig_files
+        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/nki_rs_td_age_five_fold/fold_0.bin
+        target_keys:
+          Predicted_Brain_Age: brain_age_pred
+      cmihbn_td:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files_td
+        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/cmihbn_td_age_five_fold/fold_0.bin
+        target_keys:
+          Predicted_Brain_Age: brain_age_pred
+      adhd200_td:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files_td
+        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/adhd200_td_age_five_fold/fold_0.bin
+        target_keys:
+          Predicted_Brain_Age: brain_age_pred
+

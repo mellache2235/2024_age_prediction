@@ -112,20 +112,31 @@ python run_network_brain_behavior_analysis.py --all  # All cohorts
 
 # 4. Network IG Correlations (Age & Behavior)
 python compute_network_age_correlations.py \
-  --datasets hcp_dev nki_rs_td cmihbn_td adhd200_td \
-  --root-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures \
-  --parcellation yeo7 \
+  --preset brain_age_td \
   --target-key Predicted_Brain_Age:brain_age_pred \
   --apply-fdr \
-  --output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations \
-  --dataset-path hcp_dev=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/network_correlations/hcp_development_ig_files \
-  --dataset-path nki_rs_td=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/nki_rs_td \
-  --dataset-path cmihbn_td=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/cmihbn_td \
-  --dataset-path adhd200_td=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/adhd200_td
+  --scatter-plots \
+  --scatter-output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/plots \
+  --output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations
 ```
 
-- Uses `--dataset-path DATASET=/path/to/ig_files` to point the script at non-standard locations (e.g., the shared `integrated_gradients` folder) while still listing the dataset in `--datasets`. The `hcp_dev` override keeps referencing the original repository, which still houses the HCP-Development IG bundles.
-- IG files can include dataset-specific suffixes (e.g., `dev_age_model_401_ig_cmihbn_td.npz`); the script now matches `*_ig*.npz` automatically.
+Run TD correlations (ages and predicted brain age) using the built-in preset:
+```bash
+python compute_network_age_correlations.py \
+  --preset brain_age_td \
+  --target-key Predicted_Brain_Age:brain_age_pred \
+  --apply-fdr \
+  --scatter-plots
+```
+
+For brain-behavior cohorts:
+```bash
+python compute_network_age_correlations.py \
+  --preset brain_behavior_adhd200 \
+  --apply-fdr \
+  --scatter-plots
+```
+Presets are defined in `config/network_correlation_presets.yaml` and include IG directories, age sources, and behavior target sources, so the CLI stays minimal.
 
 python compute_network_age_correlations.py \
   --datasets adhd200_adhd_optimized \
@@ -135,6 +146,8 @@ python compute_network_age_correlations.py \
   --skip-chronological \
   --target-key Hyperactivity_Observed:y_true_hyperactivity \
   --target-key Hyperactivity_Predicted:y_pred_hyperactivity \
+  --target-source Hyperactivity_Observed=adhd200_adhd_optimized::/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_adhd_optimized/predictions.csv::subject_id::Hyperactivity_Observed \
+  --target-source Hyperactivity_Predicted=adhd200_adhd_optimized::/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_adhd_optimized/predictions.csv::subject_id::Hyperactivity_Predicted \
   --apply-fdr \
   --save-subject-level \
   --output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations_behavior
@@ -222,38 +235,36 @@ results/
 
 ### Network IG ↔ Target Correlations
 
-Aggregate Integrated Gradients across all 500 folds, collapse ROIs to Yeo networks, and correlate network importance with chronological age (default), predicted brain age, or any behavioral targets stored alongside the IG files:
-
+Run the TD cohorts (chronological + predicted brain age) with the preset—no manual paths required:
 ```bash
-python scripts/compute_network_age_correlations.py \
-  --datasets nki_rs_td cmihbn_td adhd200_td \
-  --root-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures \
-  --parcellation yeo7 \
-  --target-key Predicted_Brain_Age:brain_age_pred \
-  --apply-fdr \
-  --output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations
+python compute_network_age_correlations.py \
+  --preset brain_age_td \
+  --apply-fdr
 ```
+The preset (see `config/network_correlation_presets.yaml`) points to the IG directories, fold `.bin` ages, and the `Predicted_Brain_Age:brain_age_pred` target key for each cohort. Outputs land in `results/network_correlations/`.
 
-- Uses `ig_files_td/` when present; falls back to `ig_files/` otherwise.
-- Correlates with chronological age automatically; add `--skip-chronological` for behavior-only runs.
-- Repeat `--target-key LABEL:NPZ_KEY` to include predicted outputs or behaviors (e.g., `--target-key Hyperactivity:y_true --target-key Predicted_Hyperactivity:y_pred`).
-- Accepts `--parcellation yeo7|yeo17` and aggregation modes (`--aggregation-method mean|abs_mean|pos_share|neg_share|signed_share`).
-- Attempts to infer subject IDs (and ages when required) from each `_ig.npz`; override with `--subject-key` / `--age-key` if the heuristic guesses incorrectly.
-- Pass `--apply-fdr` to append Benjamini-Hochberg corrected p-values per dataset/target.
-- Pass `--save-subject-level` to dump per-subject network IG matrices with all requested targets merged in.
-
-Outputs land in the directory specified by `--output-dir`:
-
+For brain-behavior cohorts, use the behavior preset:
+```bash
+python compute_network_age_correlations.py \
+  --preset brain_behavior_adhd200 \
+  --apply-fdr
 ```
-network_correlations/
-├── nki_rs_td_Chronological_Age_network_correlations.csv
-├── nki_rs_td_Predicted_Brain_Age_network_correlations.csv
-├── cmihbn_td_Chronological_Age_network_correlations.csv
-├── ...
-└── network_correlations_yeo7_mean.csv   # Combined summary across datasets/targets
-```
+That preset pulls observed/predicted scores directly from each cohort’s `predictions.csv` and aligns them to the IG rows. Update the YAML if you add new behaviors or datasets.
 
-Each CSV reports `Pearson_r`, `Spearman_rho`, descriptive stats (`Mean_IG`, `Std_IG`), and (optionally) FDR-adjusted p-values per network.
+Once the CSV summaries are generated, create radar plots that show Spearman ρ (effect size per network):
+```bash
+python scripts/plot_combined_network_radar.py \
+  --td /oak/.../shared_TD/shared_network_analysis.csv \
+  --adhd /oak/.../shared_ADHD/shared_network_analysis.csv \
+  --asd /oak/.../shared_ASD/shared_network_analysis.csv \
+  --output /oak/.../shared_network_radar \
+  --td-ig "HCP-Development=/oak/.../hcp_dev_Chronological_Age_network_correlations.csv" \
+  --td-ig "NKI-RS TD=/oak/.../nki_rs_td_Chronological_Age_network_correlations.csv" \
+  --td-ig "CMI-HBN TD=/oak/.../cmihbn_td_Chronological_Age_network_correlations.csv" \
+  --td-ig "ADHD-200 TD=/oak/.../adhd200_td_Chronological_Age_network_correlations.csv" \
+  --ig-column Spearman_rho
+```
+(Optional: add `--no-ig-abs` to keep the sign of ρ, or swap `Spearman_rho` for `Pearson_r`). The first row still shows count-based overlap; the TD 2×2 and ADHD/ASD 1×2 grids now encode correlation strength instead of mean IG.
 
 ---
 
@@ -272,6 +283,8 @@ python compute_network_age_correlations.py \
   --skip-chronological \
   --target-key Hyperactivity_Observed:y_true_hyperactivity \
   --target-key Hyperactivity_Predicted:y_pred_hyperactivity \
+  --target-source Hyperactivity_Observed=adhd200_adhd_optimized::/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_adhd_optimized/predictions.csv::subject_id::Hyperactivity_Observed \
+  --target-source Hyperactivity_Predicted=adhd200_adhd_optimized::/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/adhd200_adhd_optimized/predictions.csv::subject_id::Hyperactivity_Predicted \
   --apply-fdr \
   --save-subject-level \
   --output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations_behavior
@@ -348,98 +361,4 @@ This repo clones from local to Oak. After making changes, sync:
 bash SYNC_NOW.sh  # Or use git/rsync
 ```
 
-**Note**: Many `SpearmanRConstantInputWarning` messages during optimization are **normal** - they're from bad configurations being tested and rejected. See `OPTIMIZATION_GUIDE.md` for details.
-
-### Statistical Comparisons
-6 complementary metrics per comparison:
-1. Cosine similarity (permutation p-value, 10k iterations)
-2. Spearman ρ on ROI ranks
-3. Aitchison (CLR) distance
-4. Jensen-Shannon divergence
-5. ROI-wise two-proportion tests (FDR corrected)
-6. Network-level aggregation
-
----
-
-## 🐛 Troubleshooting
-
-**Environment issues**: See `INSTALL.md`
-
-**Missing packages**: Run `python scripts/verify_imports.py`
-
-**Font not found**: Arial loaded automatically from HPC path
-
----
-
-## 🧠 Network Aggregation Methods
-
-For small sample sizes (N<100), network-level features provide better statistical power and interpretability.
-
-### Aggregation Methods (All Tested in Optimization):
-
-**Simple Methods:**
-- `mean`: Average IG scores within network
-- `abs_mean`: Average absolute IG scores (preserves magnitude)
-
-**Signed Mass Methods** (Recommended - from research):
-For each network *g* with ROIs, compute:
-- \( P_g = \sum_{i \in g} \max(IG_i, 0) \) (positive mass)
-- \( N_g = \sum_{i \in g} \max(-IG_i, 0) \) (negative mass)  
-- \( A = \sum_j |IG_j| \) (total absolute mass across ALL 246 ROIs)
-
-Then create features:
-- `pos_share`: \( P_g / A \) (positive mass fraction)
-- `neg_share`: \( N_g / A \) (negative mass fraction)
-- `signed_share`: \( (P_g - N_g) / A \) (net mass fraction)
-
-**Benefits:**
-- Normalizes by total IG magnitude (comparable across subjects)
-- Separates positive/negative contributions
-- Values in [0,1] for shares (interpretable as proportions)
-
-### Performance by Sample Size:
-
-| N | Best Approach | Expected ρ | Ratio |
-|---|---------------|------------|-------|
-| 81 (NKI) | Network (7) + Ridge | 0.30-0.40 | 12:1 ✅ |
-| 84 (CMI-HBN) | Network (7) + Linear | 0.30-0.40 | 12:1 ✅ |
-| 169 (ABIDE) | Network or TopK-IG | 0.35-0.45 | 24:1 ✓ |
-| 238 (ADHD200) | PCA/PLS | 0.40-0.50 | 3:1 ✓ |
-
----
-
-## 📧 Contact
-
-Menon Lab, Stanford University
-
-**Last Updated**: 2024
-
-### Network Radar Panels (Counts + Mean IG)
-
-Create three matching radar panels for TD, ADHD, and ASD cohorts. The default inputs are the shared-network count summaries, and the optional effect-size radar uses the mean network IG magnitudes (averaged across folds) emitted by `compute_network_age_correlations.py`.
-
-```bash
-python scripts/plot_combined_network_radar.py \
-  --td /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_TD/shared_network_analysis.csv \
-  --adhd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_ADHD/shared_network_analysis.csv \
-  --asd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_ASD/shared_network_analysis.csv \
-  --output /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/radar_panels/shared_network_radar \
-  --td-ig "HCP-Development=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/network_correlations/hcp_development_Chronological_Age_network_correlations.csv" \
-  --td-ig "NKI-RS TD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/nki_rs_td_Chronological_Age_network_correlations.csv" \
-  --td-ig "CMI-HBN TD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/cmihbn_td_Chronological_Age_network_correlations.csv" \
-  --td-ig "ADHD-200 TD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/adhd200_td_Chronological_Age_network_correlations.csv" \
-  --adhd-ig "ADHD-200 ADHD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations_behavior/adhd200_adhd_Hyperactivity_Observed_network_correlations.csv" \
-  --adhd-ig "CMI-HBN ADHD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations_behavior/cmihbn_adhd_Hyperactivity_Observed_network_correlations.csv" \
-  --asd-ig "Stanford ASD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations_behavior/stanford_asd_SRS_total_network_correlations.csv" \
-  --asd-ig "ABIDE ASD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations_behavior/abide_asd_ADOS_total_network_correlations.csv" \
-  --ig-target Chronological_Age \
-  --ig-column Mean_IG
-```
-
-- Saves the count-based overlap radar (`shared_network_radar.{png,tiff,ai}`) across TD/ADHD/ASD.
-- Generates three mean-IG figures: a TD 2×2 grid (order required: HCP-Development, NKI-RS TD, CMI-HBN TD, ADHD-200 TD) plus 1×2 grids for ADHD and ASD cohorts.
-- HCP-Development IG summaries currently live in the non-`_test` repo; all other paths point to `_test` results.
-- Use `--ig-column` to switch to other metrics (e.g., `Pearson_r`), and `--ig-aggregation` (mean/sum/median) if multiple rows per network remain after filtering.
-- Pass `--no-ig-abs` if you need signed IG values; negative values are shifted so the minimum sits at zero before normalization.
-- Adjust `--ig-radius-label` to customize the legend beneath the effect-size panels.
-
+**Note**: Many `SpearmanRConstantInputWarning`

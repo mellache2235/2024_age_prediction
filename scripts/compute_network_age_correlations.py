@@ -38,9 +38,9 @@ import math
 import re
 import sys
 import warnings
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 try:
     from statsmodels.stats.multitest import multipletests
@@ -53,11 +53,13 @@ from scipy.stats import pearsonr, spearmanr
 
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf as pdf_backend
+import yaml
 
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent
 
 sys.path.append(str(PROJECT_ROOT / "scripts"))
+sys.path.append(str(PROJECT_ROOT / "utils"))
 
 from optimized_brain_behavior_core import (  # noqa: E402
     aggregate_rois_to_networks,
@@ -72,6 +74,11 @@ from plot_styles import (  # noqa: E402
     DPI,
 )
 
+from data_utils import (  # noqa: E402
+    load_finetune_dataset,
+    load_finetune_dataset_w_ids,
+)
+
 
 # Default location of the Yeo atlas CSV used throughout the project
 DEFAULT_YEO_ATLAS = Path(
@@ -80,6 +87,27 @@ DEFAULT_YEO_ATLAS = Path(
 )
 
 FOLD_PATTERN = re.compile(r"_(\d+)[^/\\]*_ig\.npz$", re.IGNORECASE)
+
+
+UPPER_TOKENS = {
+    "ADHD",
+    "ASD",
+    "TD",
+    "SRS",
+    "ADOS",
+    "IQ",
+    "CBCL",
+    "DSM",
+    "CAARS",
+    "T",
+    "RS",
+    "B",
+    "A",
+    "C",
+    "CDI",
+    "BASC",
+    "SCQ",
+}
 
 
 def discover_ig_directory(root: Path, dataset: str, prefer_td: bool = True) -> Optional[Path]:
@@ -127,6 +155,304 @@ def ig_file_sort_key(path: Path) -> Tuple[int, str]:
     if fold_idx is None:
         return (10**9, path.name)
     return (fold_idx, path.name)
+
+
+def sanitize_filename(name: str) -> str:
+    sanitized = re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_")
+    return sanitized or "value"
+
+
+def load_age_source(path: Path) -> Tuple[Optional[List[str]], np.ndarray]:
+    suffix = path.suffix.lower()
+
+    if suffix == ".bin":
+        try:
+            _, _, id_train, y_train, y_test, id_test = load_finetune_dataset_w_ids(str(path))
+            subjects = id_train + id_test if id_train is not None else None
+            ages = np.concatenate([np.asarray(y_train, dtype=float), np.asarray(y_test, dtype=float)])
+            if subjects is not None:
+                return [str(s) for s in subjects], ages
+            return None, ages
+        except (KeyError, AttributeError):
+            pass
+
+        _, _, y_train, y_test = load_finetune_dataset(str(path))
+        ages = np.concatenate([np.asarray(y_train, dtype=float), np.asarray(y_test, dtype=float)])
+        return None, ages
+
+    if suffix == ".npz":
+        with np.load(path, allow_pickle=True) as data:
+            for candidate in ("ages", "age", "y", "targets", "labels"):
+                if candidate in data:
+                    arr = np.asarray(data[candidate], dtype=float)
+                    return None, arr
+        raise ValueError(
+            f"Could not locate age array in NPZ file {path}. Expected keys include 'ages', 'age', 'y', 'targets', or 'labels'."
+        )
+
+    if suffix == ".npy":
+        arr = np.load(path)
+        return None, np.asarray(arr, dtype=float)
+
+    if suffix in {".csv", ".tsv"}:
+        df = pd.read_csv(path)
+        for candidate in ("age", "Age", "AGES", "chronological_age"):
+            if candidate in df.columns:
+                arr = df[candidate].to_numpy(dtype=float)
+                return None, arr
+        raise ValueError(
+            f"CSV/TSV file {path} does not contain a recognizable age column."
+        )
+
+    raise ValueError(f"Unsupported age source file format for {path}.")
+
+
+def parse_age_sources(entries: Optional[Sequence[str]]) -> Dict[str, Tuple[Optional[List[str]], np.ndarray]]:
+    sources: Dict[str, Tuple[Optional[List[str]], np.ndarray]] = {}
+    if not entries:
+        return sources
+
+    for entry in entries:
+        if "=" not in entry:
+            raise ValueError(
+                f"Invalid --age-source '{entry}'. Expected format DATASET=/absolute/path/to/ages.bin"
+            )
+        dataset_key, raw_path = entry.split("=", 1)
+        dataset_key = dataset_key.strip()
+        age_path = Path(raw_path).expanduser()
+        if not dataset_key:
+            raise ValueError(f"Invalid --age-source '{entry}': dataset key cannot be empty.")
+        if not age_path.exists():
+            raise FileNotFoundError(f"Age source for dataset '{dataset_key}' not found: {age_path}")
+        subjects, ages = load_age_source(age_path)
+        sources[dataset_key] = (subjects, ages)
+
+    return sources
+
+
+def load_target_source(path: Path, id_key: str, value_key: str) -> Tuple[List[str], np.ndarray]:
+    suffix = path.suffix.lower()
+
+    if suffix in {".csv", ".tsv"}:
+        df = pd.read_csv(path)
+        if id_key not in df.columns or value_key not in df.columns:
+            raise KeyError(
+                f"Columns '{id_key}' and/or '{value_key}' not found in {path}."
+            )
+        ids = df[id_key].astype(str).tolist()
+        values = df[value_key].to_numpy(dtype=float)
+        return ids, values
+
+    if suffix == ".npz":
+        with np.load(path, allow_pickle=True) as data:
+            if id_key not in data or value_key not in data:
+                raise KeyError(
+                    f"Keys '{id_key}' and/or '{value_key}' not present in {path}."
+                )
+            ids = np.asarray(data[id_key]).astype(str).tolist()
+            values = np.asarray(data[value_key], dtype=float)
+            return ids, values
+
+    if suffix == ".npy":
+        arr = np.load(path, allow_pickle=True)
+        if arr.dtype.names is None:
+            raise ValueError(
+                f"Target source {path} is a plain array; provide a structured array with named fields."
+            )
+        if id_key not in arr.dtype.names or value_key not in arr.dtype.names:
+            raise KeyError(
+                f"Fields '{id_key}' and/or '{value_key}' not found in structured array {path}."
+            )
+        ids = arr[id_key].astype(str).tolist()
+        values = arr[value_key].astype(float)
+        return ids, values
+
+    raise ValueError(f"Unsupported target source file format for {path}.")
+
+
+def parse_target_sources(entries: Optional[Sequence[str]]) -> Dict[str, List[Tuple[str, List[str], np.ndarray]]]:
+    sources: Dict[str, List[Tuple[str, List[str], np.ndarray]]] = defaultdict(list)
+    if not entries:
+        return sources
+
+    for entry in entries:
+        if "=" not in entry:
+            raise ValueError(
+                f"Invalid --target-source '{entry}'. Expected format LABEL=DATASET::/path::id_col::value_col"
+            )
+
+        label, remainder = entry.split("=", 1)
+        label = label.strip()
+        parts = remainder.split("::")
+        if len(parts) != 4:
+            raise ValueError(
+                f"Invalid --target-source '{entry}'. Expected format LABEL=DATASET::/path::id_col::value_col"
+            )
+
+        dataset_key = parts[0].strip()
+        path = Path(parts[1]).expanduser()
+        id_key = parts[2].strip()
+        value_key = parts[3].strip()
+
+        if not label:
+            raise ValueError(f"Invalid --target-source '{entry}': label cannot be empty.")
+        if not dataset_key:
+            raise ValueError(f"Invalid --target-source '{entry}': dataset key cannot be empty.")
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Target source file for dataset '{dataset_key}' not found: {path}"
+            )
+
+        subject_ids, values = load_target_source(path, id_key, value_key)
+        sources[dataset_key].append((label, subject_ids, values))
+
+    return sources
+
+
+def load_presets(preset_names: Sequence[str]) -> "OrderedDict[str, Dict[str, Any]]":
+    presets: "OrderedDict[str, Dict[str, Any]]" = OrderedDict()
+    if not preset_names:
+        return presets
+
+    config_path = PROJECT_ROOT / "config" / "network_correlation_presets.yaml"
+    if not config_path.exists():
+        raise FileNotFoundError(
+            f"Preset configuration file not found at {config_path}."
+        )
+
+    with open(config_path, "r", encoding="utf-8") as handle:
+        raw = yaml.safe_load(handle) or {}
+
+    available = raw.get("presets", {})
+    if not available:
+        raise ValueError(
+            f"No presets defined in {config_path}."
+        )
+
+    for preset_name in preset_names:
+        if preset_name not in available:
+            raise KeyError(
+                f"Preset '{preset_name}' not found in {config_path}."
+            )
+        preset_block = available[preset_name] or {}
+        datasets_cfg = preset_block.get("datasets", {})
+        for dataset_key, dataset_cfg in datasets_cfg.items():
+            if dataset_key in presets:
+                warnings.warn(
+                    f"Dataset '{dataset_key}' specified multiple times across presets; using configuration from '{preset_name}'."
+                )
+            presets[dataset_key] = dataset_cfg or {}
+
+    return presets
+
+
+def format_target_axis_label(label: str, chronological_label: str) -> str:
+    if not label:
+        return "Target"
+
+    label_clean = label.strip()
+
+    if label_clean == chronological_label:
+        return "Chronological Age (years)"
+
+    normalized = label_clean.replace("_", " ").replace("-", " ")
+    normalized = re.sub(r"\s+", " ", normalized)
+
+    lower_norm = normalized.lower()
+    if lower_norm.endswith(" observed"):
+        normalized = normalized[:-8].rstrip() + " (Observed)"
+    elif lower_norm.endswith(" predicted"):
+        normalized = normalized[:-9].rstrip() + " (Predicted)"
+
+    words: List[str] = []
+    for word in normalized.split():
+        upper_word = word.upper()
+        if upper_word in UPPER_TOKENS:
+            words.append(upper_word)
+        else:
+            words.append(word.capitalize())
+
+    formatted = " ".join(words)
+    lower_formatted = formatted.lower()
+    if "age" in lower_formatted and "(years)" not in lower_formatted:
+        formatted += " (years)"
+    return formatted
+
+
+def format_network_axis_label(network_name: str) -> str:
+    return f"{network_name} Mean IG"
+
+
+def create_scatter_figure(
+    dataset_key: str,
+    target_label: str,
+    network_name: str,
+    x_values: np.ndarray,
+    y_values: np.ndarray,
+    rho: float,
+    p_value: float,
+    output_dir: Path,
+    chronological_label: str,
+    title_suffix: str = "",
+) -> None:
+    if x_values.size < 3:
+        return
+
+    p_str = "< 0.001" if p_value < 0.001 else f"= {p_value:.3f}"
+    stats_text = f"ρ = {rho:.3f}\np {p_str}"
+
+    dataset_title = get_dataset_title(dataset_key)
+    title = dataset_title if not title_suffix else f"{dataset_title} – {title_suffix}"
+
+    fig, ax = plt.subplots(figsize=FIGSIZE_SINGLE, dpi=DPI)
+    fig.patch.set_facecolor(FIGURE_FACECOLOR)
+
+    create_standardized_scatter(
+        ax,
+        x_values,
+        y_values,
+        title=title,
+        xlabel=format_target_axis_label(target_label, chronological_label),
+        ylabel=format_network_axis_label(network_name),
+        stats_text=stats_text,
+        is_subplot=False,
+    )
+
+    plt.tight_layout()
+
+    base_name = "_".join(
+        [
+            sanitize_filename(dataset_key),
+            sanitize_filename(target_label),
+            sanitize_filename(network_name),
+            "network_scatter",
+        ]
+    )
+    png_path = output_dir / f"{base_name}.png"
+    tiff_path = output_dir / f"{base_name}.tiff"
+    ai_path = output_dir / f"{base_name}.ai"
+
+    fig.savefig(
+        png_path,
+        dpi=DPI,
+        bbox_inches="tight",
+        facecolor=FIGURE_FACECOLOR,
+        edgecolor="none",
+    )
+    fig.savefig(
+        tiff_path,
+        dpi=DPI,
+        bbox_inches="tight",
+        facecolor=FIGURE_FACECOLOR,
+        edgecolor="none",
+        format="tiff",
+        pil_kwargs={"compression": "tiff_lzw"},
+    )
+    pdf_backend.FigureCanvas(fig).print_pdf(str(ai_path))
+
+    plt.close(fig)
+
+    print(f"    ✓ Scatter saved: {png_path.name}")
 
 
 def load_network_mapping(atlas_path: Path, parcellation: str) -> Dict[int, str]:
@@ -322,6 +648,8 @@ def aggregate_subject_networks(
     target_key_map: Optional[Dict[str, str]] = None,
     collect_chronological: bool = True,
     verbose: bool = False,
+    override_subjects: Optional[Sequence[str]] = None,
+    override_ages: Optional[np.ndarray] = None,
 ) -> Tuple[List[str], List[str], np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
     """Aggregate ROI-level IG to networks and align by subject.
 
@@ -347,6 +675,13 @@ def aggregate_subject_networks(
         label: defaultdict(list) for label in target_key_map
     }
     missing_target_reported: Dict[str, bool] = {label: False for label in target_key_map}
+
+    override_subjects_array: Optional[np.ndarray] = (
+        np.asarray(override_subjects, dtype=str) if override_subjects is not None else None
+    )
+    override_ages_array: Optional[np.ndarray] = (
+        np.asarray(override_ages, dtype=float) if override_ages is not None else None
+    )
 
     for ig_path in ig_files:
         fold_idx = extract_fold_index(ig_path)
@@ -376,6 +711,22 @@ def aggregate_subject_networks(
                 subject_key=subject_key,
                 require_age=collect_chronological,
             )
+
+            if override_subjects_array is not None:
+                if override_subjects_array.shape[0] != n_subjects:
+                    raise ValueError(
+                        f"Override subjects length ({override_subjects_array.shape[0]}) does not match IG subjects ({n_subjects}) in {ig_path.name}."
+                    )
+                subjects = override_subjects_array
+                subj_from_file = True
+
+            if override_ages_array is not None:
+                if override_ages_array.shape[0] != n_subjects:
+                    raise ValueError(
+                        f"Override ages length ({override_ages_array.shape[0]}) does not match IG subjects ({n_subjects}) in {ig_path.name}."
+                    )
+                ages = override_ages_array
+                age_from_file = True
 
             if not subj_from_file and verbose:
                 print(
@@ -556,8 +907,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--datasets",
         nargs="+",
-        required=True,
-        help="Dataset directory names under the root results path.",
+        default=[],
+        help="Dataset names under the root results path (optional when using --preset).",
+    )
+    parser.add_argument(
+        "--preset",
+        nargs="+",
+        default=[],
+        help="Load dataset configuration presets defined in config/network_correlation_presets.yaml.",
     )
     parser.add_argument(
         "--root-dir",
@@ -590,6 +947,13 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--target-source",
+        action="append",
+        default=[],
+        metavar="LABEL=DATASET::/path::id_col::value_col",
+        help="External target source aligned by subject ID (e.g., observed/predicted behavior).",
+    )
+    parser.add_argument(
         "--atlas-path",
         type=Path,
         default=DEFAULT_YEO_ATLAS,
@@ -609,6 +973,15 @@ def parse_args() -> argparse.Namespace:
             "Override automatic directory discovery for a dataset. "
             "Provide the dataset label used with --datasets followed by an absolute path to the "
             "directory containing *_ig.npz files (e.g., nki_rs_td=/oak/.../integrated_gradients/nki_rs_td)."
+        ),
+    )
+    parser.add_argument(
+        "--age-source",
+        action="append",
+        metavar="DATASET=PATH",
+        help=(
+            "Provide an explicit age source for a dataset (e.g., fold_0.bin). "
+            "The loader reads chronological ages from the file and aligns them with IG rows."
         ),
     )
     parser.add_argument(
@@ -656,6 +1029,35 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Apply Benjamini–Hochberg FDR correction to p-values per dataset/target.",
     )
+    parser.add_argument(
+        "--scatter-plots",
+        action="store_true",
+        help="Generate standardized scatter plots for significant network correlations.",
+    )
+    parser.add_argument(
+        "--scatter-alpha",
+        type=float,
+        default=0.05,
+        help="P-value threshold for scatter plot generation (default: 0.05).",
+    )
+    parser.add_argument(
+        "--scatter-min-n",
+        type=int,
+        default=20,
+        help="Minimum subjects required to generate a scatter plot (default: 20).",
+    )
+    parser.add_argument(
+        "--scatter-min-abs-rho",
+        type=float,
+        default=0.0,
+        help="Minimum absolute Spearman ρ required for scatter plots (default: 0).",
+    )
+    parser.add_argument(
+        "--scatter-output-dir",
+        type=Path,
+        default=None,
+        help="Optional root directory for scatter plots. Defaults to <output-dir>/plots.",
+    )
 
     return parser.parse_args()
 
@@ -665,6 +1067,12 @@ def main() -> None:
 
     output_dir: Path = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    scatter_root: Optional[Path] = None
+    if args.scatter_plots:
+        setup_arial_font()
+        scatter_root = args.scatter_output_dir or (output_dir / "plots")
+        scatter_root.mkdir(parents=True, exist_ok=True)
 
     network_map = load_network_mapping(args.atlas_path, args.parcellation)
 
@@ -692,27 +1100,79 @@ def main() -> None:
                 )
             dataset_path_overrides[dataset_key] = path
 
-    target_key_map: Dict[str, str] = {}
-    for entry in args.target_key:
-        if ":" not in entry:
-            raise ValueError(
-                f"Invalid --target-key '{entry}'. Expected format LABEL:KEY (e.g., Predicted:pred_age)."
-            )
-        label, key = entry.split(":", 1)
-        label = label.strip()
-        key = key.strip()
-        if not label or not key:
-            raise ValueError(
-                f"Invalid --target-key '{entry}'. Both label and key must be non-empty."
-            )
-        target_key_map[label] = key
+    preset_configs = load_presets(args.preset)
+ 
+     target_key_map: Dict[str, str] = {}
+     for entry in args.target_key:
+         if ":" not in entry:
+             raise ValueError(
+                 f"Invalid --target-key '{entry}'. Expected format LABEL:KEY (e.g., Predicted:pred_age)."
+             )
+         label, key = entry.split(":", 1)
+         label = label.strip()
+         key = key.strip()
+         if not label or not key:
+             raise ValueError(
+                 f"Invalid --target-key '{entry}'. Both label and key must be non-empty."
+             )
+         target_key_map[label] = key
+ 
+     collect_chronological = not args.skip_chronological
+ 
+     if not collect_chronological and not target_key_map:
+         raise ValueError(
+             "At least one target is required. Enable chronological correlations or provide --target-key."
+         )
+ 
+     age_sources = parse_age_sources(args.age_source)
+     target_sources_map = parse_target_sources(args.target_source)
 
-    collect_chronological = not args.skip_chronological
+    for dataset, cfg in preset_configs.items():
+        ig_dir_str = cfg.get("ig_dir")
+        if ig_dir_str and dataset not in dataset_path_overrides:
+            ig_path = Path(ig_dir_str).expanduser()
+            dataset_path_overrides[dataset] = ig_path
+        age_source_path = cfg.get("age_source")
+        if age_source_path and dataset not in age_sources:
+            age_sources[dataset] = load_age_source(Path(age_source_path).expanduser())
+        for ts_cfg in cfg.get("target_sources", []) or []:
+            label = ts_cfg.get("label")
+            file_path = ts_cfg.get("file")
+            id_column = ts_cfg.get("id_column", "subject_id")
+            value_column = ts_cfg.get("value_column")
+            if not label or not file_path or not value_column:
+                raise ValueError(
+                    f"Incomplete target source configuration for dataset '{dataset}' in preset."
+                )
+            ids, values = load_target_source(
+                Path(file_path).expanduser(),
+                id_column,
+                value_column,
+            )
+            target_sources_map[dataset].append((label, ids, values))
+        for label, key in (cfg.get("target_keys") or {}).items():
+            if label in target_key_map and target_key_map[label] != key:
+                raise ValueError(
+                    f"Conflicting target key definitions for '{label}'."
+                )
+            target_key_map[label] = key
 
-    if not collect_chronological and not target_key_map:
-        raise ValueError(
-            "At least one target is required. Enable chronological correlations or provide --target-key."
-        )
+    dataset_order: List[str] = []
+    dataset_order.extend(args.datasets)
+    for dataset in preset_configs.keys():
+        if dataset not in dataset_order:
+            dataset_order.append(dataset)
+    for dataset in age_sources.keys():
+        if dataset not in dataset_order:
+            dataset_order.append(dataset)
+    for dataset in target_sources_map.keys():
+        if dataset not in dataset_order:
+            dataset_order.append(dataset)
+
+    if not dataset_order:
+        raise ValueError("No datasets specified. Provide --datasets or --preset.")
+
+    args.datasets = dataset_order
 
     all_dataset_rows: List[pd.DataFrame] = []
 
@@ -748,6 +1208,8 @@ def main() -> None:
             f"=============================================================================="
         )
 
+        override_subjects, override_ages = age_sources.get(dataset, (None, None))
+
         try:
             (
                 network_names,
@@ -764,15 +1226,54 @@ def main() -> None:
                 target_key_map=target_key_map,
                 collect_chronological=collect_chronological,
                 verbose=args.verbose,
+                override_subjects=override_subjects,
+                override_ages=override_ages,
             )
         except Exception as exc:  # pylint: disable=broad-except
             print(f"  ✗ Failed on {dataset}: {exc}")
             continue
 
-        target_sequences: List[Tuple[str, np.ndarray]] = []
+        target_arrays_map: OrderedDict[str, np.ndarray] = OrderedDict()
         if collect_chronological:
-            target_sequences.append((args.chronological_label, ages))
-        target_sequences.extend(target_arrays.items())
+            target_arrays_map[args.chronological_label] = ages
+        for label, arr in target_arrays.items():
+            target_arrays_map[label] = arr
+
+        dataset_target_sources = target_sources_map.get(dataset, [])
+        if dataset_target_sources:
+            subject_index = {str(subj): idx for idx, subj in enumerate(subjects)}
+            for label, ext_ids, ext_values in dataset_target_sources:
+                aligned = np.full(len(subjects), np.nan, dtype=float)
+                matched = 0
+                for sid, value in zip(ext_ids, ext_values):
+                    idx = subject_index.get(str(sid))
+                    if idx is not None:
+                        aligned[idx] = float(value)
+                        matched += 1
+                if matched == 0:
+                    if len(ext_values) == len(subjects):
+                        aligned = np.asarray(ext_values, dtype=float)
+                        target_arrays_map[label] = aligned
+                        print(
+                            f"  ⚠︎ External target '{label}' for {dataset} supplied no matching IDs; "
+                            "assuming provided order matches IG subjects."
+                        )
+                        continue
+                    print(
+                        f"  ⚠︎ External target '{label}' for {dataset} had no matching subject IDs; skipping."
+                    )
+                    continue
+                target_arrays_map[label] = aligned
+
+        network_index = {name: idx for idx, name in enumerate(network_names)}
+
+        if args.scatter_plots and scatter_root is not None:
+            dataset_scatter_dir = scatter_root / dataset
+            dataset_scatter_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            dataset_scatter_dir = None
+
+        target_sequences: List[Tuple[str, np.ndarray]] = list(target_arrays_map.items())
 
         if not target_sequences:
             print(f"  ✗ No targets available for {dataset}; skipping.")
@@ -806,6 +1307,48 @@ def main() -> None:
             correlations_df.insert(0, "Dataset", dataset)
             correlations_df.insert(1, "Parcellation", args.parcellation)
             correlations_df.insert(2, "Aggregation", args.aggregation_method)
+
+            if args.scatter_plots and dataset_scatter_dir is not None:
+                target_scatter_dir = dataset_scatter_dir / sanitize_filename(label)
+                target_scatter_dir.mkdir(parents=True, exist_ok=True)
+                target_vector = target_arrays_map[label]
+
+                for _, row in correlations_df.iterrows():
+                    network_name = row["Network"]
+                    spearman_p = float(row["Spearman_p"])
+                    spearman_rho = float(row["Spearman_rho"])
+                    n_subjects = int(row["N_Subjects"])
+
+                    if not np.isfinite(spearman_p) or not np.isfinite(spearman_rho):
+                        continue
+                    if spearman_p > args.scatter_alpha:
+                        continue
+                    if abs(spearman_rho) < args.scatter_min_abs_rho:
+                        continue
+                    if n_subjects < args.scatter_min_n:
+                        continue
+
+                    idx = network_index.get(network_name)
+                    if idx is None:
+                        continue
+
+                    network_values = network_matrix[:, idx]
+                    mask = np.isfinite(target_vector) & np.isfinite(network_values)
+                    if mask.sum() < args.scatter_min_n:
+                        continue
+
+                    create_scatter_figure(
+                        dataset_key=dataset,
+                        target_label=label,
+                        network_name=network_name,
+                        x_values=target_vector[mask],
+                        y_values=network_values[mask],
+                        rho=spearman_rho,
+                        p_value=spearman_p,
+                        output_dir=target_scatter_dir,
+                        chronological_label=args.chronological_label,
+                        title_suffix=network_name,
+                    )
 
             per_dataset_frames.append(correlations_df)
 

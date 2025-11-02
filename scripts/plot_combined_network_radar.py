@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from collections import OrderedDict
+import warnings
 
 # -----------------------------------------------------------------------------
 # GLOBAL STYLING CONSTANTS
@@ -474,9 +475,9 @@ def main() -> None:
     save_figure(fig, args.output)
     print(f"✓ Saved radar panels to {args.output}")
 
-    td_effect_entries = parse_labeled_paths(args.td_ig, "TD", expected_count=4 if args.td_ig else None)
-    adhd_effect_entries = parse_labeled_paths(args.adhd_ig, "ADHD", expected_count=2 if args.adhd_ig else None)
-    asd_effect_entries = parse_labeled_paths(args.asd_ig, "ASD", expected_count=2 if args.asd_ig else None)
+    td_effect_entries = parse_labeled_paths(args.td_ig, "TD", expected_count=len(args.td_ig) if args.td_ig else None)
+    adhd_effect_entries = parse_labeled_paths(args.adhd_ig, "ADHD", expected_count=len(args.adhd_ig) if args.adhd_ig else None)
+    asd_effect_entries = parse_labeled_paths(args.asd_ig, "ASD", expected_count=len(args.asd_ig) if args.asd_ig else None)
 
     if td_effect_entries or adhd_effect_entries or asd_effect_entries:
         target_slug = re.sub(r"[^A-Za-z0-9]+", "_", args.ig_target).strip("_") or "target"
@@ -484,73 +485,88 @@ def main() -> None:
         base_output = args.output.parent / args.output.name
 
         if td_effect_entries:
-            td_series_dict: "OrderedDict[str, pd.Series]" = OrderedDict()
-            for label, csv_path in td_effect_entries:
-                td_series_dict[label] = load_effect_size_series(
-                    csv_path,
-                    network_order,
-                    target_label=args.ig_target,
-                    value_column=args.ig_column,
-                    absolute_values=not args.no_ig_abs,
-                    aggregation=args.ig_aggregation,
+            if len(td_effect_entries) != 4:
+                warnings.warn(
+                    "TD effect-size radar expects four datasets; skipping TD layout."
                 )
+            else:
+                td_series_dict: "OrderedDict[str, pd.Series]" = OrderedDict()
+                for label, csv_path in td_effect_entries:
+                    td_series_dict[label] = load_effect_size_series(
+                        csv_path,
+                        network_order,
+                        target_label=args.ig_target,
+                        value_column=args.ig_column,
+                        absolute_values=not args.no_ig_abs,
+                        aggregation=args.ig_aggregation,
+                    )
 
-            td_output = base_output.parent / f"{base_output.name}_td_effect_{target_slug}_{column_slug}"
-            render_radar_grid(
-                td_series_dict,
-                network_order,
-                colors,
-                layout=(2, 2),
-                title_prefix="TD",
-                radius_label=args.ig_radius_label,
-                output_path=td_output,
-            )
+                td_output = base_output.parent / f"{base_output.name}_td_effect_{target_slug}_{column_slug}"
+                render_radar_grid(
+                    td_series_dict,
+                    network_order,
+                    colors,
+                    layout=(2, 2),
+                    title_prefix="TD",
+                    radius_label=args.ig_radius_label,
+                    output_path=td_output,
+                )
 
         if adhd_effect_entries:
-            adhd_series_dict: "OrderedDict[str, pd.Series]" = OrderedDict()
-            for label, csv_path in adhd_effect_entries:
-                adhd_series_dict[label] = load_effect_size_series(
-                    csv_path,
-                    network_order,
-                    target_label=args.ig_target,
-                    value_column=args.ig_column,
-                    absolute_values=not args.no_ig_abs,
-                    aggregation=args.ig_aggregation,
+            if len(adhd_effect_entries) != 2:
+                warnings.warn(
+                    "ADHD effect-size radar expects two datasets; skipping ADHD layout."
                 )
+            else:
+                adhd_series_dict: "OrderedDict[str, pd.Series]" = OrderedDict()
+                for label, csv_path in adhd_effect_entries:
+                    adhd_series_dict[label] = load_effect_size_series(
+                        csv_path,
+                        network_order,
+                        target_label=args.ig_target,
+                        value_column=args.ig_column,
+                        absolute_values=not args.no_ig_abs,
+                        aggregation=args.ig_aggregation,
+                    )
 
-            adhd_output = base_output.parent / f"{base_output.name}_adhd_effect_{target_slug}_{column_slug}"
-            render_radar_grid(
-                adhd_series_dict,
-                network_order,
-                colors,
-                layout=(1, 2),
-                title_prefix="ADHD",
-                radius_label=args.ig_radius_label,
-                output_path=adhd_output,
-            )
+                adhd_output = base_output.parent / f"{base_output.name}_adhd_effect_{target_slug}_{column_slug}"
+                render_radar_grid(
+                    adhd_series_dict,
+                    network_order,
+                    colors,
+                    layout=(1, 2),
+                    title_prefix="ADHD",
+                    radius_label=args.ig_radius_label,
+                    output_path=adhd_output,
+                )
 
         if asd_effect_entries:
-            asd_series_dict: "OrderedDict[str, pd.Series]" = OrderedDict()
-            for label, csv_path in asd_effect_entries:
-                asd_series_dict[label] = load_effect_size_series(
-                    csv_path,
-                    network_order,
-                    target_label=args.ig_target,
-                    value_column=args.ig_column,
-                    absolute_values=not args.no_ig_abs,
-                    aggregation=args.ig_aggregation,
+            if len(asd_effect_entries) != 2:
+                warnings.warn(
+                    "ASD effect-size radar expects two datasets; skipping ASD layout."
                 )
+            else:
+                asd_series_dict: "OrderedDict[str, pd.Series]" = OrderedDict()
+                for label, csv_path in asd_effect_entries:
+                    asd_series_dict[label] = load_effect_size_series(
+                        csv_path,
+                        network_order,
+                        target_label=args.ig_target,
+                        value_column=args.ig_column,
+                        absolute_values=not args.no_ig_abs,
+                        aggregation=args.ig_aggregation,
+                    )
 
-            asd_output = base_output.parent / f"{base_output.name}_asd_effect_{target_slug}_{column_slug}"
-            render_radar_grid(
-                asd_series_dict,
-                network_order,
-                colors,
-                layout=(1, 2),
-                title_prefix="ASD",
-                radius_label=args.ig_radius_label,
-                output_path=asd_output,
-            )
+                asd_output = base_output.parent / f"{base_output.name}_asd_effect_{target_slug}_{column_slug}"
+                render_radar_grid(
+                    asd_series_dict,
+                    network_order,
+                    colors,
+                    layout=(1, 2),
+                    title_prefix="ASD",
+                    radius_label=args.ig_radius_label,
+                    output_path=asd_output,
+                )
 
 
 if __name__ == "__main__":
