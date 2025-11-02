@@ -193,7 +193,7 @@ def load_age_source(path: Path) -> Tuple[Optional[List[str]], np.ndarray]:
 
     if suffix == ".npz":
         with np.load(path, allow_pickle=True) as data:
-            for candidate in ("ages", "age", "y", "targets", "labels"):
+            for candidate in ("ages", "age", "y", "targets", "labels", "actual"):
                 if candidate in data:
                     arr = np.asarray(data[candidate], dtype=float)
                     return None, arr
