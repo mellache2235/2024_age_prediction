@@ -160,8 +160,8 @@ def plot_combined_adhd_cohorts(npz_files_dir: str, output_path: str,
                     verticalalignment='bottom', horizontalalignment='right')
             
             # Customize subplot
-            ax.set_xlabel('Chronological Age (years)', fontsize=16, fontweight='normal')
-            ax.set_ylabel('Brain Age (years)', fontsize=16, fontweight='normal')
+            ax.set_xlabel('Chronological Age (years)', fontsize=16, fontweight='bold')
+            ax.set_ylabel('Predicted Brain Age (years)', fontsize=16, fontweight='bold')
             ax.set_title(dataset_name, fontsize=18, fontweight='bold', pad=15)
             
             # Clean style - NO top/right spines
@@ -214,7 +214,7 @@ def plot_combined_adhd_cohorts(npz_files_dir: str, output_path: str,
     
     # Adjust layout
     plt.tight_layout()
-    plt.subplots_adjust(top=0.90)
+    plt.subplots_adjust(top=0.90, hspace=0.30, wspace=0.30)
     
     # Save PNG + TIFF + AI
     png_path = output_path

@@ -101,11 +101,11 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
     adhd200_dir = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/adhd200_updated'
     
     td_datasets = {
-        'HCP-Development': {
+        'HCP-Development TD': {
             'predicted': os.path.join(hcp_dev_dir, 'predicted_hcp_dev_ages_most_updated.npz'),
             'actual': os.path.join(hcp_dev_dir, 'actual_hcp_dev_ages_most_updated.npz')
         },
-        'NKI-RS': {
+        'NKI-RS TD': {
             'predicted': os.path.join(nki_dir, 'predicted_nki_ages_oct25.npz'),
             'actual': os.path.join(nki_dir, 'actual_nki_ages_oct25.npz')
         },
@@ -177,8 +177,8 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
                     verticalalignment='bottom', horizontalalignment='right')
             
             # Customize subplot
-            ax.set_xlabel('Chronological Age (years)', fontsize=16, fontweight='normal')
-            ax.set_ylabel('Brain Age (years)', fontsize=16, fontweight='normal')
+            ax.set_xlabel('Chronological Age (years)', fontsize=16, fontweight='bold')
+            ax.set_ylabel('Predicted Brain Age (years)', fontsize=16, fontweight='bold')
             ax.set_title(dataset_name, fontsize=18, fontweight='bold', pad=15)
             
             # Clean style - NO top/right spines
@@ -220,7 +220,7 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
             ax.set_visible(False)
     
     if not all_actual:
-        logging.error("No TD cohort data found!")
+        logging.error("No TD data found!")
         return
     
     # Calculate overall statistics
@@ -233,7 +233,7 @@ def plot_combined_td_cohorts(npz_files_dir: str, output_path: str,
     
     # Adjust layout
     plt.tight_layout()
-    plt.subplots_adjust(top=0.93)
+    plt.subplots_adjust(top=0.93, hspace=0.35, wspace=0.30)
     
     # Save PNG + TIFF + AI
     png_path = output_path

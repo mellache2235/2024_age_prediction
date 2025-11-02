@@ -119,6 +119,7 @@ python plot_pc_loadings_heatmap.py --dataset cmihbn_td
 # 5. Brain Age Plots
 # Note: TD cohorts (NKI, CMI-HBN TD, ADHD200 TD) use _oct25 NPZ files from:
 #   /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/
+#   (exception: these NPZ bundles remain in the original repo, not `_test`)
 
 python plot_brain_age_td_cohorts.py \
   --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots
@@ -165,7 +166,7 @@ results/
 
 **All paths**: `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/`
 
-**Note**: TD cohort NPZ files (_oct25) are located in `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/`
+**Note**: TD cohort NPZ files (_oct25) are located in `/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/` (exception: these live in the original repo, not `_test`).
 
 ---
 
@@ -180,11 +181,50 @@ results/
 | **Brain-Behavior (Optimized - Universal)** | `run_all_cohorts_*_optimized.py` | 6 strategies, FDR correction |
 | **Brain-Behavior (Optimized - Dedicated)** | `run_stanford/abide/nki_*_optimized.py` | Better data handling, cohort-specific |
 | **Brain-Behavior (Network-Level)** ⭐ | `run_network_brain_behavior_analysis.py` | Network predictors (7-17 networks) |
+| **Network IG ↔ Targets** | `scripts/compute_network_age_correlations.py` | CSV summaries of network-level IG vs. chronological/predicted age or behavior |
 | **Optimization Validation** | `check_optimization_predictions.py` | Integrity verification |
 | **Optimization Summary** | `create_optimization_summary_figure.py` | Bar plots, tables (FDR corrected) |
 | **Brain Age** | `plot_brain_age_*.py` | Combined scatter plots |
+| **Network Radar (Counts + IG Effect)** | `scripts/plot_combined_network_radar.py` | TD/ADHD/ASD radar panels (counts + mean IG) |
 
 **Note**: CMI-HBN TD currently uses enhanced script (optimized version to be created). CMI-HBN ADHD now has optimized version! ✅
+
+---
+
+### Network IG ↔ Target Correlations
+
+Aggregate Integrated Gradients across all 500 folds, collapse ROIs to Yeo networks, and correlate network importance with chronological age (default), predicted brain age, and any behavioral targets stored alongside the IG files:
+
+```bash
+python scripts/compute_network_age_correlations.py \
+  --datasets nki_rs_td cmihbn_td adhd200_td \
+  --root-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/figures \
+  --parcellation yeo7 \
+  --target-key Predicted_Brain_Age:brain_age_pred \
+  --apply-fdr \
+  --output-dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations
+```
+
+- Uses `ig_files_td/` when present; falls back to `ig_files/` otherwise.
+- Correlates with chronological age automatically; add `--skip-chronological` for behavior-only runs.
+- Repeat `--target-key LABEL:NPZ_KEY` to include predicted outputs or behaviors (e.g., `--target-key Hyperactivity:y_true --target-key Predicted_Hyperactivity:y_pred`).
+- Accepts `--parcellation yeo7|yeo17` and aggregation modes (`--aggregation-method mean|abs_mean|pos_share|neg_share|signed_share`).
+- Attempts to infer subject IDs (and ages when required) from each `_ig.npz`; override with `--subject-key` / `--age-key` if the heuristic guesses incorrectly.
+- Pass `--apply-fdr` to append Benjamini-Hochberg corrected p-values per dataset/target.
+- Pass `--save-subject-level` to dump per-subject network IG matrices with all requested targets merged in.
+
+Outputs land in the directory specified by `--output-dir`:
+
+```
+network_correlations/
+├── nki_rs_td_Chronological_Age_network_correlations.csv
+├── nki_rs_td_Predicted_Brain_Age_network_correlations.csv
+├── cmihbn_td_Chronological_Age_network_correlations.csv
+├── ...
+└── network_correlations_yeo7_mean.csv   # Combined summary across datasets/targets
+```
+
+Each CSV reports `Pearson_r`, `Spearman_rho`, descriptive stats (`Mean_IG`, `Std_IG`), and (optionally) FDR-adjusted p-values per network.
 
 ---
 
@@ -317,4 +357,27 @@ Then create features:
 Menon Lab, Stanford University
 
 **Last Updated**: 2024
+
+### Network Radar Panels (Counts + Mean IG)
+
+Create three matching radar panels for TD, ADHD, and ASD cohorts. The default inputs are the shared-network count summaries, and the optional effect-size radar uses the mean network IG magnitudes (averaged across folds) emitted by `compute_network_age_correlations.py`.
+
+```bash
+python scripts/plot_combined_network_radar.py \
+  --td /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_TD/shared_network_analysis.csv \
+  --adhd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_ADHD/shared_network_analysis.csv \
+  --asd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_ASD/shared_network_analysis.csv \
+  --output /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/radar_panels/shared_network_radar \
+  --td-ig /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/nki_rs_td_Chronological_Age_network_correlations.csv \
+  --adhd-ig /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/adhd200_adhd_Chronological_Age_network_correlations.csv \
+  --asd-ig /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/abide_asd_Chronological_Age_network_correlations.csv \
+  --ig-target Chronological_Age \
+  --ig-column Mean_IG
+```
+
+- Saves the current count-based radar (`network_radar_counts.{png,tiff,ai}`) and an additional effect-size radar (`..._effect_Chronological_Age_Mean_IG.{png,tiff,ai}`) that reflects normalized |Mean IG| per network.
+- Set `--ig-target` to match the `Target` column in your IG correlation summaries (e.g., `Hyperactivity`, `Predicted_Brain_Age`).
+- Use `--ig-column` to switch to other metrics (e.g., `Pearson_r`), and `--ig-aggregation` (mean/sum/median) if multiple rows per network remain after filtering.
+- Pass `--no-ig-abs` if you need signed IG values; negative values are shifted so the minimum sits at zero before normalization.
+- Adjust `--ig-radius-label` to customize the legend beneath the effect-size panels.
 

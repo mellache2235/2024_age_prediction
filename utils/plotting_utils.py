@@ -10,11 +10,29 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib import font_manager
 from matplotlib.backends.backend_pdf import PdfPages
+from matplotlib.ticker import MultipleLocator
+from pathlib import Path
 from typing import Tuple, Optional, Dict, Any, List
 import scipy.stats as stats
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error
 import warnings
+
+try:
+    from scripts.plot_styles import (
+        create_standardized_scatter,
+        setup_arial_font,
+        FIGSIZE_SINGLE,
+        FIGURE_FACECOLOR,
+        DPI
+    )
+except ImportError:
+    # Allow plotting_utils to operate even if plot_styles is unavailable
+    create_standardized_scatter = None
+    setup_arial_font = None
+    FIGSIZE_SINGLE = (6, 6)
+    FIGURE_FACECOLOR = 'white'
+    DPI = 300
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -49,6 +67,10 @@ def setup_fonts(font_path: Optional[str] = None) -> None:
     Args:
         font_path (str, optional): Path to custom font file
     """
+    # Prefer centralized Arial setup if available
+    if setup_arial_font and setup_arial_font():
+        return
+
     if font_path and Path(font_path).exists():
         font_manager.fontManager.addfont(font_path)
         prop = font_manager.FontProperties(fname=font_path)
@@ -106,60 +128,96 @@ def plot_age_prediction(actual_ages: np.ndarray, predicted_ages: np.ndarray,
     r, p = stats.pearsonr(actual_ages, predicted_ages)
     mae = mean_absolute_error(actual_ages, predicted_ages)
     r_squared = r ** 2
-    
-    # Create figure
+
+    # Use centralized styling when available
+    if create_standardized_scatter:
+        fig, ax = plt.subplots(figsize=FIGSIZE_SINGLE, dpi=DPI)
+        fig.patch.set_facecolor(FIGURE_FACECOLOR)
+
+        p_str = "< 0.001" if p < 0.001 else f"= {p:.3f}"
+        stats_text = (
+            f"R² = {r_squared:.3f}\n"
+            f"MAE = {mae:.2f} years\n"
+            f"P {p_str}"
+        )
+
+        create_standardized_scatter(
+            ax,
+            actual_ages,
+            predicted_ages,
+            title=title,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            stats_text=stats_text,
+            is_subplot=False
+        )
+
+        # Apply consistent tick spacing (5-year increments)
+        try:
+            age_min = np.floor(min(actual_ages.min(), predicted_ages.min()) / 5) * 5
+            age_max = np.ceil(max(actual_ages.max(), predicted_ages.max()) / 5) * 5
+            ax.set_xlim(age_min, age_max)
+            ax.set_ylim(age_min, age_max)
+            locator = MultipleLocator(5)
+            ax.xaxis.set_major_locator(locator)
+            ax.yaxis.set_major_locator(locator)
+        except Exception:
+            pass
+
+        plt.tight_layout(pad=1.5)
+
+        if save_path:
+            fig.savefig(save_path, dpi=DPI, bbox_inches='tight', facecolor=FIGURE_FACECOLOR, edgecolor='none')
+
+        return fig
+
+    # Fallback to original styling if centralized scatter unavailable
     fig, ax = plt.subplots(figsize=figsize, dpi=FIGURE_PARAMS['dpi'])
-    
-    # Create scatter plot with regression line
-    sns.regplot(x=actual_ages, y=predicted_ages, ci=None,
-               scatter_kws={'color': color, 'alpha': alpha, 's': 40, 
-                          'edgecolor': 'w', 'linewidth': 0.5},
-               line_kws={'color': 'red', 'linewidth': 2}, ax=ax)
-    
-    # Set axis limits and ticks
+    sns.regplot(
+        x=actual_ages,
+        y=predicted_ages,
+        ci=None,
+        scatter_kws={'color': color, 'alpha': alpha, 's': 40, 'edgecolor': 'w', 'linewidth': 0.5},
+        line_kws={'color': 'red', 'linewidth': 2},
+        ax=ax
+    )
+
     age_min, age_max = actual_ages.min(), actual_ages.max()
     lims = [age_min - 1, age_max + 2]
     ax.set_xlim(lims)
     ax.set_ylim(lims)
-    
-    # Add identity line if requested
+
     if show_identity_line:
-        ax.plot(lims, lims, linestyle='--', color='gray', 
-               linewidth=1.2, label='Identity line')
-    
-    # Add statistics text
+        ax.plot(lims, lims, linestyle='--', color='gray', linewidth=1.2, label='Identity line')
+
     p_text = format_p_value(p)
-    ax.text(0.95, 0.05,
-            f"$\mathit{{R}}^2$ = {r_squared:.3f}\n"
-            f"{p_text}\n"
-            f"$\mathrm{{MAE}} = {mae:.2f}\;\mathrm{{years}}$",
-            transform=ax.transAxes,
-            horizontalalignment='right',
-            verticalalignment='bottom',
-            fontsize=11,
-            bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
-    
-    # Formatting
+    ax.text(
+        0.95,
+        0.05,
+        f"$\\mathit{{R}}^2$ = {r_squared:.3f}\n{p_text}\n$\\mathrm{{MAE}} = {mae:.2f}\\;\\mathrm{{years}}$",
+        transform=ax.transAxes,
+        horizontalalignment='right',
+        verticalalignment='bottom',
+        fontsize=11,
+        bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
+    )
+
     ax.set_xlabel(xlabel, fontsize=15, labelpad=10)
     ax.set_ylabel(ylabel, fontsize=15, labelpad=10)
     ax.set_title(title, fontsize=15, pad=10)
-    
-    # Remove top and right spines
     ax.spines[['right', 'top']].set_visible(False)
     for spine in ['bottom', 'left']:
         ax.spines[spine].set_linewidth(1.5)
-    
-    # Set tick parameters
+
     ax.tick_params(axis='both', which='major', length=6, width=1)
     ax.xaxis.set_ticks_position('bottom')
     ax.yaxis.set_ticks_position('left')
-    
+
     plt.tight_layout(pad=1.2)
-    
-    # Save if path provided
+
     if save_path:
         plt.savefig(save_path, dpi=FIGURE_PARAMS['dpi'], bbox_inches='tight')
-    
+
     return fig
 
 

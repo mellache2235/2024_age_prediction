@@ -64,7 +64,7 @@ FONTSIZE_STATS = 16              # Match requested font size
 FONTSIZE_STATS_SUBPLOT = 14      # Slightly smaller for subplots
 
 # Font weights
-FONTWEIGHT_LABEL = 'normal'
+FONTWEIGHT_LABEL = 'bold'
 FONTWEIGHT_TITLE = 'bold'
 
 # Title padding
