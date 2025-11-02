@@ -720,7 +720,7 @@ def aggregate_subject_networks(
                 n_subjects,
                 age_key=age_key,
                 subject_key=subject_key,
-                require_age=collect_chronological,
+                require_age=collect_chronological and override_ages_array is None,
             )
 
             if override_subjects_array is not None:
@@ -738,6 +738,10 @@ def aggregate_subject_networks(
                     )
                 ages = override_ages_array
                 age_from_file = True
+            elif not age_from_file and collect_chronological:
+                raise ValueError(
+                    "Could not infer chronological ages from NPZ. Supply --age-key explicitly or configure 'age_source' in preset."
+                )
 
             if not subj_from_file and verbose:
                 print(
