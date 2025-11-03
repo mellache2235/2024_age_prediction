@@ -503,7 +503,7 @@ def load_network_mapping(atlas_path: Path, parcellation: str) -> Dict[int, str]:
     if parcellation not in {"yeo7", "yeo-7", "yeo17", "yeo-17"}:
         raise ValueError("Parcellation must be 'yeo7' or 'yeo17'.")
 
-    target_key = "7" if "7" in parcellation else "17"
+    target_key = "17" if "17" in parcellation else "7"
 
     candidate_cols = [
         col for col in atlas_df.columns if "yeo" in col.lower() and target_key in col.lower()
