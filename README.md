@@ -113,7 +113,16 @@ python run_network_brain_behavior_analysis.py --all  # All cohorts
 # 4. Network IG Correlations (Age & Behavior)
 - Run `compute_network_age_correlations.py --preset brain_age_td --apply-fdr` to generate TD age summaries (paths/targets encoded in the preset).
 - Run `compute_network_age_correlations.py --preset brain_behavior_adhd200 --skip-chronological --apply-fdr` for the ADHD-200 behavior preset.
-- After summaries are generated, use `plot_combined_network_radar.py` to build effect-size grids (see Network IG ↔ Target Correlations section).
+- After summaries are generated, use `plot_combined_network_radar.py` to build radar plots:
+  - **Count-based overlap (1×3)**: Provide shared TD/ADHD/ASD count CSVs to generate a single row showing cross-cohort consensus.
+    ```bash
+    python scripts/plot_combined_network_radar.py \
+      --td /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_TD/shared_network_analysis.csv \
+      --adhd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_ADHD/shared_network_analysis.csv \
+      --asd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_ASD/shared_network_analysis.csv \
+      --output /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/radar_panels/shared_network_radar
+    ```
+  - **Effect-size grids**: Add `--*-ig` arguments with correlation summaries to render cohort-specific panels (see examples below).
 - `plot_combined_network_radar.py` labels bars with the Yeo network names (e.g., DefaultA, DorsAttnA) after stripping the `Network_` prefix.
 - Minimal example for an ASD-only panel:
   ```bash

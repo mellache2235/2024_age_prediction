@@ -458,6 +458,7 @@ def main() -> None:
     args = parse_args()
 
     network_order = tuple(args.network_order) if args.network_order else DEFAULT_NETWORK_ORDER
+    colors = pastel_spectral(len(network_order))
 
     count_datasets: "OrderedDict[str, pd.Series]" = OrderedDict()
     if args.td:
@@ -503,8 +504,6 @@ def main() -> None:
 
         save_figure(fig, args.output)
         print(f"✓ Saved radar panels to {args.output}")
-    else:
-        colors = pastel_spectral(len(network_order))
 
     td_effect_entries = parse_labeled_paths(args.td_ig, "TD", expected_count=len(args.td_ig) if args.td_ig else None)
     adhd_effect_entries = parse_labeled_paths(args.adhd_ig, "ADHD", expected_count=len(args.adhd_ig) if args.adhd_ig else None)
