@@ -114,6 +114,26 @@ python run_network_brain_behavior_analysis.py --all  # All cohorts
 - Run `compute_network_age_correlations.py --preset brain_age_td --apply-fdr` to generate TD age summaries (paths/targets encoded in the preset).
 - Run `compute_network_age_correlations.py --preset brain_behavior_adhd200 --skip-chronological --apply-fdr` for the ADHD-200 behavior preset.
 - After summaries are generated, use `plot_combined_network_radar.py` to build effect-size grids (see Network IG ↔ Target Correlations section).
+- `plot_combined_network_radar.py` labels bars with the Yeo network names (e.g., DefaultA, DorsAttnA) after stripping the `Network_` prefix.
+- Minimal example for an ASD-only panel:
+  ```bash
+  python scripts/plot_combined_network_radar.py \
+    --asd /oak/.../shared_ASD/shared_network_analysis.csv \
+    --output /oak/.../results/network_analysis_yeo/radar_panels/abide_autism_radar \
+    --asd-ig "ABIDE Autism=/oak/.../network_correlations/abide_asd_Chronological_Age_network_correlations.csv" \
+    --ig-column Spearman_rho
+  ```
+- Full TD 2×2 grid (HCP-Development, NKI-RS TD, CMI-HBN TD, ADHD-200 TD):
+  ```bash
+  python scripts/plot_combined_network_radar.py \
+    --td /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_TD/shared_network_analysis.csv \
+    --output /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/radar_panels/td_cohorts_radar \
+    --td-ig "HCP-Development=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/hcp_dev_Chronological_Age_network_correlations.csv" \
+    --td-ig "NKI-RS TD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/nki_rs_td_Chronological_Age_network_correlations.csv" \
+    --td-ig "CMI-HBN TD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/cmihbn_td_Chronological_Age_network_correlations.csv" \
+    --td-ig "ADHD-200 TD=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_correlations/adhd200_td_Chronological_Age_network_correlations.csv" \
+    --ig-column Spearman_rho
+  ```
 
 # 5. Combined Plots
 ```bash

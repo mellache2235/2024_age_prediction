@@ -892,6 +892,19 @@ def compute_correlations(
         n = int(mask.sum())
 
         if n < 3:
+            # Include network with NaN stats to preserve full network list
+            results.append(
+                {
+                    "Network": net_name,
+                    "N_Subjects": n,
+                    "Pearson_r": np.nan,
+                    "Pearson_p": np.nan,
+                    "Spearman_rho": np.nan,
+                    "Spearman_p": np.nan,
+                    "Mean_IG": float(np.nanmean(values)) if n > 0 else np.nan,
+                    "Std_IG": float(np.nanstd(values)) if n > 0 else np.nan,
+                }
+            )
             continue
 
         target_subset = target_values[mask]
@@ -1278,6 +1291,9 @@ def main() -> None:
                 override_subjects=override_subjects,
                 override_ages=override_ages,
             )
+            print(f"  Networks aggregated: {len(network_names)} networks, {len(subjects)} subjects")
+            if args.verbose:
+                print(f"    Network names: {network_names}")
         except Exception as exc:  # pylint: disable=broad-except
             print(f"  ✗ Failed on {dataset}: {exc}")
             continue
