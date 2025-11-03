@@ -516,16 +516,21 @@ def load_network_mapping(atlas_path: Path, parcellation: str) -> Dict[int, str]:
     network_col = candidate_cols[0]
     network_map: Dict[int, str] = {}
 
-    for idx in range(min(len(atlas_df), 246)):
-        value = atlas_df.iloc[idx][network_col]
-        if pd.isna(value):
-            continue
-        network_map[idx] = str(value)
+    # Iterate through all rows up to 246 (Brainnetome atlas size)
+    max_rois = min(len(atlas_df), 246)
+    for row_idx in range(max_rois):
+        value = atlas_df.iloc[row_idx][network_col]
+        # Only add to map if value is present; still iterate through all rows
+        if pd.notna(value):
+            network_map[row_idx] = str(value)
 
     if not network_map:
         raise ValueError(
             f"No network assignments found in column '{network_col}' of {atlas_path}."
         )
+    
+    unique_nets = sorted(set(network_map.values()), key=lambda x: int(x) if x.isdigit() else x)
+    print(f"  Loaded {len(network_map)} ROIs mapped to {len(unique_nets)} unique networks from column '{network_col}'")
 
     return network_map
 
@@ -737,6 +742,9 @@ def aggregate_subject_networks(
                 warnings.warn(
                     f"{ig_path.name}: expected 246 ROIs, found {n_features}. Continuing with available features."
                 )
+            
+            if verbose and fold_idx == 0:
+                print(f"    IG matrix shape: {roi_matrix.shape} (subjects × ROIs)")
 
             subjects, ages, subj_from_file, age_from_file = infer_subjects_and_ages(
                 data,
