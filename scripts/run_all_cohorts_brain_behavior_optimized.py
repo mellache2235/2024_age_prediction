@@ -92,6 +92,7 @@ COHORTS = {
         'data_type': 'c3sr',
         'data_path': '/oak/stanford/groups/menon/deriveddata/public/cmihbn/restfmri/timeseries/group_level/brainnetome/normz',
         'beh_csv': '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/adhd/C3SR.csv',
+        'diagnosis_file': '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/adhd/cmihbn_adhd_diagnosis.csv',
         'output_dir': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/cmihbn_adhd_optimized',
         'beh_columns': None  # Will be auto-detected from C3SR
     }
@@ -435,7 +436,33 @@ def load_c3sr_behavioral(config):
     print_info(f"After deduplication: {len(data)}", 0)
     
     # Filter for TD vs ADHD based on cohort
-    if 'label' in data.columns:
+    if 'diagnosis_file' in config and config['diagnosis_file']:
+        # Use external diagnosis file to identify ADHD subjects
+        print_step("Filtering by diagnosis", f"From {Path(config['diagnosis_file']).name}")
+        
+        diagnosis_df = pd.read_csv(config['diagnosis_file'])
+        
+        # Find ID column in diagnosis file
+        diag_id_col = None
+        for col in diagnosis_df.columns:
+            if 'id' in col.lower() or 'subject' in col.lower() or 'identifier' in col.lower():
+                diag_id_col = col
+                break
+        
+        if diag_id_col:
+            diagnosis_df = diagnosis_df.rename(columns={diag_id_col: 'subject_id'})
+            diagnosis_df['subject_id'] = diagnosis_df['subject_id'].astype(str).str[:12]
+            
+            # Get ADHD subject IDs from diagnosis file
+            adhd_subjects = set(diagnosis_df['subject_id'].tolist())
+            
+            # Filter PKLZ data to only ADHD subjects
+            filtered_data = data[data['subject_id'].isin(adhd_subjects)]
+            print_info(f"After diagnosis filtering (ADHD only): {len(filtered_data)}", 0)
+        else:
+            raise ValueError(f"No ID column found in diagnosis file: {config['diagnosis_file']}")
+    
+    elif 'label' in data.columns:
         # Check label format
         if data['label'].dtype == 'object':
             # String labels
