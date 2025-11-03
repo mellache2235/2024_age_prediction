@@ -92,7 +92,7 @@ COHORTS = {
         'data_type': 'c3sr',
         'data_path': '/oak/stanford/groups/menon/deriveddata/public/cmihbn/restfmri/timeseries/group_level/brainnetome/normz',
         'beh_csv': '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/adhd/C3SR.csv',
-        'diagnosis_file': '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/adhd/cmihbn_adhd_diagnosis.csv',
+        'diagnosis_file': '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/adhd/cmihbn_diagnosis.csv',
         'output_dir': '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/cmihbn_adhd_optimized',
         'beh_columns': None  # Will be auto-detected from C3SR
     }

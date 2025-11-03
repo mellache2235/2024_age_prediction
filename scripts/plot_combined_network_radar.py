@@ -105,6 +105,7 @@ def extract_network_series(
         raise KeyError("CSV must include 'network' or 'Network' column")
 
     default_candidates = [
+        "Effect_Size",
         "total_attribution",
         "Count",
         "mean_attribution",

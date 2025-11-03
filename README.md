@@ -110,10 +110,15 @@ python run_network_brain_behavior_analysis.py --cohort nki_rs_td
 python run_network_brain_behavior_analysis.py --cohort cmihbn_td --method pos_share
 python run_network_brain_behavior_analysis.py --all  # All cohorts
 
-# 4. Network IG Correlations (Age & Behavior)
-- Run `compute_network_age_correlations.py --preset brain_age_td --apply-fdr` to generate TD age summaries (paths/targets encoded in the preset).
-- Run `compute_network_age_correlations.py --preset brain_behavior_adhd200 --skip-chronological --apply-fdr` for the ADHD-200 behavior preset.
-- After summaries are generated, use `plot_combined_network_radar.py` to build radar plots:
+# 4. Network Importance (Regression-Based Effect Sizes)
+- Run `compute_network_importance_regression.py --preset <name>` to quantify each network's contribution via leave-one-out regression:
+  ```bash
+  python compute_network_importance_regression.py --preset brain_age_td --effect-metric rho
+  python compute_network_importance_regression.py --preset brain_age_adhd --effect-metric rho  
+  python compute_network_importance_regression.py --preset brain_age_asd --effect-metric rho
+  ```
+  Presets in `config/network_importance_presets.yaml` encode IG directories, age sources, parcellation (Yeo-17), and aggregation method (abs_mean). Effect sizes reflect performance drop (Δρ, ΔR², or ΔMAE) when each network is omitted from multivariate regression.
+- After generating importance tables, use `plot_combined_network_radar.py` to visualize:
   - **Count-based overlap (1×3)**: Provide shared TD/ADHD/ASD count CSVs to generate a single row showing cross-cohort consensus.
     ```bash
     python scripts/plot_combined_network_radar.py \
@@ -122,7 +127,7 @@ python run_network_brain_behavior_analysis.py --all  # All cohorts
       --asd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_ASD/shared_network_analysis.csv \
       --output /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/radar_panels/shared_network_radar
     ```
-  - **Effect-size grids**: Add `--*-ig` arguments with correlation summaries to render cohort-specific panels (see examples below).
+  - **Effect-size grids**: Add `--*-ig` arguments with regression importance summaries to render cohort-specific panels (use `Effect_Size` column from importance CSVs).
 - `plot_combined_network_radar.py` labels bars with the Yeo network names (e.g., DefaultA, DorsAttnA) after stripping the `Network_` prefix.
 - Minimal example for an ASD-only panel:
   ```bash

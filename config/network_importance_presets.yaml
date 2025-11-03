@@ -1,0 +1,49 @@
+presets:
+  brain_age_td:
+    description: Network importance for predicting chronological age in TD cohorts.
+    parcellation: yeo17
+    aggregation_method: abs_mean
+    effect_metric: rho  # Options: rho (Spearman), r2, mae
+    ridge_alpha: 1.0
+    datasets:
+      hcp_dev:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/dev/ig_files
+        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/hcp_dev_age_five_fold/fold_0.bin
+      nki_rs_td:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/nki/ig_files
+        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/nki_age_cog_dev/fold_0.bin
+      cmihbn_td:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files_td
+        age_source: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/cmihbn_updated/actual_cmihbn_td_ages_oct25.npz::actual
+      adhd200_td:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files_td
+        age_source: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/adhd200_updated/actual_adhd200_td_ages_oct25.npz::actual
+
+  brain_age_adhd:
+    description: Network importance for predicting chronological age in ADHD cohorts.
+    parcellation: yeo17
+    aggregation_method: abs_mean
+    effect_metric: rho
+    ridge_alpha: 1.0
+    datasets:
+      adhd200_adhd:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200_adhd/ig_files
+        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/adhd200_regression_age_ADHD_wIDs/fold_0.bin
+      cmihbn_adhd:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn_adhd/ig_files
+        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/cmihbn_age/fold_0.bin
+
+  brain_age_asd:
+    description: Network importance for predicting chronological age in ASD cohorts.
+    parcellation: yeo17
+    aggregation_method: abs_mean
+    effect_metric: rho
+    ridge_alpha: 1.0
+    datasets:
+      abide_asd:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/abide_asd/ig_files
+        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/abide_asd_asd_dev_age_wIDs/fold_0.bin
+      stanford_asd:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/stanford_asd/ig_files
+        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/stanford_autism_age_wIDS/fold_0.bin
+
