@@ -110,13 +110,14 @@ python run_network_brain_behavior_analysis.py --cohort nki_rs_td
 python run_network_brain_behavior_analysis.py --cohort cmihbn_td --method pos_share
 python run_network_brain_behavior_analysis.py --all  # All cohorts
 
-# 4. Network Importance (Regression-Based Effect Sizes)
-- Run `compute_network_importance_regression.py --preset <name>` to quantify each network's contribution via leave-one-out regression:
+# 4. Network Importance (Dominance Analysis)
+- Run `compute_network_importance_regression.py --preset <name>` to quantify each network's contribution via dominance analysis:
   ```bash
-  python compute_network_importance_regression.py --preset brain_age_td --effect-metric rho
-  python compute_network_importance_regression.py --preset brain_age_adhd --effect-metric rho  
-  python compute_network_importance_regression.py --preset brain_age_asd --effect-metric rho
+  python compute_network_importance_regression.py --preset brain_age_td
+  python compute_network_importance_regression.py --preset brain_age_adhd
+  python compute_network_importance_regression.py --preset brain_age_asd
   ```
+  Add `--save-subject-level` to export per-subject network IG matrices with ages for external analysis.
   Presets in `config/network_importance_presets.yaml` encode IG directories, age sources, parcellation (Yeo-17), and aggregation method (abs_mean). By default, importance is computed via **dominance analysis** (general dominance = average incremental R² contribution across all possible subsets). This method accounts for multicollinearity and shared variance, providing the most theoretically sound effect sizes. For 21 networks, it fits 2^21 ≈ 2.1M models (takes ~5-10 min per dataset). Faster alternatives (coefficients, permutation, LOO) are available by editing `importance_method` in the preset.
 - After generating importance tables, use `plot_combined_network_radar.py` to visualize:
   - **Count-based overlap (1×3)**: Provide shared TD/ADHD/ASD count CSVs to generate a single row showing cross-cohort consensus.

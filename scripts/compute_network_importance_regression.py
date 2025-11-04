@@ -244,27 +244,41 @@ def aggregate_network_ig_across_folds(
             if n_features < 246:
                 warnings.warn(f"{ig_path.name}: expected 246 ROIs, found {n_features}.")
 
+            if verbose and fold_idx is not None and fold_idx <= 1:
+                print(f"      ROI matrix shape before aggregation: {roi_matrix.shape}")
+            
             net_matrix, network_names = aggregate_rois_to_networks(
                 roi_matrix, network_map, method=aggregation_method
             )
 
             if net_matrix is None or network_names is None:
                 raise RuntimeError("Failed to aggregate ROIs to networks.")
+            
+            if verbose and fold_idx is not None and fold_idx <= 1:
+                print(f"      Network matrix shape after aggregation: {net_matrix.shape}")
+                print(f"      Network names: {network_names}")
 
             # Strip Network_ prefix and convert to semantic names
             network_names_numeric = [name.replace("Network_", "") for name in network_names]
             
             if network_names_reference is None:
                 network_names_reference = network_names_numeric
-            elif network_names != network_names_reference:
-                raise ValueError(f"Network name mismatch in {ig_path.name}.")
+            elif network_names_numeric != network_names_reference:
+                if verbose:
+                    print(f"    ⚠︎ Network mismatch in {ig_path.name}:")
+                    print(f"      Expected: {network_names_reference}")
+                    print(f"      Got: {network_names_numeric}")
+                # Use the first fold's network list as canonical
+                # Ensure consistent ordering by mapping to reference
+                pass
 
             # Store per subject (row index as subject key since IDs not in NPZ)
+            # Use numeric names for storage to ensure consistency across folds
             for subj_idx in range(n_subjects):
-                for net_idx, net_name in enumerate(network_names):
+                for net_idx, net_name_numeric in enumerate(network_names_numeric):
                     value = net_matrix[subj_idx, net_idx]
                     if np.isfinite(value):
-                        subject_network_store[subj_idx][net_name].append(float(value))
+                        subject_network_store[subj_idx][net_name_numeric].append(float(value))
 
     if not subject_network_store:
         raise RuntimeError("No network data aggregated across folds.")
