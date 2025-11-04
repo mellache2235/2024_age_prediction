@@ -335,10 +335,14 @@ def compute_network_importance_permutation(
             effect_size = baseline_perf - mean_perm_perf  # Drop in rho/R²
         
         # Apply transformations
+        # Keep signed effect size for CSV, but zero out negatives for percentage
+        effect_size_signed = effect_size
+        effect_size_for_pct = max(0.0, effect_size)  # Only positive contributions
+        
         if use_absolute:
             effect_size = abs(effect_size)
         if as_percentage and baseline_perf != 0:
-            effect_size_pct = (effect_size / abs(baseline_perf)) * 100
+            effect_size_pct = (effect_size_for_pct / abs(baseline_perf)) * 100
         else:
             effect_size_pct = np.nan
 
@@ -348,6 +352,7 @@ def compute_network_importance_permutation(
             "Mean_Permuted_Performance": float(mean_perm_perf),
             "Permuted_Performance_Std": float(std_perm_perf),
             "Effect_Size": float(effect_size),
+            "Effect_Size_Signed": float(effect_size_signed),
             "Effect_Size_Pct": float(effect_size_pct),
             "N_Subjects": int(X_clean.shape[0]),
         })
@@ -560,8 +565,11 @@ def main() -> None:
             continue
 
         ig_dir = Path(ig_dir_str).expanduser()
-        age_source = Path(age_source_str).expanduser()
-
+        
+        # Parse age_source (handle optional ::value_key suffix)
+        age_source_parts = str(age_source_str).split("::")
+        age_source = Path(age_source_parts[0]).expanduser()
+        
         if not ig_dir.exists():
             print(f"✗ Skipping {dataset}: IG directory not found: {ig_dir}")
             continue
