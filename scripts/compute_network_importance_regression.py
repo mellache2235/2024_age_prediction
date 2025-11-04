@@ -50,30 +50,30 @@ DEFAULT_YEO_ATLAS = Path(
 
 FOLD_PATTERN = re.compile(r"_(\d+)[^/\\]*_ig\.npz$", re.IGNORECASE)
 
-# Yeo-17 network semantic names (matching atlas numeric labels)
-# Order matches: Yeo17_0, VisPeri, VisCent, ..., Thalamus
+# Yeo-17 network semantic names (from reference table)
+# Maps atlas numeric IDs to standardized network names
 YEO17_NETWORK_NAMES = {
-    "0": "Yeo17_0",
-    "1": "VisPeri",
-    "2": "VisCent",
-    "3": "SomMotA",
-    "4": "SomMotB",
-    "5": "DorsAttnA",
-    "6": "DorsAttnB",
-    "7": "SalVentAttnA",
-    "8": "SalVentAttnB",
-    "9": "LimbicB",
-    "10": "LimbicA",
-    "11": "FPA",
-    "12": "FPB",
-    "13": "FPC",
-    "14": "DefaultA",
-    "15": "DefaultB",
-    "16": "DefaultC",
-    "17": "TempPar",
-    "18": "AmyHip",
-    "19": "Striatum",
-    "20": "Thalamus",
+    "0": "Yeo17_0",           # Unassigned/other
+    "1": "VisPeri",           # Visual peripheral
+    "2": "VisCent",           # Visual central
+    "3": "SomMot-1",          # Somato-motor A
+    "4": "SomMot-2",          # Somato-motor B
+    "5": "DorsAttn-1",        # Dorsal attention A
+    "6": "DorsAttn-2",        # Dorsal attention B
+    "7": "SalVentAttn-1",     # Ventral attention / Salience A
+    "8": "SalVentAttn-2",     # Salience B
+    "9": "Limbic-2",          # Limbic B
+    "10": "Limbic-1",         # Limbic A
+    "11": "FPN-1",            # Fronto-parietal / Control C (FPA)
+    "12": "FPN-2",            # Control A (FPB)
+    "13": "FPN-3",            # Control B (FPC)
+    "14": "AudLang",          # Default D (Auditory/Language)
+    "15": "DMN-MTL",          # Default C
+    "16": "DMN-1",            # Default A
+    "17": "DMN-2",            # Default B / TempPar
+    "18": "AmyHip",           # Amygdala/Hippocampus
+    "19": "Striatum",         # Striatum
+    "20": "Thalamus",         # Thalamus
 }
 
 YEO7_NETWORK_NAMES = {
@@ -274,14 +274,28 @@ def aggregate_network_ig_across_folds(
 
     # Convert numeric labels to semantic names
     name_map = YEO17_NETWORK_NAMES if "17" in parcellation else YEO7_NETWORK_NAMES
-    network_names_semantic = [name_map.get(num, num) for num in network_names_numeric]
+    
+    # Filter out network "0" (unassigned ROIs) for Yeo-17
+    if "17" in parcellation:
+        filtered_numeric = [num for num in network_names_numeric if num != "0"]
+        network_names_semantic = [name_map.get(num, num) for num in filtered_numeric]
+    else:
+        filtered_numeric = network_names_numeric
+        network_names_semantic = [name_map.get(num, num) for num in filtered_numeric]
 
     # Average across folds
-    network_matrix = np.zeros((n_subjects, len(network_names_numeric)))
+    network_matrix_full = np.zeros((n_subjects, len(network_names_numeric)))
     for subj_idx in range(n_subjects):
         for net_idx, net_name_numeric in enumerate(network_names_numeric):
             values = subject_network_store[subj_idx].get(net_name_numeric, [])
-            network_matrix[subj_idx, net_idx] = np.mean(values) if values else np.nan
+            network_matrix_full[subj_idx, net_idx] = np.mean(values) if values else np.nan
+    
+    # Filter columns for network "0" if needed
+    if "17" in parcellation:
+        keep_indices = [i for i, num in enumerate(network_names_numeric) if num != "0"]
+        network_matrix = network_matrix_full[:, keep_indices]
+    else:
+        network_matrix = network_matrix_full
 
     return network_names_semantic, network_matrix
 
