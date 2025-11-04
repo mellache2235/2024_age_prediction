@@ -117,7 +117,7 @@ python run_network_brain_behavior_analysis.py --all  # All cohorts
   python compute_network_importance_regression.py --preset brain_age_adhd --effect-metric rho  
   python compute_network_importance_regression.py --preset brain_age_asd --effect-metric rho
   ```
-  Presets in `config/network_importance_presets.yaml` encode IG directories, age sources, parcellation (Yeo-17), and aggregation method (abs_mean). Effect sizes reflect absolute performance drop (|Δρ|, |ΔR²|, or |ΔMAE|) when each network is omitted from multivariate Ridge regression. The `Effect_Size_Pct` column expresses this as a percentage of baseline performance for easier interpretation.
+  Presets in `config/network_importance_presets.yaml` encode IG directories, age sources, parcellation (Yeo-17), and aggregation method (abs_mean). By default, importance is computed via **permutation** (shuffle each network 20× and measure average performance drop), which handles noise and multicollinearity better than leave-one-out. Effect sizes are absolute values expressed as percentages of baseline performance (`Effect_Size_Pct`), making them radar-plot ready.
 - After generating importance tables, use `plot_combined_network_radar.py` to visualize:
   - **Count-based overlap (1×3)**: Provide shared TD/ADHD/ASD count CSVs to generate a single row showing cross-cohort consensus.
     ```bash

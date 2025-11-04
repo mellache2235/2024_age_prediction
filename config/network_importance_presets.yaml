@@ -4,6 +4,7 @@ presets:
     parcellation: yeo17
     aggregation_method: abs_mean
     effect_metric: rho  # Options: rho (Spearman), r2, mae
+    importance_method: permutation  # Options: permutation (default), loo
     ridge_alpha: 1.0
     datasets:
       hcp_dev:
@@ -24,6 +25,7 @@ presets:
     parcellation: yeo17
     aggregation_method: abs_mean
     effect_metric: rho
+    importance_method: permutation
     ridge_alpha: 1.0
     datasets:
       adhd200_adhd:
@@ -38,6 +40,7 @@ presets:
     parcellation: yeo17
     aggregation_method: abs_mean
     effect_metric: rho
+    importance_method: permutation
     ridge_alpha: 1.0
     datasets:
       abide_asd:

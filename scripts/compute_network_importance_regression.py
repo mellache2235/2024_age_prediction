@@ -244,6 +244,117 @@ def aggregate_network_ig_across_folds(
     return network_names_final, network_matrix
 
 
+def compute_network_importance_permutation(
+    X_networks: np.ndarray,
+    y: np.ndarray,
+    network_names: List[str],
+    effect_metric: str = "rho",
+    alpha: float = 1.0,
+    n_permutations: int = 20,
+    use_absolute: bool = True,
+    as_percentage: bool = False,
+    random_seed: int = 42,
+) -> pd.DataFrame:
+    """
+    Compute network importance via permutation.
+    
+    For each network, shuffle its values n_permutations times, refit the model,
+    and measure the average performance drop.
+    
+    Args:
+        X_networks: (N_subjects, N_networks) network feature matrix
+        y: (N_subjects,) target values
+        network_names: Network labels
+        effect_metric: 'rho' (Spearman), 'r2', or 'mae'
+        alpha: Ridge regularization parameter
+        n_permutations: Number of permutations per network
+        use_absolute: Take absolute value of effect size
+        as_percentage: Express effect size as % of baseline
+        random_seed: Random seed for reproducibility
+    
+    Returns:
+        DataFrame with Network, Baseline_Performance, Mean_Permuted_Performance, Effect_Size, Effect_Size_Std
+    """
+    np.random.seed(random_seed)
+    
+    # Remove NaN rows
+    mask = np.all(np.isfinite(X_networks), axis=1) & np.isfinite(y)
+    X_clean = X_networks[mask]
+    y_clean = y[mask]
+
+    if X_clean.shape[0] < 10:
+        raise ValueError(f"Insufficient samples after removing NaNs: {X_clean.shape[0]}")
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X_clean)
+
+    # Baseline: all networks
+    model = Ridge(alpha=alpha)
+    model.fit(X_scaled, y_clean)
+    y_pred_baseline = model.predict(X_scaled)
+
+    if effect_metric == "rho":
+        baseline_perf = spearmanr(y_clean, y_pred_baseline)[0]
+    elif effect_metric == "r2":
+        baseline_perf = r2_score(y_clean, y_pred_baseline)
+    elif effect_metric == "mae":
+        baseline_perf = mean_absolute_error(y_clean, y_pred_baseline)
+    else:
+        raise ValueError("effect_metric must be 'rho', 'r2', or 'mae'.")
+
+    print(f"  Baseline performance (all networks): {effect_metric}={baseline_perf:.4f}")
+
+    results = []
+    for net_idx, net_name in enumerate(network_names):
+        permuted_perfs = []
+        
+        for perm_idx in range(n_permutations):
+            # Permute this network's values
+            X_perm = X_scaled.copy()
+            X_perm[:, net_idx] = np.random.permutation(X_perm[:, net_idx])
+            
+            model_perm = Ridge(alpha=alpha)
+            model_perm.fit(X_perm, y_clean)
+            y_pred_perm = model_perm.predict(X_perm)
+
+            if effect_metric == "rho":
+                perm_perf = spearmanr(y_clean, y_pred_perm)[0]
+            elif effect_metric == "r2":
+                perm_perf = r2_score(y_clean, y_pred_perm)
+            elif effect_metric == "mae":
+                perm_perf = mean_absolute_error(y_clean, y_pred_perm)
+            
+            permuted_perfs.append(perm_perf)
+        
+        mean_perm_perf = np.mean(permuted_perfs)
+        std_perm_perf = np.std(permuted_perfs)
+        
+        if effect_metric == "mae":
+            effect_size = mean_perm_perf - baseline_perf  # Increase in MAE
+        else:
+            effect_size = baseline_perf - mean_perm_perf  # Drop in rho/R²
+        
+        # Apply transformations
+        if use_absolute:
+            effect_size = abs(effect_size)
+        if as_percentage and baseline_perf != 0:
+            effect_size_pct = (effect_size / abs(baseline_perf)) * 100
+        else:
+            effect_size_pct = np.nan
+
+        results.append({
+            "Network": net_name,
+            "Baseline_Performance": float(baseline_perf),
+            "Mean_Permuted_Performance": float(mean_perm_perf),
+            "Permuted_Performance_Std": float(std_perm_perf),
+            "Effect_Size": float(effect_size),
+            "Effect_Size_Pct": float(effect_size_pct),
+            "N_Subjects": int(X_clean.shape[0]),
+        })
+
+    return pd.DataFrame(results)
+
+
 def compute_network_importance_loo(
     X_networks: np.ndarray,
     y: np.ndarray,
@@ -507,16 +618,31 @@ def main() -> None:
             )
 
         # Compute network importance
-        print(f"  Computing network importance via LOO regression...")
-        importance_df = compute_network_importance_loo(
-            network_matrix,
-            ages,
-            network_names,
-            effect_metric=effect_metric,
-            alpha=ridge_alpha,
-            use_absolute=True,
-            as_percentage=True,
-        )
+        importance_method = cfg.get("importance_method", "permutation")
+        
+        if importance_method == "permutation":
+            print(f"  Computing network importance via permutation (20 shuffles/network)...")
+            importance_df = compute_network_importance_permutation(
+                network_matrix,
+                ages,
+                network_names,
+                effect_metric=effect_metric,
+                alpha=ridge_alpha,
+                n_permutations=20,
+                use_absolute=True,
+                as_percentage=True,
+            )
+        else:
+            print(f"  Computing network importance via LOO regression...")
+            importance_df = compute_network_importance_loo(
+                network_matrix,
+                ages,
+                network_names,
+                effect_metric=effect_metric,
+                alpha=ridge_alpha,
+                use_absolute=True,
+                as_percentage=True,
+            )
 
         importance_df.insert(0, "Dataset", dataset)
         importance_df.insert(1, "Parcellation", parcellation)
