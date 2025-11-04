@@ -117,7 +117,7 @@ python run_network_brain_behavior_analysis.py --all  # All cohorts
   python compute_network_importance_regression.py --preset brain_age_adhd --effect-metric rho  
   python compute_network_importance_regression.py --preset brain_age_asd --effect-metric rho
   ```
-  Presets in `config/network_importance_presets.yaml` encode IG directories, age sources, parcellation (Yeo-17), and aggregation method (abs_mean). Effect sizes reflect performance drop (Δρ, ΔR², or ΔMAE) when each network is omitted from multivariate regression.
+  Presets in `config/network_importance_presets.yaml` encode IG directories, age sources, parcellation (Yeo-17), and aggregation method (abs_mean). Effect sizes reflect absolute performance drop (|Δρ|, |ΔR²|, or |ΔMAE|) when each network is omitted from multivariate Ridge regression. The `Effect_Size_Pct` column expresses this as a percentage of baseline performance for easier interpretation.
 - After generating importance tables, use `plot_combined_network_radar.py` to visualize:
   - **Count-based overlap (1×3)**: Provide shared TD/ADHD/ASD count CSVs to generate a single row showing cross-cohort consensus.
     ```bash
@@ -127,7 +127,7 @@ python run_network_brain_behavior_analysis.py --all  # All cohorts
       --asd /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/shared_ASD/shared_network_analysis.csv \
       --output /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_analysis_yeo/radar_panels/shared_network_radar
     ```
-  - **Effect-size grids**: Add `--*-ig` arguments with regression importance summaries to render cohort-specific panels (use `Effect_Size` column from importance CSVs).
+  - **Effect-size grids**: Add `--*-ig` arguments with regression importance summaries to render cohort-specific panels. The radar script automatically uses `Effect_Size_Pct` (percentage drops) for clearer visualization; override with `--ig-column Effect_Size` for raw Δρ values.
 - `plot_combined_network_radar.py` labels bars with the Yeo network names (e.g., DefaultA, DorsAttnA) after stripping the `Network_` prefix.
 - Minimal example for an ASD-only panel:
   ```bash

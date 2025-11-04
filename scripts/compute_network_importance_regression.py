@@ -250,6 +250,8 @@ def compute_network_importance_loo(
     network_names: List[str],
     effect_metric: str = "rho",
     alpha: float = 1.0,
+    use_absolute: bool = True,
+    as_percentage: bool = False,
 ) -> pd.DataFrame:
     """
     Compute network importance via leave-one-out regression.
@@ -312,11 +314,20 @@ def compute_network_importance_loo(
             loo_perf = mean_absolute_error(y_clean, y_pred_loo)
             effect_size = loo_perf - baseline_perf  # Increase in MAE (positive = worse)
 
+        # Apply transformations
+        if use_absolute:
+            effect_size = abs(effect_size)
+        if as_percentage and baseline_perf != 0:
+            effect_size_pct = (effect_size / abs(baseline_perf)) * 100
+        else:
+            effect_size_pct = np.nan
+
         results.append({
             "Network": net_name,
             "Baseline_Performance": float(baseline_perf),
             "LOO_Performance": float(loo_perf),
             "Effect_Size": float(effect_size),
+            "Effect_Size_Pct": float(effect_size_pct),
             "N_Subjects": int(X_clean.shape[0]),
         })
 
@@ -468,9 +479,17 @@ def main() -> None:
         # Load network mapping
         network_map = load_network_mapping(args.atlas_path, parcellation)
 
-        # Load ages
-        _, ages = load_age_source(age_source)
-        print(f"  Loaded {len(ages)} ages from {age_source.name}")
+        # Load ages (handle optional ::value_key suffix in age_source string)
+        age_source_str_parts = str(age_source).split("::")
+        age_source_path = Path(age_source_str_parts[0])
+        age_value_key = age_source_str_parts[1] if len(age_source_str_parts) == 2 else None
+        
+        if not age_source_path.exists():
+            print(f"✗ Skipping {dataset}: age source not found: {age_source_path}")
+            continue
+            
+        _, ages = load_age_source(age_source_path, value_key=age_value_key)
+        print(f"  Loaded {len(ages)} ages from {age_source_path.name}")
 
         # Aggregate IG across folds
         print(f"  Aggregating {len(ig_files)} folds...")
@@ -495,6 +514,8 @@ def main() -> None:
             network_names,
             effect_metric=effect_metric,
             alpha=ridge_alpha,
+            use_absolute=True,
+            as_percentage=True,
         )
 
         importance_df.insert(0, "Dataset", dataset)
