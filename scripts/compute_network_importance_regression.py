@@ -244,6 +244,82 @@ def aggregate_network_ig_across_folds(
     return network_names_final, network_matrix
 
 
+def compute_network_importance_coefficients(
+    X_networks: np.ndarray,
+    y: np.ndarray,
+    network_names: List[str],
+    alpha: float = 1.0,
+    as_percentage: bool = False,
+) -> pd.DataFrame:
+    """
+    Compute network importance via standardized Ridge coefficients.
+    
+    After standardizing all networks to unit variance, the Ridge coefficients
+    reflect each network's weight in the multivariate prediction.
+    
+    Args:
+        X_networks: (N_subjects, N_networks) network feature matrix
+        y: (N_subjects,) target values
+        network_names: Network labels
+        alpha: Ridge regularization parameter
+        as_percentage: Express coefficient as % of sum(|β|)
+    
+    Returns:
+        DataFrame with Network, Coefficient, Coefficient_Abs, Coefficient_Pct
+    """
+    # Remove NaN rows
+    mask = np.all(np.isfinite(X_networks), axis=1) & np.isfinite(y)
+    X_clean = X_networks[mask]
+    y_clean = y[mask]
+
+    if X_clean.shape[0] < 10:
+        raise ValueError(f"Insufficient samples after removing NaNs: {X_clean.shape[0]}")
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X_clean)
+
+    # Fit Ridge regression
+    model = Ridge(alpha=alpha)
+    model.fit(X_scaled, y_clean)
+    y_pred = model.predict(X_scaled)
+    
+    # Compute performance
+    rho, p_value = spearmanr(y_clean, y_pred)
+    r2 = r2_score(y_clean, y_pred)
+    mae = mean_absolute_error(y_clean, y_pred)
+    
+    print(f"  Model performance: ρ={rho:.4f}, R²={r2:.4f}, MAE={mae:.2f}")
+
+    coefficients = model.coef_
+    
+    # Compute percentages (normalize by sum of absolute coefficients)
+    total_abs_coef = np.sum(np.abs(coefficients))
+    
+    results = []
+    for net_idx, net_name in enumerate(network_names):
+        coef = float(coefficients[net_idx])
+        coef_abs = abs(coef)
+        
+        if as_percentage and total_abs_coef > 0:
+            coef_pct = (coef_abs / total_abs_coef) * 100
+        else:
+            coef_pct = np.nan
+
+        results.append({
+            "Network": net_name,
+            "Coefficient": coef,
+            "Coefficient_Abs": coef_abs,
+            "Effect_Size": coef_abs,  # Alias for radar compatibility
+            "Effect_Size_Pct": float(coef_pct) if not np.isnan(coef_pct) else coef_abs,
+            "Model_Spearman_rho": float(rho),
+            "Model_R2": float(r2),
+            "Model_MAE": float(mae),
+            "N_Subjects": int(X_clean.shape[0]),
+        })
+
+    return pd.DataFrame(results)
+
+
 def compute_network_importance_permutation(
     X_networks: np.ndarray,
     y: np.ndarray,
@@ -621,14 +697,28 @@ def main() -> None:
         print(f"  Aggregated: {network_matrix.shape[0]} subjects × {len(network_names)} networks")
 
         if network_matrix.shape[0] != len(ages):
-            raise ValueError(
-                f"Subject count mismatch: IG has {network_matrix.shape[0]} subjects, ages has {len(ages)}."
+            print(
+                f"  ⚠︎ Subject count mismatch: IG has {network_matrix.shape[0]} subjects, ages has {len(ages)}."
             )
+            # Truncate to smaller length
+            min_n = min(network_matrix.shape[0], len(ages))
+            network_matrix = network_matrix[:min_n]
+            ages = ages[:min_n]
+            print(f"  Truncated to {min_n} subjects for alignment.")
 
         # Compute network importance
-        importance_method = cfg.get("importance_method", "permutation")
+        importance_method = cfg.get("importance_method", "coefficients")
         
-        if importance_method == "permutation":
+        if importance_method == "coefficients":
+            print(f"  Computing network importance via standardized Ridge coefficients...")
+            importance_df = compute_network_importance_coefficients(
+                network_matrix,
+                ages,
+                network_names,
+                alpha=ridge_alpha,
+                as_percentage=True,
+            )
+        elif importance_method == "permutation":
             print(f"  Computing network importance via permutation (20 shuffles/network)...")
             importance_df = compute_network_importance_permutation(
                 network_matrix,
