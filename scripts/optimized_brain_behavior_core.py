@@ -167,8 +167,12 @@ def aggregate_rois_to_networks(X, network_map, method='mean'):
     if network_map is None:
         return None, None
     
-    # Get unique networks
-    unique_networks = sorted(set(network_map.values()))
+    # Get unique networks (sort numerically if values are numeric strings)
+    unique_values = set(network_map.values())
+    try:
+        unique_networks = sorted(unique_values, key=lambda x: int(x) if str(x).isdigit() else x)
+    except (ValueError, TypeError):
+        unique_networks = sorted(unique_values)
     n_networks = len(unique_networks)
     n_subjects = X.shape[0]
     
