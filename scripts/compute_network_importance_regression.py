@@ -50,6 +50,43 @@ DEFAULT_YEO_ATLAS = Path(
 
 FOLD_PATTERN = re.compile(r"_(\d+)[^/\\]*_ig\.npz$", re.IGNORECASE)
 
+# Yeo-17 network semantic names (matching atlas numeric labels)
+# Order matches: Yeo17_0, VisPeri, VisCent, ..., Thalamus
+YEO17_NETWORK_NAMES = {
+    "0": "Yeo17_0",
+    "1": "VisPeri",
+    "2": "VisCent",
+    "3": "SomMotA",
+    "4": "SomMotB",
+    "5": "DorsAttnA",
+    "6": "DorsAttnB",
+    "7": "SalVentAttnA",
+    "8": "SalVentAttnB",
+    "9": "LimbicB",
+    "10": "LimbicA",
+    "11": "FPA",
+    "12": "FPB",
+    "13": "FPC",
+    "14": "DefaultA",
+    "15": "DefaultB",
+    "16": "DefaultC",
+    "17": "TempPar",
+    "18": "AmyHip",
+    "19": "Striatum",
+    "20": "Thalamus",
+}
+
+YEO7_NETWORK_NAMES = {
+    "0": "Visual",
+    "1": "SomMot",
+    "2": "DorsAttn",
+    "3": "SalVentAttn",
+    "4": "Limbic",
+    "5": "FrontoPar",
+    "6": "Default",
+    "7": "Cont",
+}
+
 
 def extract_fold_index(path: Path) -> Optional[int]:
     """Extract fold index from filenames like *_5_*_ig.npz."""
@@ -177,6 +214,7 @@ def aggregate_network_ig_across_folds(
     ig_files: Sequence[Path],
     network_map: Dict[int, str],
     aggregation_method: str,
+    parcellation: str,
     verbose: bool = False,
 ) -> Tuple[List[str], np.ndarray]:
     """
@@ -213,11 +251,11 @@ def aggregate_network_ig_across_folds(
             if net_matrix is None or network_names is None:
                 raise RuntimeError("Failed to aggregate ROIs to networks.")
 
-            # Strip Network_ prefix
-            network_names = [name.replace("Network_", "") for name in network_names]
-
+            # Strip Network_ prefix and convert to semantic names
+            network_names_numeric = [name.replace("Network_", "") for name in network_names]
+            
             if network_names_reference is None:
-                network_names_reference = network_names
+                network_names_reference = network_names_numeric
             elif network_names != network_names_reference:
                 raise ValueError(f"Network name mismatch in {ig_path.name}.")
 
@@ -231,17 +269,21 @@ def aggregate_network_ig_across_folds(
     if not subject_network_store:
         raise RuntimeError("No network data aggregated across folds.")
 
-    network_names_final = network_names_reference or []
+    network_names_numeric = network_names_reference or []
     n_subjects = max(subject_network_store.keys()) + 1
 
+    # Convert numeric labels to semantic names
+    name_map = YEO17_NETWORK_NAMES if "17" in parcellation else YEO7_NETWORK_NAMES
+    network_names_semantic = [name_map.get(num, num) for num in network_names_numeric]
+
     # Average across folds
-    network_matrix = np.zeros((n_subjects, len(network_names_final)))
+    network_matrix = np.zeros((n_subjects, len(network_names_numeric)))
     for subj_idx in range(n_subjects):
-        for net_idx, net_name in enumerate(network_names_final):
-            values = subject_network_store[subj_idx].get(net_name, [])
+        for net_idx, net_name_numeric in enumerate(network_names_numeric):
+            values = subject_network_store[subj_idx].get(net_name_numeric, [])
             network_matrix[subj_idx, net_idx] = np.mean(values) if values else np.nan
 
-    return network_names_final, network_matrix
+    return network_names_semantic, network_matrix
 
 
 def compute_network_importance_dominance(
@@ -823,6 +865,7 @@ def main() -> None:
             ig_files,
             network_map,
             aggregation_method,
+            parcellation,
             verbose=args.verbose,
         )
         print(f"  Aggregated: {network_matrix.shape[0]} subjects × {len(network_names)} networks")
