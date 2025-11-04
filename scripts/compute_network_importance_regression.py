@@ -244,6 +244,132 @@ def aggregate_network_ig_across_folds(
     return network_names_final, network_matrix
 
 
+def compute_network_importance_dominance(
+    X_networks: np.ndarray,
+    y: np.ndarray,
+    network_names: List[str],
+    alpha: float = 1.0,
+    metric: str = "r2",
+) -> pd.DataFrame:
+    """
+    Compute network importance via dominance analysis.
+    
+    Dominance analysis quantifies each predictor's contribution by examining
+    all possible subset models. For K predictors, this requires fitting 2^K models,
+    so it's limited to ~15-20 networks max.
+    
+    For each network, we compute:
+    - General dominance = average incremental R² across all subset sizes
+    
+    Args:
+        X_networks: (N_subjects, N_networks) network feature matrix
+        y: (N_subjects,) target values
+        network_names: Network labels
+        alpha: Ridge regularization parameter
+        metric: 'r2' or 'mae' (note: dominance typically uses R²)
+    
+    Returns:
+        DataFrame with Network, General_Dominance, Dominance_Pct
+    """
+    from itertools import combinations
+    
+    # Remove NaN rows
+    mask = np.all(np.isfinite(X_networks), axis=1) & np.isfinite(y)
+    X_clean = X_networks[mask]
+    y_clean = y[mask]
+
+    if X_clean.shape[0] < 10:
+        raise ValueError(f"Insufficient samples after removing NaNs: {X_clean.shape[0]}")
+
+    n_networks = len(network_names)
+    
+    if n_networks > 20:
+        warnings.warn(
+            f"Dominance analysis with {n_networks} networks requires 2^{n_networks} models. "
+            "This may take a very long time. Consider using coefficients method instead."
+        )
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X_clean)
+
+    # Cache for subset model performances
+    subset_cache: Dict[frozenset, float] = {}
+    
+    def fit_subset(network_indices: Sequence[int]) -> float:
+        """Fit model with subset of networks and return R² or MAE."""
+        key = frozenset(network_indices)
+        if key in subset_cache:
+            return subset_cache[key]
+        
+        if len(network_indices) == 0:
+            # Null model: predict mean
+            y_pred = np.full_like(y_clean, np.mean(y_clean))
+        else:
+            X_subset = X_scaled[:, list(network_indices)]
+            model = Ridge(alpha=alpha)
+            model.fit(X_subset, y_clean)
+            y_pred = model.predict(X_subset)
+        
+        if metric == "r2":
+            perf = r2_score(y_clean, y_pred)
+        elif metric == "mae":
+            perf = -mean_absolute_error(y_clean, y_pred)  # Negative so higher is better
+        else:
+            raise ValueError("Dominance analysis supports 'r2' or 'mae'.")
+        
+        subset_cache[key] = perf
+        return perf
+    
+    print(f"  Computing dominance analysis (fitting 2^{n_networks} = {2**n_networks} models)...")
+    
+    # Compute general dominance for each network
+    dominances = []
+    
+    for target_idx in range(n_networks):
+        incremental_contributions = []
+        
+        # Iterate over all possible subsets that DON'T include target_idx
+        other_networks = [i for i in range(n_networks) if i != target_idx]
+        
+        for subset_size in range(n_networks):
+            # All subsets of `other_networks` with size `subset_size`
+            for subset in combinations(other_networks, subset_size):
+                # Performance without target
+                perf_without = fit_subset(subset)
+                # Performance with target added
+                perf_with = fit_subset(tuple(subset) + (target_idx,))
+                # Incremental contribution
+                incremental = perf_with - perf_without
+                incremental_contributions.append(incremental)
+        
+        # General dominance = average incremental contribution
+        general_dom = np.mean(incremental_contributions)
+        dominances.append(general_dom)
+    
+    # Full model performance
+    full_perf = fit_subset(tuple(range(n_networks)))
+    print(f"  Full model {metric.upper()}: {full_perf:.4f}")
+    
+    # Normalize as percentage of total R² (or MAE)
+    total_dom = sum(dominances)
+    
+    results = []
+    for net_idx, net_name in enumerate(network_names):
+        dom = dominances[net_idx]
+        dom_pct = (dom / total_dom * 100) if total_dom != 0 else 0.0
+        
+        results.append({
+            "Network": net_name,
+            "General_Dominance": float(dom),
+            "Effect_Size": float(abs(dom)),  # Alias for radar
+            "Effect_Size_Pct": float(abs(dom_pct)),
+            "Full_Model_Performance": float(full_perf),
+            "N_Subjects": int(X_clean.shape[0]),
+        })
+
+    return pd.DataFrame(results)
+
+
 def compute_network_importance_coefficients(
     X_networks: np.ndarray,
     y: np.ndarray,
@@ -714,7 +840,16 @@ def main() -> None:
         # Compute network importance
         importance_method = cfg.get("importance_method", "coefficients")
         
-        if importance_method == "coefficients":
+        if importance_method == "dominance":
+            print(f"  Computing network importance via dominance analysis...")
+            importance_df = compute_network_importance_dominance(
+                network_matrix,
+                ages,
+                network_names,
+                alpha=ridge_alpha,
+                metric="r2",
+            )
+        elif importance_method == "coefficients":
             print(f"  Computing network importance via standardized Ridge coefficients...")
             importance_df = compute_network_importance_coefficients(
                 network_matrix,
