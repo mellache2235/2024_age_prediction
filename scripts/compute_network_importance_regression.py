@@ -615,6 +615,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Print per-file progress information.",
     )
+    parser.add_argument(
+        "--save-subject-level",
+        action="store_true",
+        help="Save per-subject network IG matrices with ages for each dataset.",
+    )
 
     return parser.parse_args()
 
@@ -749,9 +754,19 @@ def main() -> None:
 
         all_results.append(importance_df)
 
-        dataset_csv = output_dir / f"{dataset}_network_importance_{effect_metric}.csv"
+        dataset_csv = output_dir / f"{dataset}_network_importance.csv"
         importance_df.to_csv(dataset_csv, index=False)
         print(f"  ✓ Saved: {dataset_csv}")
+        
+        if args.save_subject_level:
+            # Save subject-level matrix: Age + Network_0, Network_1, ..., Network_20
+            subject_df = pd.DataFrame(network_matrix, columns=network_names)
+            subject_df.insert(0, "Age", ages[:network_matrix.shape[0]])
+            subject_df.insert(0, "Subject_Index", range(network_matrix.shape[0]))
+            
+            subject_csv = output_dir / f"{dataset}_subject_network_values.csv"
+            subject_df.to_csv(subject_csv, index=False)
+            print(f"  ✓ Saved subject-level data: {subject_csv}")
 
     if all_results:
         combined = pd.concat(all_results, ignore_index=True)
