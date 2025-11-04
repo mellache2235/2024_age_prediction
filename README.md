@@ -117,8 +117,14 @@ python run_network_brain_behavior_analysis.py --all  # All cohorts
   python compute_network_importance_regression.py --preset brain_age_adhd
   python compute_network_importance_regression.py --preset brain_age_asd
   ```
-  Add `--save-subject-level` to export per-subject network IG matrices with ages for external analysis.
-  Presets in `config/network_importance_presets.yaml` encode IG directories, age sources, parcellation (Yeo-17), and aggregation method (abs_mean). By default, importance is computed via **dominance analysis** (general dominance = average incremental R² contribution across all possible subsets). This method accounts for multicollinearity and shared variance, providing the most theoretically sound effect sizes. For 21 networks, it fits 2^21 ≈ 2.1M models (takes ~5-10 min per dataset). Faster alternatives (coefficients, permutation, LOO) are available by editing `importance_method` in the preset.
+  Add `--save-subject-level` to export per-subject network IG matrices with ages for external analysis. Each run produces:
+  - `<dataset>_network_importance.csv` (full metrics)
+  - `dominance_multivariate_network_age_<dataset>.csv` (radar-ready: Network, Dominance %)
+  - `dominance_permutation_pvalues.csv` (model significance summary)
+  - `dominance_multivariate_network_age_pooled.csv` (dominance averaged across all cohorts in the preset, for 1×3 overlap radar)
+  
+  Use the per-dataset radar CSVs with `plot_combined_network_radar.py --*-ig` to build TD 2×2, ADHD 1×2, and ASD 1×2 grids. Use the pooled CSV for a single-panel radar showing average network importance across cohorts.
+  Presets in `config/network_importance_presets.yaml` encode IG directories, age sources, parcellation (Yeo-17), and aggregation method (abs_mean). By default, importance is computed via **dominance analysis** using `netneurotools.stats.get_dominance_stats`, which decomposes R² into each network's total contribution across all possible subset models. Includes permutation testing (5000 shuffles) to assess overall model significance. **Requires:** `pip install netneurotools`. Faster alternatives (coefficients, permutation, LOO) are available by editing `importance_method` in the preset.
 - After generating importance tables, use `plot_combined_network_radar.py` to visualize:
   - **Count-based overlap (1×3)**: Provide shared TD/ADHD/ASD count CSVs to generate a single row showing cross-cohort consensus.
     ```bash
@@ -223,7 +229,7 @@ results/
 | **Brain-Behavior (Optimized - Universal)** | `run_all_cohorts_*_optimized.py` | 6 strategies, FDR correction |
 | **Brain-Behavior (Optimized - Dedicated)** | `run_stanford/abide/nki_*_optimized.py` | Better data handling, cohort-specific |
 | **Brain-Behavior (Network-Level)** ⭐ | `run_network_brain_behavior_analysis.py` | Network predictors (7-17 networks) |
-| **Network IG ↔ Targets** | `scripts/compute_network_age_correlations.py` | CSV summaries of network-level IG vs. chronological/predicted age or behavior |
+| **Network Importance (Dominance)** | `compute_network_importance_regression.py` | Dominance analysis CSVs + radar-ready outputs |
 | **Optimization Validation** | `check_optimization_predictions.py` | Integrity verification |
 | **Optimization Summary** | `create_optimization_summary_figure.py` | Bar plots, tables (FDR corrected) |
 | **Brain Age** | `plot_brain_age_*.py` | Combined scatter plots |
@@ -233,21 +239,47 @@ results/
 
 ---
 
-### Network IG ↔ Target Correlations
+### Network Importance via Dominance Analysis
 
-- Use the presets in `config/network_correlation_presets.yaml` to generate age and behavior correlation tables (`results/network_correlations/`). Presets already know the IG directories, chronological-age sources, and any behavior or predicted-brain-age targets, so running the script requires only the preset name (e.g., `brain_age_td`, `brain_behavior_adhd200`). Set `parcellation: yeo17` inside a preset if you prefer the 17-network atlas.
-- Signed IG averages (`--aggregation-method mean`) can yield near-zero correlations; prefer magnitude-preserving options such as `abs_mean`, `pos_share`, or `neg_share` when interpreting effect sizes.
-- `--apply-fdr` works even when `statsmodels` is unavailable—the script now performs a Benjamini–Hochberg correction internally.
+Quantifies each Yeo-17 network's contribution to age prediction using dominance analysis (netneurotools).
 
----
+**Workflow:**
+1. Aggregate 500-fold IG attributions → 20 network features per subject (excluding Yeo17_0)
+2. Z-score networks and ages
+3. Compute total dominance for each network (decomposition of model R²)
+4. Run 5000 permutations to test overall model significance
 
-### Network IG ↔ Behavior Correlations
+**Commands:**
+```bash
+# TD cohorts (HCP-Development, NKI-RS TD, CMI-HBN TD, ADHD-200 TD)
+python compute_network_importance_regression.py --preset brain_age_td
 
-- Use the `brain_behavior_adhd200` preset for ADHD-200 behavior correlations:
-  ```bash
-  python compute_network_age_correlations.py --preset brain_behavior_adhd200 --skip-chronological --apply-fdr
-  ```
-  This preset links to the optimized IG folder and pulls observed/predicted scores from `predictions.csv` automatically. Extend the YAML with additional behavior presets as needed.
+# ADHD cohorts (ADHD-200 ADHD, CMI-HBN ADHD)
+python compute_network_importance_regression.py --preset brain_age_adhd
+
+# ASD cohorts (ABIDE ASD, Stanford ASD)
+python compute_network_importance_regression.py --preset brain_age_asd
+```
+
+**Outputs** (in `results/network_importance/`):
+- `<dataset>_network_importance.csv` - Full metrics (Total_Dominance, Dominance_Pct, Model_R2_Adj, P_Value, N_Subjects)
+- `dominance_multivariate_network_age_<dataset>.csv` - Radar-ready (Network, Dominance %)
+- `dominance_permutation_pvalues.csv` - Model significance summary (one row per dataset: adjusted R², p-value, N)
+- `dominance_multivariate_network_age_pooled.csv` - Average dominance across all cohorts in the preset
+
+**Visualization:**
+Use the radar-ready CSVs with `plot_combined_network_radar.py`:
+- **Cohort-specific grids**: TD 2×2, ADHD 1×2, ASD 1×2 using per-dataset CSVs
+- **Pooled overlap**: Single panel using `dominance_multivariate_network_age_pooled.csv`
+
+**Requirements:**
+- `pip install netneurotools`
+- Presets in `config/network_importance_presets.yaml`
+
+**Notes:**
+- Network "0" (Yeo17_0, unassigned ROIs) is excluded from analysis
+- Dominance percentages sum to 100% within each dataset
+- Permutation p-values test H₀: "network predictors have no relationship with age"
 
 ---
 

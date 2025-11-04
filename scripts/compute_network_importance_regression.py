@@ -27,11 +27,16 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
-from scipy.stats import spearmanr
-from sklearn.linear_model import Ridge
+from scipy.stats import spearmanr, zscore
+from sklearn.linear_model import Ridge, LinearRegression
 from sklearn.metrics import r2_score, mean_absolute_error
 from sklearn.preprocessing import StandardScaler
 import yaml
+
+try:
+    from netneurotools import stats as nnt_stats
+except ImportError:
+    nnt_stats = None
 
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent
@@ -68,7 +73,7 @@ YEO17_NETWORK_NAMES = {
     "12": "FPN-2",            # Control A (FPB)
     "13": "FPN-3",            # Control B (FPC)
     "14": "AudLang",          # Default D (Auditory/Language)
-    "15": "DMN-MTL",          # Default C
+    "15": "DMN-3",            # Default C
     "16": "DMN-1",            # Default A
     "17": "DMN-2",            # Default B / TempPar
     "18": "AmyHip",           # Amygdala/Hippocampus
@@ -318,30 +323,28 @@ def compute_network_importance_dominance(
     X_networks: np.ndarray,
     y: np.ndarray,
     network_names: List[str],
-    alpha: float = 1.0,
-    metric: str = "r2",
+    n_permutations: int = 5000,
 ) -> pd.DataFrame:
     """
-    Compute network importance via dominance analysis.
+    Compute network importance via dominance analysis using netneurotools.
     
-    Dominance analysis quantifies each predictor's contribution by examining
-    all possible subset models. For K predictors, this requires fitting 2^K models,
-    so it's limited to ~15-20 networks max.
-    
-    For each network, we compute:
-    - General dominance = average incremental R² across all subset sizes
+    Uses netneurotools.stats.get_dominance_stats to compute total dominance
+    for each network, then performs permutation testing to assess significance.
     
     Args:
         X_networks: (N_subjects, N_networks) network feature matrix
         y: (N_subjects,) target values
         network_names: Network labels
-        alpha: Ridge regularization parameter
-        metric: 'r2' or 'mae' (note: dominance typically uses R²)
+        n_permutations: Number of permutations for significance testing
     
     Returns:
-        DataFrame with Network, General_Dominance, Dominance_Pct
+        DataFrame with Network, Total_Dominance, Dominance_Pct, Model_R2_Adj, P_Value
     """
-    from itertools import combinations
+    if nnt_stats is None:
+        raise ImportError(
+            "netneurotools is required for dominance analysis. "
+            "Install with: pip install netneurotools"
+        )
     
     # Remove NaN rows
     mask = np.all(np.isfinite(X_networks), axis=1) & np.isfinite(y)
@@ -352,88 +355,61 @@ def compute_network_importance_dominance(
         raise ValueError(f"Insufficient samples after removing NaNs: {X_clean.shape[0]}")
 
     n_networks = len(network_names)
+    print(f"  Computing dominance analysis using netneurotools...")
     
-    if n_networks > 20:
-        warnings.warn(
-            f"Dominance analysis with {n_networks} networks requires 2^{n_networks} models. "
-            "This may take a very long time. Consider using coefficients method instead."
-        )
-
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X_clean)
-
-    # Cache for subset model performances
-    subset_cache: Dict[frozenset, float] = {}
+    # Z-score networks and age
+    X_z = zscore(X_clean, axis=0, nan_policy='omit')
+    y_z = zscore(y_clean)
     
-    def fit_subset(network_indices: Sequence[int]) -> float:
-        """Fit model with subset of networks and return R² or MAE."""
-        key = frozenset(network_indices)
-        if key in subset_cache:
-            return subset_cache[key]
-        
-        if len(network_indices) == 0:
-            # Null model: predict mean
-            y_pred = np.full_like(y_clean, np.mean(y_clean))
-        else:
-            X_subset = X_scaled[:, list(network_indices)]
-            model = Ridge(alpha=alpha)
-            model.fit(X_subset, y_clean)
-            y_pred = model.predict(X_subset)
-        
-        if metric == "r2":
-            perf = r2_score(y_clean, y_pred)
-        elif metric == "mae":
-            perf = -mean_absolute_error(y_clean, y_pred)  # Negative so higher is better
-        else:
-            raise ValueError("Dominance analysis supports 'r2' or 'mae'.")
-        
-        subset_cache[key] = perf
-        return perf
+    # Compute dominance statistics
+    model_metrics = nnt_stats.get_dominance_stats(X_z, y_z)
+    total_dominance = model_metrics["total_dominance"]
     
-    print(f"  Computing dominance analysis (fitting 2^{n_networks} = {2**n_networks} models)...")
+    # Get adjusted R² of full model
+    lin_reg = LinearRegression()
+    lin_reg.fit(X_z, y_z)
+    yhat = lin_reg.predict(X_z)
+    SS_Residual = np.sum((y_z - yhat) ** 2)
+    SS_Total = np.sum((y_z - np.mean(y_z)) ** 2)
+    r_squared = 1 - (SS_Residual / SS_Total)
+    adj_r2 = 1 - (1 - r_squared) * (len(y_z) - 1) / (len(y_z) - X_z.shape[1] - 1)
     
-    # Compute general dominance for each network
-    dominances = []
+    print(f"  Full model adjusted R²: {adj_r2:.4f}")
     
-    for target_idx in range(n_networks):
-        incremental_contributions = []
-        
-        # Iterate over all possible subsets that DON'T include target_idx
-        other_networks = [i for i in range(n_networks) if i != target_idx]
-        
-        for subset_size in range(n_networks):
-            # All subsets of `other_networks` with size `subset_size`
-            for subset in combinations(other_networks, subset_size):
-                # Performance without target
-                perf_without = fit_subset(subset)
-                # Performance with target added
-                perf_with = fit_subset(tuple(subset) + (target_idx,))
-                # Incremental contribution
-                incremental = perf_with - perf_without
-                incremental_contributions.append(incremental)
-        
-        # General dominance = average incremental contribution
-        general_dom = np.mean(incremental_contributions)
-        dominances.append(general_dom)
+    # Permutation test for significance
+    print(f"  Running permutation test ({n_permutations} permutations)...")
+    null_r2 = np.zeros(n_permutations)
     
-    # Full model performance
-    full_perf = fit_subset(tuple(range(n_networks)))
-    print(f"  Full model {metric.upper()}: {full_perf:.4f}")
+    for i in range(n_permutations):
+        y_perm = np.random.permutation(y_z)
+        lin_reg_null = LinearRegression()
+        lin_reg_null.fit(X_z, y_perm)
+        yhat_null = lin_reg_null.predict(X_z)
+        SS_Residual_null = np.sum((y_perm - yhat_null) ** 2)
+        SS_Total_null = np.sum((y_perm - np.mean(y_perm)) ** 2)
+        r2_null = 1 - (SS_Residual_null / SS_Total_null)
+        adj_r2_null = 1 - (1 - r2_null) * (len(y_z) - 1) / (len(y_z) - X_z.shape[1] - 1)
+        null_r2[i] = adj_r2_null
     
-    # Normalize as percentage of total R² (or MAE)
-    total_dom = sum(dominances)
+    p_value = np.mean(null_r2 >= adj_r2)
+    print(f"  Permutation p-value: {p_value:.4f}")
+    
+    # Format results
+    total_dom_sum = np.sum(total_dominance)
     
     results = []
     for net_idx, net_name in enumerate(network_names):
-        dom = dominances[net_idx]
-        dom_pct = (dom / total_dom * 100) if total_dom != 0 else 0.0
+        dom = total_dominance[net_idx]
+        dom_pct = (dom / total_dom_sum * 100) if total_dom_sum != 0 else 0.0
         
         results.append({
             "Network": net_name,
-            "General_Dominance": float(dom),
-            "Effect_Size": float(abs(dom)),  # Alias for radar
-            "Effect_Size_Pct": float(abs(dom_pct)),
-            "Full_Model_Performance": float(full_perf),
+            "Total_Dominance": float(dom),
+            "Dominance_Pct": float(dom_pct),
+            "Effect_Size": float(dom),  # Alias for radar
+            "Effect_Size_Pct": float(dom_pct),
+            "Model_R2_Adj": float(adj_r2),
+            "P_Value": float(p_value),
             "N_Subjects": int(X_clean.shape[0]),
         })
 
@@ -917,8 +893,7 @@ def main() -> None:
                 network_matrix,
                 ages,
                 network_names,
-                alpha=ridge_alpha,
-                metric="r2",
+                n_permutations=5000,
             )
         elif importance_method == "coefficients":
             print(f"  Computing network importance via standardized Ridge coefficients...")
@@ -964,6 +939,16 @@ def main() -> None:
         importance_df.to_csv(dataset_csv, index=False)
         print(f"  ✓ Saved: {dataset_csv}")
         
+        # Also save in radar-compatible format (Network, Dominance %)
+        if "Dominance_Pct" in importance_df.columns:
+            radar_df = pd.DataFrame({
+                "Network": importance_df["Network"],
+                "Dominance (%)": importance_df["Dominance_Pct"] / 100,  # Convert back to fraction for compatibility
+            })
+            radar_csv = output_dir / f"dominance_multivariate_network_age_{dataset}.csv"
+            radar_df.to_csv(radar_csv, index=False)
+            print(f"  ✓ Saved radar-ready CSV: {radar_csv}")
+        
         if args.save_subject_level:
             # Save subject-level matrix: Age + Network_0, Network_1, ..., Network_20
             subject_df = pd.DataFrame(network_matrix, columns=network_names)
@@ -979,6 +964,26 @@ def main() -> None:
         combined_path = output_dir / f"network_importance_combined.csv"
         combined.to_csv(combined_path, index=False)
         print(f"\n✓ Combined summary saved: {combined_path}")
+        
+        # Create permutation p-value summary if dominance was used
+        if "P_Value" in combined.columns:
+            pval_summary = combined[["Dataset", "Model_R2_Adj", "P_Value", "N_Subjects"]].drop_duplicates()
+            pval_summary_path = output_dir / "dominance_permutation_pvalues.csv"
+            pval_summary.to_csv(pval_summary_path, index=False)
+            print(f"✓ Permutation p-value summary saved: {pval_summary_path}")
+            print("\nPermutation Test Results:")
+            print(pval_summary.to_string(index=False))
+            
+            # Create pooled dominance for radar overlap plots
+            if "Dominance_Pct" in combined.columns:
+                pooled = combined.groupby("Network")["Dominance_Pct"].mean().reset_index()
+                pooled_radar = pd.DataFrame({
+                    "Network": pooled["Network"],
+                    "Dominance (%)": pooled["Dominance_Pct"] / 100,
+                })
+                pooled_csv = output_dir / "dominance_multivariate_network_age_pooled.csv"
+                pooled_radar.to_csv(pooled_csv, index=False)
+                print(f"✓ Pooled dominance (averaged across cohorts) saved: {pooled_csv}")
     else:
         print("\n✗ No datasets processed successfully.")
 
