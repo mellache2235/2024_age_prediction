@@ -50,3 +50,15 @@ presets:
         ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/stanford_asd/ig_files
         age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/stanford_autism_age_wIDS/fold_0.bin
 
+  brain_age_adhd200_only:
+    description: ADHD-200 TD only (for quick testing)
+    parcellation: yeo17
+    aggregation_method: abs_mean
+    effect_metric: rho
+    importance_method: dominance
+    ridge_alpha: 1.0
+    datasets:
+      adhd200_td:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files_td
+        age_source: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/adhd200_updated/actual_adhd200_td_ages_oct25.npz::actual
+
