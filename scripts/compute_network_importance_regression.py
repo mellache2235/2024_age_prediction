@@ -771,6 +771,12 @@ def parse_args() -> argparse.Namespace:
         help="Ridge regularization parameter (overrides preset).",
     )
     parser.add_argument(
+        "--importance-method",
+        choices=["dominance", "coefficients", "permutation", "loo"],
+        default=None,
+        help="Importance computation method (overrides preset if provided).",
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path("network_importance"),
@@ -885,7 +891,7 @@ def main() -> None:
             print(f"  Truncated to {min_n} subjects for alignment.")
 
         # Compute network importance
-        importance_method = cfg.get("importance_method", "coefficients")
+        importance_method = args.importance_method or cfg.get("importance_method", "coefficients")
         
         if importance_method == "dominance":
             print(f"  Computing network importance via dominance analysis...")
