@@ -124,7 +124,7 @@ python run_network_brain_behavior_analysis.py --all  # All cohorts
   - `dominance_multivariate_network_age_pooled.csv` (dominance averaged across all cohorts in the preset, for 1×3 overlap radar)
   
   Use the per-dataset radar CSVs with `plot_combined_network_radar.py --*-ig` to build TD 2×2, ADHD 1×2, and ASD 1×2 grids. Use the pooled CSV for a single-panel radar showing average network importance across cohorts.
-  Presets in `config/network_importance_presets.yaml` encode IG directories, age sources, parcellation (Yeo-17), and aggregation method (abs_mean). By default, importance is computed via **dominance analysis** using `netneurotools.stats.get_dominance_stats`, which decomposes R² into each network's total contribution across all possible subset models. Includes permutation testing (5000 shuffles) to assess overall model significance. **Requires:** `pip install netneurotools`. Faster alternatives (coefficients, permutation, LOO) are available by editing `importance_method` in the preset.
+  Presets in `config/network_importance_presets.yaml` encode IG directories, age sources, parcellation (Yeo-17), and aggregation method (abs_mean). By default, importance is computed via **dominance analysis** (manual implementation using itertools.combinations), which decomposes R² into each network's total contribution across all possible subset models. Includes permutation testing (5000 shuffles) to assess overall model significance. Faster alternatives (coefficients, permutation, LOO) are available by editing `importance_method` in the preset or using `--importance-method`.
 - After generating importance tables, use `plot_combined_network_radar.py` to visualize:
   - **Count-based overlap (1×3)**: Provide shared TD/ADHD/ASD count CSVs to generate a single row showing cross-cohort consensus.
     ```bash
@@ -273,8 +273,8 @@ Use the radar-ready CSVs with `plot_combined_network_radar.py`:
 - **Pooled overlap**: Single panel using `dominance_multivariate_network_age_pooled.csv`
 
 **Requirements:**
-- `pip install netneurotools`
 - Presets in `config/network_importance_presets.yaml`
+- No external dependencies beyond numpy/pandas/sklearn/scipy
 
 **Notes:**
 - Network "0" (Yeo17_0, unassigned ROIs) is excluded from analysis

@@ -326,9 +326,9 @@ def compute_network_importance_dominance(
     n_permutations: int = 5000,
 ) -> pd.DataFrame:
     """
-    Compute network importance via dominance analysis using netneurotools.
+    Compute network importance via dominance analysis (manual implementation).
     
-    Uses netneurotools.stats.get_dominance_stats to compute total dominance
+    Computes general dominance (average incremental R² across all subset models)
     for each network, then performs permutation testing to assess significance.
     
     Args:
@@ -340,11 +340,7 @@ def compute_network_importance_dominance(
     Returns:
         DataFrame with Network, Total_Dominance, Dominance_Pct, Model_R2_Adj, P_Value
     """
-    if nnt_stats is None:
-        raise ImportError(
-            "netneurotools is required for dominance analysis. "
-            "Install with: pip install netneurotools"
-        )
+    from itertools import combinations
     
     # Remove NaN rows
     mask = np.all(np.isfinite(X_networks), axis=1) & np.isfinite(y)
@@ -355,40 +351,85 @@ def compute_network_importance_dominance(
         raise ValueError(f"Insufficient samples after removing NaNs: {X_clean.shape[0]}")
 
     n_networks = len(network_names)
-    print(f"  Computing dominance analysis using netneurotools...")
+    print(f"  Computing dominance analysis (manual implementation)...")
+    print(f"  This will fit 2^{n_networks} = {2**n_networks:,} subset models...")
     
     # Z-score networks and age
     X_z = zscore(X_clean, axis=0, nan_policy='omit')
     y_z = zscore(y_clean)
     
-    # Compute dominance statistics
-    model_metrics = nnt_stats.get_dominance_stats(X_z, y_z)
-    total_dominance = model_metrics["total_dominance"]
+    # Cache for subset model R² values
+    r2_cache: Dict[frozenset, float] = {}
+    
+    def get_r2_for_subset(predictor_indices: Sequence[int]) -> float:
+        """Fit LinearRegression on subset and return R²."""
+        key = frozenset(predictor_indices)
+        if key in r2_cache:
+            return r2_cache[key]
+        
+        if len(predictor_indices) == 0:
+            # Null model: R² = 0
+            r2_cache[key] = 0.0
+            return 0.0
+        
+        X_subset = X_z[:, list(predictor_indices)]
+        lin_reg = LinearRegression()
+        lin_reg.fit(X_subset, y_z)
+        yhat = lin_reg.predict(X_subset)
+        
+        SS_Residual = np.sum((y_z - yhat) ** 2)
+        SS_Total = np.sum((y_z - np.mean(y_z)) ** 2)
+        r2 = 1 - (SS_Residual / SS_Total)
+        
+        r2_cache[key] = r2
+        return r2
+    
+    # Compute general dominance for each predictor
+    general_dominances = []
+    
+    for target_idx in range(n_networks):
+        incremental_r2_list = []
+        
+        # All other predictors (excluding target)
+        others = [i for i in range(n_networks) if i != target_idx]
+        
+        # Iterate over all subset sizes
+        for k in range(n_networks):
+            # All k-sized subsets of 'others'
+            for subset in combinations(others, k):
+                r2_without = get_r2_for_subset(subset)
+                r2_with = get_r2_for_subset(tuple(subset) + (target_idx,))
+                incremental_r2 = r2_with - r2_without
+                incremental_r2_list.append(incremental_r2)
+        
+        # General dominance = average incremental R²
+        general_dom = np.mean(incremental_r2_list)
+        general_dominances.append(general_dom)
+    
+    total_dominance = np.array(general_dominances)
     
     # Get adjusted R² of full model
-    lin_reg = LinearRegression()
-    lin_reg.fit(X_z, y_z)
-    yhat = lin_reg.predict(X_z)
-    SS_Residual = np.sum((y_z - yhat) ** 2)
-    SS_Total = np.sum((y_z - np.mean(y_z)) ** 2)
-    r_squared = 1 - (SS_Residual / SS_Total)
-    adj_r2 = 1 - (1 - r_squared) * (len(y_z) - 1) / (len(y_z) - X_z.shape[1] - 1)
+    r2_full = get_r2_for_subset(tuple(range(n_networks)))
+    adj_r2 = 1 - (1 - r2_full) * (len(y_z) - 1) / (len(y_z) - n_networks - 1)
     
-    print(f"  Full model adjusted R²: {adj_r2:.4f}")
+    print(f"  Full model R²: {r2_full:.4f}, Adjusted R²: {adj_r2:.4f}")
+    print(f"  Total models fitted: {len(r2_cache)}")
     
     # Permutation test for significance
     print(f"  Running permutation test ({n_permutations} permutations)...")
     null_r2 = np.zeros(n_permutations)
     
+    np.random.seed(42)
     for i in range(n_permutations):
         y_perm = np.random.permutation(y_z)
         lin_reg_null = LinearRegression()
         lin_reg_null.fit(X_z, y_perm)
         yhat_null = lin_reg_null.predict(X_z)
+        
         SS_Residual_null = np.sum((y_perm - yhat_null) ** 2)
         SS_Total_null = np.sum((y_perm - np.mean(y_perm)) ** 2)
         r2_null = 1 - (SS_Residual_null / SS_Total_null)
-        adj_r2_null = 1 - (1 - r2_null) * (len(y_z) - 1) / (len(y_z) - X_z.shape[1] - 1)
+        adj_r2_null = 1 - (1 - r2_null) * (len(y_z) - 1) / (len(y_z) - n_networks - 1)
         null_r2[i] = adj_r2_null
     
     p_value = np.mean(null_r2 >= adj_r2)
