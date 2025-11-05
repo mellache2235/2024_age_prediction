@@ -250,15 +250,45 @@ Quantifies each Yeo-17 network's contribution to age prediction using dominance 
 4. Run 5000 permutations to test overall model significance
 
 **Commands:**
+
+*Run all cohorts in a group:*
 ```bash
-# TD cohorts (HCP-Development, NKI-RS TD, CMI-HBN TD, ADHD-200 TD)
-python compute_network_importance_regression.py --preset brain_age_td
+python compute_network_importance_regression.py --preset brain_age_td     # 4 TD cohorts
+python compute_network_importance_regression.py --preset brain_age_adhd   # 2 ADHD cohorts
+python compute_network_importance_regression.py --preset brain_age_asd    # 2 ASD cohorts
+```
 
-# ADHD cohorts (ADHD-200 ADHD, CMI-HBN ADHD)
-python compute_network_importance_regression.py --preset brain_age_adhd
+*Run individual cohorts* (faster, for parallel processing):
+```bash
+# TD cohorts
+python compute_network_importance_regression.py --preset hcp_dev_only
+python compute_network_importance_regression.py --preset nki_rs_td_only
+python compute_network_importance_regression.py --preset cmihbn_td_only
+python compute_network_importance_regression.py --preset adhd200_td_only
 
-# ASD cohorts (ABIDE ASD, Stanford ASD)
-python compute_network_importance_regression.py --preset brain_age_asd
+# ADHD cohorts  
+python compute_network_importance_regression.py --preset adhd200_adhd_only
+python compute_network_importance_regression.py --preset cmihbn_adhd_only
+
+# ASD cohorts
+python compute_network_importance_regression.py --preset abide_asd_only
+python compute_network_importance_regression.py --preset stanford_asd_only
+```
+
+*Generate radar plots after analysis completes:*
+```bash
+# TD 2×2 grid (requires all 4 TD cohorts)
+python scripts/plot_combined_network_radar.py \
+  --td-ig "HCP-Development=/oak/.../network_importance/dominance_multivariate_network_age_hcp_dev.csv" \
+  --td-ig "NKI-RS TD=/oak/.../network_importance/dominance_multivariate_network_age_nki_rs_td.csv" \
+  --td-ig "CMI-HBN TD=/oak/.../network_importance/dominance_multivariate_network_age_cmihbn_td.csv" \
+  --td-ig "ADHD-200 TD=/oak/.../network_importance/dominance_multivariate_network_age_adhd200_td.csv" \
+  --output /oak/.../network_importance/radar_plots/td_dominance_radar
+
+# Single cohort radar (example: ADHD-200 TD only)
+python scripts/plot_combined_network_radar.py \
+  --td /oak/.../network_importance/dominance_multivariate_network_age_adhd200_td.csv \
+  --output /oak/.../network_importance/radar_plots/adhd200_td_dominance_radar
 ```
 
 **Outputs** (in `results/network_importance/`):
