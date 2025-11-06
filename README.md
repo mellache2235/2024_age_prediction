@@ -294,7 +294,7 @@ python scripts/plot_combined_network_radar.py \
 
 python scripts/plot_combined_network_radar.py \
   --td $OUTDIR/dominance_multivariate_network_age_nki_rs_td.csv \
-  --output $OUTDIR/radar_plots/nki_rs_td_dominance --transform sqrt
+  --output $OUTDIR/radar_plots/nki_rs_td_dominance --transform sqrt --show-values
 
 python scripts/plot_combined_network_radar.py \
   --td $OUTDIR/dominance_multivariate_network_age_cmihbn_td.csv \

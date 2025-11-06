@@ -41,25 +41,37 @@ if os.path.exists(FONT_PATH):
 else:
     plt.rcParams["font.family"] = "Arial"
 
-# Consistent order for Yeo-17 networks (matches grant figure)
+# Consistent order for Yeo-17 networks (updated naming convention)
+# Dataset name mapping for radar titles
+DATASET_TITLE_MAP = {
+    "hcp_dev": "HCP-Development",
+    "nki_rs_td": "NKI-RS TD",
+    "cmihbn_td": "CMI-HBN TD",
+    "adhd200_td": "ADHD-200 TD",
+    "adhd200_adhd": "ADHD-200 ADHD",
+    "cmihbn_adhd": "CMI-HBN ADHD",
+    "abide_asd": "ABIDE ASD",
+    "stanford_asd": "Stanford ASD",
+}
+
 DEFAULT_NETWORK_ORDER: Tuple[str, ...] = (
     "VisCent",
     "VisPeri",
-    "SomMotA",
-    "SomMotB",
-    "DorsAttnA",
-    "DorsAttnB",
-    "SalVentAttnA",
-    "SalVentAttnB",
-    "LimbicA",
-    "LimbicB",
-    "FPA",
-    "FPB",
-    "FPC",
-    "DefaultA",
-    "DefaultB",
-    "DefaultC",
-    "TempPar",
+    "SomMot-1",
+    "SomMot-2",
+    "DorsAttn-1",
+    "DorsAttn-2",
+    "SalVentAttn-1",
+    "SalVentAttn-2",
+    "Limbic-1",
+    "Limbic-2",
+    "FPN-1",
+    "FPN-2",
+    "FPN-3",
+    "DMN-1",
+    "DMN-2",
+    "DMN-3",
+    "AudLang",
     "AmyHip",
     "Thalamus",
     "Striatum",
@@ -244,6 +256,8 @@ def create_radar_panel(
     labels: Sequence[str],
     title: str,
     colors: Sequence[str],
+    show_values: bool = False,
+    raw_values: Optional[Sequence[float]] = None,
 ) -> None:
     n = len(labels)
     angles = np.linspace(0, 2 * np.pi, n, endpoint=False)
@@ -263,17 +277,36 @@ def create_radar_panel(
         align="edge",
     )
 
-    # Add subtle radial gridlines
+    # Add subtle radial gridlines with labels
     for spine in ax.spines.values():
         spine.set_visible(False)
-    ax.set_yticks([])
+    
+    # Determine appropriate radial tick values based on raw data range
+    if raw_values is not None and len(raw_values) > 0:
+        max_raw = np.nanmax(raw_values)
+        # Create nice tick intervals
+        if max_raw <= 0.05:
+            tick_values = [0.01, 0.02, 0.03, 0.04, 0.05]
+        elif max_raw <= 0.10:
+            tick_values = [0.02, 0.04, 0.06, 0.08, 0.10]
+        elif max_raw <= 0.20:
+            tick_values = [0.05, 0.10, 0.15, 0.20]
+        else:
+            tick_values = [0.10, 0.20, 0.30, 0.40]
+        
+        # Map raw values to normalized positions
+        tick_positions = [v / max_raw for v in tick_values if v <= max_raw]
+        tick_labels = [f"{v:.0%}" for v in tick_values if v <= max_raw]
+        
+        ax.set_yticks(tick_positions)
+        ax.set_yticklabels(tick_labels, fontsize=10, color="#666666")
+    else:
+        # Fallback: use normalized 0-100% scale
+        ax.set_yticks([0.25, 0.5, 0.75, 1.0])
+        ax.set_yticklabels(["25%", "50%", "75%", "100%"], fontsize=10, color="#666666")
+    
     ax.set_ylim(0, 1.05)
-    ax.grid(False)
-
-    # Concentric reference rings
-    radii = [0.25, 0.5, 0.75, 1.0]
-    for r in radii:
-        ax.plot(np.linspace(0, 2 * np.pi, 360), np.full(360, r), color="#DDDDDD", linewidth=0.6)
+    ax.grid(True, axis='y', color='#DDDDDD', linewidth=0.6, alpha=0.7)
 
     ax.set_xticks(angles + bar_width / 2)
     ax.set_xticklabels(labels, fontsize=12, fontweight="bold", color="#111111")
@@ -283,6 +316,23 @@ def create_radar_panel(
     # Lift bars slightly (zorder) for cleaner overlap
     for bar in bars:
         bar.set_zorder(5)
+    
+    # Add value labels on bars if requested
+    if show_values:
+        display_values = raw_values if raw_values is not None else values
+        for angle, bar_height, value in zip(angles + bar_width / 2, values, display_values):
+            if bar_height > 0.15:  # Only show labels for bars tall enough
+                # Position text at top of bar
+                ax.text(
+                    angle,
+                    bar_height + 0.05,
+                    f"{value:.1%}" if value < 1 else f"{value:.1f}",
+                    ha="center",
+                    va="bottom",
+                    fontsize=9,
+                    fontweight="bold",
+                    color="#111111",
+                )
 
 
 def save_figure(fig: plt.Figure, output_path: Path) -> None:
@@ -439,6 +489,11 @@ Example:
         default="none",
         help="Transform values before normalization (sqrt compresses range for better visibility).",
     )
+    parser.add_argument(
+        "--show-values",
+        action="store_true",
+        help="Display numeric values on top of bars (only for bars > 15%% height).",
+    )
 
     return parser.parse_args()
 
@@ -452,6 +507,8 @@ def render_radar_grid(
     radius_label: str,
     output_path: Path,
     transform: str = "none",
+    show_values: bool = False,
+    raw_series_dict: Optional["OrderedDict[str, pd.Series]"] = None,
 ) -> None:
     rows, cols = layout
     normalized = normalize_series(series_dict, transform=transform)
@@ -465,7 +522,8 @@ def render_radar_grid(
 
     axes_iter = axes.flatten() if isinstance(axes, np.ndarray) else [axes]
     for ax, (label, series) in zip(axes_iter, normalized.items()):
-        create_radar_panel(ax, series.values, network_order, label, colors)
+        raw_vals = raw_series_dict[label].values if raw_series_dict and label in raw_series_dict else None
+        create_radar_panel(ax, series.values, network_order, label, colors, show_values=show_values, raw_values=raw_vals)
 
     # Hide any unused axes
     for ax in axes_iter[len(series_dict) :]:
@@ -517,7 +575,23 @@ def main() -> None:
             axes = [axes]
 
         for ax, (label, series) in zip(axes, normalized_counts.items()):
-            create_radar_panel(ax, series.values, network_order, label, colors)
+            raw_vals = count_datasets[label].values if args.show_values else None
+            # For single-dataset plots, use a more informative title
+            if len(count_datasets) == 1:
+                # Extract dataset name from CSV filename
+                if args.td:
+                    dataset_key = Path(args.td).stem.replace("dominance_multivariate_network_age_", "")
+                elif args.adhd:
+                    dataset_key = Path(args.adhd).stem.replace("dominance_multivariate_network_age_", "")
+                elif args.asd:
+                    dataset_key = Path(args.asd).stem.replace("dominance_multivariate_network_age_", "")
+                else:
+                    dataset_key = None
+                
+                panel_title = DATASET_TITLE_MAP.get(dataset_key, label) if dataset_key else label
+            else:
+                panel_title = label
+            create_radar_panel(ax, series.values, network_order, panel_title, colors, show_values=args.show_values, raw_values=raw_vals)
 
         if len(count_datasets) < len(axes):
             for ax in axes[len(count_datasets) :]:
