@@ -284,24 +284,39 @@ def create_radar_panel(
     # Determine appropriate radial tick values based on raw data range
     if raw_values is not None and len(raw_values) > 0:
         max_raw = np.nanmax(raw_values)
-        # Create nice tick intervals
-        if max_raw <= 0.05:
-            tick_values = [0.01, 0.02, 0.03, 0.04, 0.05]
-        elif max_raw <= 0.10:
-            tick_values = [0.02, 0.04, 0.06, 0.08, 0.10]
-        elif max_raw <= 0.20:
-            tick_values = [0.05, 0.10, 0.15, 0.20]
-        else:
-            tick_values = [0.10, 0.20, 0.30, 0.40]
         
-        # Map raw values to normalized positions
-        tick_positions = [v / max_raw for v in tick_values if v <= max_raw]
-        tick_labels = [f"{v:.0%}" for v in tick_values if v <= max_raw]
+        # Create nice tick intervals for dominance percentages
+        if max_raw <= 0.05:
+            tick_raw_values = [0.01, 0.02, 0.03, 0.04, 0.05]
+        elif max_raw <= 0.10:
+            tick_raw_values = [0.02, 0.04, 0.06, 0.08, 0.10]
+        elif max_raw <= 0.20:
+            tick_raw_values = [0.05, 0.10, 0.15, 0.20]
+        elif max_raw <= 0.50:
+            tick_raw_values = [0.10, 0.20, 0.30, 0.40, 0.50]
+        else:
+            tick_raw_values = [0.20, 0.40, 0.60, 0.80, 1.0]
+        
+        # Only keep ticks below max
+        valid_tick_raw = [v for v in tick_raw_values if v <= max_raw * 1.1]
+        
+        # Convert to normalized/transformed positions (reverse the transformation to find positions)
+        # For sqrt transform: if raw value is v, transformed value is sqrt(v), normalized is sqrt(v)/sqrt(max)
+        # So position = sqrt(v) / sqrt(max)
+        tick_positions = []
+        for v in valid_tick_raw:
+            # After sqrt transform, position is sqrt(v) / sqrt(max_raw_after_transform)
+            # We need to find where this raw value appears on the transformed/normalized scale
+            # Since values are first transformed then normalized by max(transformed values)
+            # For sqrt: position = sqrt(v) / max(sqrt(raw_values)) = sqrt(v) / sqrt(max_raw)
+            tick_positions.append(np.sqrt(v) / np.sqrt(max_raw))
+        
+        tick_labels = [f"{v:.0%}" for v in valid_tick_raw]
         
         ax.set_yticks(tick_positions)
         ax.set_yticklabels(tick_labels, fontsize=10, color="#666666")
     else:
-        # Fallback: use normalized 0-100% scale
+        # Fallback: equally spaced ticks
         ax.set_yticks([0.25, 0.5, 0.75, 1.0])
         ax.set_yticklabels(["25%", "50%", "75%", "100%"], fontsize=10, color="#666666")
     
