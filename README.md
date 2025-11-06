@@ -260,19 +260,22 @@ python compute_network_importance_regression.py --preset brain_age_asd    # 2 AS
 
 *Run individual cohorts* (faster, for parallel processing):
 ```bash
+# Set output directory
+OUTDIR=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_importance
+
 # TD cohorts
-python compute_network_importance_regression.py --preset hcp_dev_only
-python compute_network_importance_regression.py --preset nki_rs_td_only
-python compute_network_importance_regression.py --preset cmihbn_td_only
-python compute_network_importance_regression.py --preset adhd200_td_only
+python compute_network_importance_regression.py --preset hcp_dev_only --importance-method dominance --output-dir $OUTDIR
+python compute_network_importance_regression.py --preset nki_rs_td_only --importance-method dominance --output-dir $OUTDIR
+python compute_network_importance_regression.py --preset cmihbn_td_only --importance-method dominance --output-dir $OUTDIR
+python compute_network_importance_regression.py --preset adhd200_td_only --importance-method dominance --output-dir $OUTDIR
 
 # ADHD cohorts  
-python compute_network_importance_regression.py --preset adhd200_adhd_only
-python compute_network_importance_regression.py --preset cmihbn_adhd_only
+python compute_network_importance_regression.py --preset adhd200_adhd_only --importance-method dominance --output-dir $OUTDIR
+python compute_network_importance_regression.py --preset cmihbn_adhd_only --importance-method dominance --output-dir $OUTDIR
 
 # ASD cohorts
-python compute_network_importance_regression.py --preset abide_asd_only
-python compute_network_importance_regression.py --preset stanford_asd_only
+python compute_network_importance_regression.py --preset abide_asd_only --importance-method dominance --output-dir $OUTDIR
+python compute_network_importance_regression.py --preset stanford_asd_only --importance-method dominance --output-dir $OUTDIR
 ```
 
 *Generate radar plots after analysis completes:*
