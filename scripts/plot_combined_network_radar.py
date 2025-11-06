@@ -281,42 +281,25 @@ def create_radar_panel(
     for spine in ax.spines.values():
         spine.set_visible(False)
     
-    # Determine appropriate radial tick values based on raw data range
+    # Add radial tick labels showing actual dominance percentages
     if raw_values is not None and len(raw_values) > 0:
         max_raw = np.nanmax(raw_values)
         
-        # Create nice tick intervals for dominance percentages
-        if max_raw <= 0.05:
-            tick_raw_values = [0.01, 0.02, 0.03, 0.04, 0.05]
-        elif max_raw <= 0.10:
-            tick_raw_values = [0.02, 0.04, 0.06, 0.08, 0.10]
-        elif max_raw <= 0.20:
-            tick_raw_values = [0.05, 0.10, 0.15, 0.20]
-        elif max_raw <= 0.50:
-            tick_raw_values = [0.10, 0.20, 0.30, 0.40, 0.50]
-        else:
-            tick_raw_values = [0.20, 0.40, 0.60, 0.80, 1.0]
+        # Fixed tick positions at 0.25, 0.5, 0.75, 1.0 of the normalized range
+        tick_positions = [0.25, 0.5, 0.75, 1.0]
         
-        # Only keep ticks below max
-        valid_tick_raw = [v for v in tick_raw_values if v <= max_raw * 1.1]
-        
-        # Convert to normalized/transformed positions (reverse the transformation to find positions)
-        # For sqrt transform: if raw value is v, transformed value is sqrt(v), normalized is sqrt(v)/sqrt(max)
-        # So position = sqrt(v) / sqrt(max)
-        tick_positions = []
-        for v in valid_tick_raw:
-            # After sqrt transform, position is sqrt(v) / sqrt(max_raw_after_transform)
-            # We need to find where this raw value appears on the transformed/normalized scale
-            # Since values are first transformed then normalized by max(transformed values)
-            # For sqrt: position = sqrt(v) / max(sqrt(raw_values)) = sqrt(v) / sqrt(max_raw)
-            tick_positions.append(np.sqrt(v) / np.sqrt(max_raw))
-        
-        tick_labels = [f"{v:.0%}" for v in valid_tick_raw]
+        # Calculate what raw percentage each position corresponds to
+        # After sqrt: position_i = sqrt(raw_i) / sqrt(max_raw)
+        # So: raw_i = (position_i * sqrt(max_raw))^2
+        tick_labels = []
+        for pos in tick_positions:
+            raw_value_at_pos = (pos * np.sqrt(max_raw)) ** 2
+            tick_labels.append(f"{raw_value_at_pos:.0%}")
         
         ax.set_yticks(tick_positions)
         ax.set_yticklabels(tick_labels, fontsize=10, color="#666666")
     else:
-        # Fallback: equally spaced ticks
+        # Fallback: generic percentage scale
         ax.set_yticks([0.25, 0.5, 0.75, 1.0])
         ax.set_yticklabels(["25%", "50%", "75%", "100%"], fontsize=10, color="#666666")
     
@@ -590,7 +573,8 @@ def main() -> None:
             axes = [axes]
 
         for ax, (label, series) in zip(axes, normalized_counts.items()):
-            raw_vals = count_datasets[label].values if args.show_values else None
+            # Always pass raw values for proper grid labeling
+            raw_vals = count_datasets[label].values
             # For single-dataset plots, use a more informative title
             if len(count_datasets) == 1:
                 # Extract dataset name from CSV filename
