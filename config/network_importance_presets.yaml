@@ -29,7 +29,7 @@ presets:
     ridge_alpha: 1.0
     datasets:
       adhd200_adhd:
-        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200_adhd/ig_files
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files
         age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/adhd200_regression_age_ADHD_wIDs/fold_0.bin
       cmihbn_adhd:
         ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn_adhd/ig_files
@@ -103,7 +103,7 @@ presets:
     ridge_alpha: 1.0
     datasets:
       adhd200_adhd:
-        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200_adhd/ig_files
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files
         age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/adhd200_regression_age_ADHD_wIDs/fold_0.bin
 
   cmihbn_adhd_only:
@@ -135,6 +135,58 @@ presets:
     importance_method: dominance
     ridge_alpha: 1.0
     datasets:
+      stanford_asd:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/stanford_asd/ig_files
+        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/stanford_autism_age_wIDS/fold_0.bin
+
+  # Pooled presets (combine all cohorts within each group for higher power)
+  brain_age_td_pooled:
+    description: All TD cohorts pooled together (higher N, single dominance analysis)
+    parcellation: yeo17
+    aggregation_method: abs_mean
+    importance_method: dominance
+    ridge_alpha: 1.0
+    pool_datasets: true  # Flag to pool all datasets into one analysis
+    datasets:
+      hcp_dev:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/dev/ig_files
+        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/hcp_dev_age_five_fold/fold_0.bin
+      nki_rs_td:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/nki/ig_files
+        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/nki_age_cog_dev/fold_0.bin
+      cmihbn_td:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files_td
+        age_source: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/cmihbn_updated/actual_cmihbn_td_ages_oct25.npz::actual
+      adhd200_td:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files_td
+        age_source: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/adhd200_updated/actual_adhd200_td_ages_oct25.npz::actual
+
+  brain_age_adhd_pooled:
+    description: All ADHD cohorts pooled together
+    parcellation: yeo17
+    aggregation_method: abs_mean
+    importance_method: dominance
+    ridge_alpha: 1.0
+    pool_datasets: true
+    datasets:
+      adhd200_adhd:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/adhd200/ig_files
+        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/adhd200_regression_age_ADHD_wIDs/fold_0.bin
+      cmihbn_adhd:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn_adhd/ig_files
+        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/cmihbn_age/fold_0.bin
+
+  brain_age_asd_pooled:
+    description: All ASD cohorts pooled together
+    parcellation: yeo17
+    aggregation_method: abs_mean
+    importance_method: dominance
+    ridge_alpha: 1.0
+    pool_datasets: true
+    datasets:
+      abide_asd:
+        ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/abide_asd/ig_files
+        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/abide_asd_asd_dev_age_wIDs/fold_0.bin
       stanford_asd:
         ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/stanford_asd/ig_files
         age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/stanford_autism_age_wIDS/fold_0.bin

@@ -279,20 +279,74 @@ python compute_network_importance_regression.py --preset stanford_asd_only --imp
 ```
 
 *Generate radar plots after analysis completes:*
-```bash
-# TD 2×2 grid (requires all 4 TD cohorts)
-python scripts/plot_combined_network_radar.py \
-  --td-ig "HCP-Development=/oak/.../network_importance/dominance_multivariate_network_age_hcp_dev.csv" \
-  --td-ig "NKI-RS TD=/oak/.../network_importance/dominance_multivariate_network_age_nki_rs_td.csv" \
-  --td-ig "CMI-HBN TD=/oak/.../network_importance/dominance_multivariate_network_age_cmihbn_td.csv" \
-  --td-ig "ADHD-200 TD=/oak/.../network_importance/dominance_multivariate_network_age_adhd200_td.csv" \
-  --output /oak/.../network_importance/radar_plots/td_dominance_radar
 
-# Single cohort radar (example: ADHD-200 TD only)
+**Individual cohort radars** (single panel per dataset):
+```bash
+OUTDIR=/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/network_importance
+
+# Create output directory
+mkdir -p $OUTDIR/radar_plots
+
+# TD cohorts (individual)
 python scripts/plot_combined_network_radar.py \
-  --td /oak/.../network_importance/dominance_multivariate_network_age_adhd200_td.csv \
-  --output /oak/.../network_importance/radar_plots/adhd200_td_dominance_radar
+  --td $OUTDIR/dominance_multivariate_network_age_hcp_dev.csv \
+  --output $OUTDIR/radar_plots/hcp_dev_dominance --transform sqrt
+
+python scripts/plot_combined_network_radar.py \
+  --td $OUTDIR/dominance_multivariate_network_age_nki_rs_td.csv \
+  --output $OUTDIR/radar_plots/nki_rs_td_dominance --transform sqrt
+
+python scripts/plot_combined_network_radar.py \
+  --td $OUTDIR/dominance_multivariate_network_age_cmihbn_td.csv \
+  --output $OUTDIR/radar_plots/cmihbn_td_dominance --transform sqrt
+
+python scripts/plot_combined_network_radar.py \
+  --td $OUTDIR/dominance_multivariate_network_age_adhd200_td.csv \
+  --output $OUTDIR/radar_plots/adhd200_td_dominance --transform sqrt
+
+# ADHD cohorts (individual)
+python scripts/plot_combined_network_radar.py \
+  --adhd $OUTDIR/dominance_multivariate_network_age_adhd200_adhd.csv \
+  --output $OUTDIR/radar_plots/adhd200_adhd_dominance --transform sqrt
+
+python scripts/plot_combined_network_radar.py \
+  --adhd $OUTDIR/dominance_multivariate_network_age_cmihbn_adhd.csv \
+  --output $OUTDIR/radar_plots/cmihbn_adhd_dominance --transform sqrt
+
+# ASD cohorts (individual)
+python scripts/plot_combined_network_radar.py \
+  --asd $OUTDIR/dominance_multivariate_network_age_abide_asd.csv \
+  --output $OUTDIR/radar_plots/abide_asd_dominance --transform sqrt
+
+python scripts/plot_combined_network_radar.py \
+  --asd $OUTDIR/dominance_multivariate_network_age_stanford_asd.csv \
+  --output $OUTDIR/radar_plots/stanford_asd_dominance --transform sqrt
 ```
+
+**Multi-panel grids** (TD 2×2, ADHD 1×2, ASD 1×2):
+```bash
+# TD 2×2 grid
+python scripts/plot_combined_network_radar.py \
+  --td-ig "HCP-Development=$OUTDIR/dominance_multivariate_network_age_hcp_dev.csv" \
+  --td-ig "NKI-RS TD=$OUTDIR/dominance_multivariate_network_age_nki_rs_td.csv" \
+  --td-ig "CMI-HBN TD=$OUTDIR/dominance_multivariate_network_age_cmihbn_td.csv" \
+  --td-ig "ADHD-200 TD=$OUTDIR/dominance_multivariate_network_age_adhd200_td.csv" \
+  --output $OUTDIR/radar_plots/td_dominance_2x2 --transform sqrt
+
+# ADHD 1×2 grid
+python scripts/plot_combined_network_radar.py \
+  --adhd-ig "ADHD-200 ADHD=$OUTDIR/dominance_multivariate_network_age_adhd200_adhd.csv" \
+  --adhd-ig "CMI-HBN ADHD=$OUTDIR/dominance_multivariate_network_age_cmihbn_adhd.csv" \
+  --output $OUTDIR/radar_plots/adhd_dominance_1x2 --transform sqrt
+
+# ASD 1×2 grid
+python scripts/plot_combined_network_radar.py \
+  --asd-ig "ABIDE ASD=$OUTDIR/dominance_multivariate_network_age_abide_asd.csv" \
+  --asd-ig "Stanford ASD=$OUTDIR/dominance_multivariate_network_age_stanford_asd.csv" \
+  --output $OUTDIR/radar_plots/asd_dominance_1x2 --transform sqrt
+```
+
+**Note:** `--transform sqrt` applies square-root transformation to compress the dynamic range, making networks with small dominance values (1-5%) more visible as bars.
 
 **Outputs** (in `results/network_importance/`):
 - `<dataset>_network_importance.csv` - Full metrics (Total_Dominance, Dominance_Pct, Model_R2_Adj, P_Value, N_Subjects)
@@ -313,6 +367,7 @@ Use the radar-ready CSVs with `plot_combined_network_radar.py`:
 - Network "0" (Yeo17_0, unassigned ROIs) is excluded from analysis
 - Dominance percentages sum to 100% within each dataset
 - Permutation p-values test H₀: "network predictors have no relationship with age"
+- For pooled omnibus analysis (all TD/ADHD/ASD subjects combined): export subject-level data with `--save-subject-level`, concatenate the CSVs externally, and run your own dominance code on the combined matrix for increased statistical power
 
 ---
 

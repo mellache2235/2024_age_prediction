@@ -151,14 +151,27 @@ def extract_network_series(
     return aligned
 
 
-def normalize_series(series_dict: Dict[str, pd.Series]) -> Dict[str, pd.Series]:
+def normalize_series(series_dict: Dict[str, pd.Series], transform: str = "none") -> Dict[str, pd.Series]:
     """Normalize all series to [0, 1] using shared max for consistent scaling."""
-
-    all_values = np.concatenate([s.values for s in series_dict.values()])
+    
+    # Apply transformation first
+    transformed = {}
+    for key, series in series_dict.items():
+        if transform == "sqrt":
+            # Square root transformation (compress range)
+            transformed[key] = np.sqrt(np.maximum(series, 0))
+        elif transform == "log":
+            # Log transformation (more aggressive compression)
+            transformed[key] = np.log1p(np.maximum(series, 0))
+        else:
+            transformed[key] = series.copy()
+    
+    # Normalize to [0, 1]
+    all_values = np.concatenate([s.values for s in transformed.values()])
     max_val = np.nanmax(all_values) if np.any(np.isfinite(all_values)) else 1.0
     if max_val == 0:
         max_val = 1.0
-    normalized = {key: series / max_val for key, series in series_dict.items()}
+    normalized = {key: series / max_val for key, series in transformed.items()}
     return normalized
 
 
@@ -420,6 +433,12 @@ Example:
         default="Normalized |Mean IG|",
         help="Label displayed beneath effect-size panels.",
     )
+    parser.add_argument(
+        "--transform",
+        choices=["none", "sqrt", "log"],
+        default="none",
+        help="Transform values before normalization (sqrt compresses range for better visibility).",
+    )
 
     return parser.parse_args()
 
@@ -432,9 +451,10 @@ def render_radar_grid(
     title_prefix: str,
     radius_label: str,
     output_path: Path,
+    transform: str = "none",
 ) -> None:
     rows, cols = layout
-    normalized = normalize_series(series_dict)
+    normalized = normalize_series(series_dict, transform=transform)
 
     fig, axes = plt.subplots(
         rows,
@@ -485,7 +505,7 @@ def main() -> None:
         )
 
     if count_datasets:
-        normalized_counts = normalize_series(count_datasets)
+        normalized_counts = normalize_series(count_datasets, transform=args.transform)
 
         fig, axes = plt.subplots(
             1,
@@ -535,16 +555,17 @@ def main() -> None:
                         aggregation=args.ig_aggregation,
                     )
 
-                td_output = base_output.parent / f"{base_output.name}_td_effect_{target_slug}_{column_slug}"
-                render_radar_grid(
-                    td_series_dict,
-                    network_order,
-                    colors,
-                    layout=(2, 2),
-                    title_prefix="TD",
-                    radius_label=args.ig_radius_label,
-                    output_path=td_output,
-                )
+            td_output = base_output.parent / f"{base_output.name}_td_effect_{target_slug}_{column_slug}"
+            render_radar_grid(
+                td_series_dict,
+                network_order,
+                colors,
+                layout=(2, 2),
+                title_prefix="TD",
+                radius_label=args.ig_radius_label,
+                output_path=td_output,
+                transform=args.transform,
+            )
 
         if adhd_effect_entries:
             if len(adhd_effect_entries) != 2:
@@ -563,16 +584,17 @@ def main() -> None:
                         aggregation=args.ig_aggregation,
                     )
 
-                adhd_output = base_output.parent / f"{base_output.name}_adhd_effect_{target_slug}_{column_slug}"
-                render_radar_grid(
-                    adhd_series_dict,
-                    network_order,
-                    colors,
-                    layout=(1, 2),
-                    title_prefix="ADHD",
-                    radius_label=args.ig_radius_label,
-                    output_path=adhd_output,
-                )
+            adhd_output = base_output.parent / f"{base_output.name}_adhd_effect_{target_slug}_{column_slug}"
+            render_radar_grid(
+                adhd_series_dict,
+                network_order,
+                colors,
+                layout=(1, 2),
+                title_prefix="ADHD",
+                radius_label=args.ig_radius_label,
+                output_path=adhd_output,
+                transform=args.transform,
+            )
 
         if asd_effect_entries:
             if len(asd_effect_entries) != 2:
@@ -591,16 +613,17 @@ def main() -> None:
                         aggregation=args.ig_aggregation,
                     )
 
-                asd_output = base_output.parent / f"{base_output.name}_asd_effect_{target_slug}_{column_slug}"
-                render_radar_grid(
-                    asd_series_dict,
-                    network_order,
-                    colors,
-                    layout=(1, 2),
-                    title_prefix="ASD",
-                    radius_label=args.ig_radius_label,
-                    output_path=asd_output,
-                )
+            asd_output = base_output.parent / f"{base_output.name}_asd_effect_{target_slug}_{column_slug}"
+            render_radar_grid(
+                asd_series_dict,
+                network_order,
+                colors,
+                layout=(1, 2),
+                title_prefix="ASD",
+                radius_label=args.ig_radius_label,
+                output_path=asd_output,
+                transform=args.transform,
+            )
 
 
 if __name__ == "__main__":

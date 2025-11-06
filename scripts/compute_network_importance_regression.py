@@ -855,14 +855,31 @@ def main() -> None:
         raise ValueError("No datasets specified. Provide --preset.")
 
     all_results: List[pd.DataFrame] = []
+    
+    # Check if this is a pooled preset
+    pool_mode = False
+    if preset_configs:
+        first_cfg = next(iter(preset_configs.values()))
+        pool_mode = first_cfg.get("pool_datasets", False)
+    
+    if pool_mode:
+        # Pool all datasets together into a single analysis
+        print(f"\n{'='*80}")
+        print(f"POOLED ANALYSIS MODE")
+        print(f"Combining {len(preset_configs)} datasets")
+        print(f"{'='*80}\n")
+        
+        all_network_matrices = []
+        all_ages_arrays = []
+        dataset_names = []
+        
+        for dataset, cfg in preset_configs.items():
+            ig_dir_str = cfg.get("ig_dir")
+            age_source_str = cfg.get("age_source")
 
-    for dataset, cfg in preset_configs.items():
-        ig_dir_str = cfg.get("ig_dir")
-        age_source_str = cfg.get("age_source")
-
-        if not ig_dir_str or not age_source_str:
-            print(f"✗ Skipping {dataset}: missing ig_dir or age_source in preset.")
-            continue
+            if not ig_dir_str or not age_source_str:
+                print(f"✗ Skipping {dataset}: missing ig_dir or age_source in preset.")
+                continue
 
         ig_dir = Path(ig_dir_str).expanduser()
         
