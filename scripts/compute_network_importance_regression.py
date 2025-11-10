@@ -908,7 +908,7 @@ def main() -> None:
             continue
             
         _, ages = load_age_source(age_source_path, value_key=age_value_key)
-        print(f"  Loaded {len(ages)} ages from {age_source_path.name}")
+        print(f"  Loaded {len(ages)} ages from: {age_source_path}")
 
         # Aggregate IG across folds
         print(f"  Aggregating {len(ig_files)} folds...")

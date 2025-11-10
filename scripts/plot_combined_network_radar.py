@@ -77,19 +77,21 @@ DEFAULT_NETWORK_ORDER: Tuple[str, ...] = (
     "Striatum",
 )
 
-# Pastel rainbow palette for the radial bars (len(order) colours)
+# Vibrant rainbow palette for the radial bars (len(order) colours)
 def pastel_spectral(n: int) -> List[str]:
-    cmap = plt.cm.get_cmap("Spectral")
+    # Use Spectral_r (reversed) to go from warm (red/pink) to cool (blue/purple)
+    cmap = plt.cm.get_cmap("Spectral_r")
     colors = [mcolors.to_hex(cmap(i / max(n - 1, 1))) for i in range(n)]
-    # Lighten colours slightly to match example aesthetic
-    lightened = []
+    # Apply slight saturation boost for vibrancy
+    vibrant = []
     for hex_color in colors:
         r, g, b = mcolors.hex2color(hex_color)
-        r = min(1.0, r * 0.85 + 0.15)
-        g = min(1.0, g * 0.85 + 0.15)
-        b = min(1.0, b * 0.85 + 0.15)
-        lightened.append(mcolors.to_hex((r, g, b)))
-    return lightened
+        # Boost saturation slightly
+        r = min(1.0, r * 1.1)
+        g = min(1.0, g * 1.05)
+        b = min(1.0, b * 1.1)
+        vibrant.append(mcolors.to_hex((r, g, b)))
+    return vibrant
 
 
 def load_network_csv(csv_path: Path) -> pd.DataFrame:
@@ -294,10 +296,15 @@ def create_radar_panel(
         tick_labels = []
         for pos in tick_positions:
             raw_value_at_pos = (pos * np.sqrt(max_raw)) ** 2
-            tick_labels.append(f"{raw_value_at_pos:.0%}")
+            # Format nicely - if < 10%, show 1 decimal; otherwise round
+            if raw_value_at_pos < 0.10:
+                tick_labels.append(f"{raw_value_at_pos*100:.1f}%")
+            else:
+                tick_labels.append(f"{raw_value_at_pos:.0%}")
         
         ax.set_yticks(tick_positions)
-        ax.set_yticklabels(tick_labels, fontsize=10, color="#666666")
+        ax.set_yticklabels(tick_labels, fontsize=10, color="#666666", alpha=1.0)
+        ax.yaxis.set_tick_params(pad=2)
     else:
         # Fallback: generic percentage scale
         ax.set_yticks([0.25, 0.5, 0.75, 1.0])

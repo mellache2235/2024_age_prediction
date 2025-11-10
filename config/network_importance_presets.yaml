@@ -33,7 +33,7 @@ presets:
         age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/adhd200_regression_age_ADHD_wIDs/fold_0.bin
       cmihbn_adhd:
         ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files
-        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/cmihbn_age/fold_0.bin
+        age_source: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/data/cmihbn_age_ADHD_wIDs/fold_0.bin
 
   brain_age_asd:
     description: Network importance for predicting chronological age in ASD cohorts.
@@ -115,7 +115,7 @@ presets:
     datasets:
       cmihbn_adhd:
         ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files
-        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/cmihbn_age/fold_0.bin
+        age_source: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/data/cmihbn_age_ADHD_wIDs/fold_0.bin
 
   abide_asd_only:
     description: ABIDE ASD only
@@ -174,7 +174,7 @@ presets:
         age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/adhd200_regression_age_ADHD_wIDs/fold_0.bin
       cmihbn_adhd:
         ig_dir: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/results/figures/cmihbn/ig_files
-        age_source: /oak/stanford/groups/menon/projects/mellache/2021_foundation_model/data/imaging/for_dnn/cmihbn_age/fold_0.bin
+        age_source: /oak/stanford/groups/menon/projects/mellache/2024_age_prediction/data/cmihbn_age_ADHD_wIDs/fold_0.bin
 
   brain_age_asd_pooled:
     description: All ASD cohorts pooled together
