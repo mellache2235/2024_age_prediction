@@ -341,27 +341,44 @@ def create_radar_panel(
 
 
 def save_figure(fig: plt.Figure, output_path: Path) -> None:
+    # Ensure parent directory exists
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    
     png_path = output_path.with_suffix(".png")
     tiff_path = output_path.with_suffix(".tiff")
     ai_path = output_path.with_suffix(".ai")
 
-    fig.savefig(
-        png_path,
-        dpi=300,
-        bbox_inches="tight",
-        facecolor="white",
-        edgecolor="none",
-    )
-    fig.savefig(
-        tiff_path,
-        dpi=300,
-        bbox_inches="tight",
-        facecolor="white",
-        edgecolor="none",
-        format="tiff",
-        pil_kwargs={"compression": "tiff_lzw"},
-    )
-    pdf.FigureCanvas(fig).print_pdf(str(ai_path))
+    try:
+        fig.savefig(
+            png_path,
+            dpi=300,
+            bbox_inches="tight",
+            facecolor="white",
+            edgecolor="none",
+        )
+        print(f"  → PNG: {png_path}")
+    except Exception as e:
+        print(f"  ✗ Failed to save PNG: {e}")
+    
+    try:
+        fig.savefig(
+            tiff_path,
+            dpi=300,
+            bbox_inches="tight",
+            facecolor="white",
+            edgecolor="none",
+            format="tiff",
+            pil_kwargs={"compression": "tiff_lzw"},
+        )
+        print(f"  → TIFF: {tiff_path}")
+    except Exception as e:
+        print(f"  ✗ Failed to save TIFF: {e}")
+    
+    try:
+        pdf.FigureCanvas(fig).print_pdf(str(ai_path))
+        print(f"  → AI: {ai_path}")
+    except Exception as e:
+        print(f"  ✗ Failed to save AI: {e}")
 
 
 def parse_labeled_paths(
