@@ -320,12 +320,20 @@ def perform_brain_behavior_analyses(subjids_all, visitids_all, features_df, beha
     if behv_df.empty:
         return
 
+    # Diagnostic: print shapes
+    print(f"\n[DEBUG] Features shape: {features_df.shape}")
+    print(f"[DEBUG] Behavior shape: {behv_df.shape}")
+    print(f"[DEBUG] Features sample (first 3 values): {features_df.iloc[0, :3].values if not features_df.empty else 'empty'}")
+    print(f"[DEBUG] Behavior sample (first 3 values): {behv_df.iloc[0, :3].values if not behv_df.empty else 'empty'}")
+    
     # Apply PCA dimensionality reduction
     sc = StandardScaler()
     features_scaled = sc.fit_transform(features_df)
     
     pca = PCA(n_components=min(25, features_scaled.shape[0] - 1, features_scaled.shape[1]), random_state=0)
     features_pca = pca.fit_transform(features_scaled)
+    
+    print(f"[DEBUG] PCA shape: {features_pca.shape}, Explained var: {pca.explained_variance_ratio_.sum():.2%}")
 
     # Multivariate regression for each behavioral measure
     print('*' * 30)
