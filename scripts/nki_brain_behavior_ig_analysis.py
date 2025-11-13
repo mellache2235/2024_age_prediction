@@ -295,7 +295,9 @@ def perform_brain_behavior_analyses(subjids_all, visitids_all, features_df, beha
         return
     
     features_df = features_df.iloc[features_sel_ix].copy()
-    features_df.drop(features_df.columns[0], axis=1, inplace=True)
+    # Drop subject_id column (and any other non-ROI columns)
+    if 'subject_id' in features_df.columns:
+        features_df = features_df.drop('subject_id', axis=1)
     
     ids = None
     if len(behv_datao_sel.index) != 0:
