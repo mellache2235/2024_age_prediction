@@ -217,9 +217,12 @@ def plot_combined_asd_cohorts(npz_files_dir: str, output_path: str,
     plt.subplots_adjust(top=0.90, hspace=0.30, wspace=0.30)
     
     # Save PNG + TIFF + AI
-    png_path = output_path
-    tiff_path = output_path.replace('.png', '.tiff')
-    ai_path = output_path.replace('.png', '.ai')
+    # Remove any existing extension and add explicit ones
+    base_path = output_path.replace('.png', '').replace('.tiff', '').replace('.ai', '')
+    
+    png_path = f'{base_path}.png'
+    tiff_path = f'{base_path}.tiff'
+    ai_path = f'{base_path}.ai'
     
     plt.savefig(png_path, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none')
     plt.savefig(tiff_path, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none', format='tiff', pil_kwargs={'compression': 'tiff_lzw'})
