@@ -48,11 +48,11 @@ DROPOUT_RATE = 0.6
 USE_CUDA = True
 
 # File paths
-ATLAS_NIFTI = '/oak/stanford/groups/menon/projects/sryali/2019_DNN/scripts/features/BN_Atlas_246_2mm.nii'
-DEMO_FILE = '8100_Demos_20191009.csv'
+IG_FEATURES_CSV = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/feature_attribution/nki_cog_dev_wIDS_features_IG_convnet_regressor_single_model_fold_0.csv'
 CAARS_FILE = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data/8100_CAARS-S-S_20191009.csv'
 ACTUAL_AGES_NPZ = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/nki_updated/actual_nki_ages_oct25.npz'
 PREDICTED_AGES_NPZ = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/nki_updated/predicted_nki_ages_oct25.npz'
+OUTPUT_DIR = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td_ig_analysis'
 
 
 class ConvNet(nn.Module):
@@ -389,31 +389,92 @@ def reshapeData(data):
 
 
 if __name__ == '__main__':
-    # Set random seeds for reproducibility
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    os.environ['CUBLAS_WORKSPACE_CONFIG'] = ":4096:8"
-    torch.use_deterministic_algorithms(True)
-    torch.cuda.manual_seed(CUDA_SEED)
-    torch.manual_seed(CUDA_SEED)
-    np.random.seed(NP_RANDOM_SEED)
-
-    # I/O paths setup
+    print("="*80)
+    print("NKI-RS TD Brain-Behavior Analysis (IG Features)")
+    print("="*80)
+    
+    # Load pre-computed IG features
+    print(f"\nLoading IG features from: {IG_FEATURES_CSV}")
+    features_df = pd.read_csv(IG_FEATURES_CSV)
+    
+    # Extract subject IDs and visitids from features CSV
+    if 'subject_id' not in features_df.columns:
+        print("✗ No subject_id column in IG CSV")
+        sys.exit(1)
+    
+    subjids_all = features_df['subject_id'].astype(str).values
+    print(f"  Loaded {len(subjids_all)} subjects with IG features")
+    
+    # Construct visitids by matching with demo file
     if os.name == 'nt':
         OAK = 'Z:/'
     else:
         OAK = '/oak/stanford/groups/menon/'
     
-    data_dir = OAK + 'projects/mellache/2021_foundation_model/data/imaging/for_dnn/nki_age_cog_dev/'
-    result_dir = OAK + 'projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td_ig_analysis/'
-    model_dir = OAK + 'projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td_ig_analysis/'
     behavior_data_dir = OAK + 'projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data/'
+    demo_datao = pd.read_csv(os.path.join(behavior_data_dir, '8100_Demos_20191009.csv'), skiprows=1)
     
-    # Create output directories
-    os.makedirs(result_dir, exist_ok=True)
-    os.makedirs(model_dir, exist_ok=True)
+    visitids_all = []
+    for subj_id in subjids_all:
+        visit_rows = demo_datao[demo_datao['ID'] == subj_id]
+        if not visit_rows.empty:
+            visitids_all.append(str(visit_rows.iloc[0]['VISIT']))
+        else:
+            visitids_all.append('unknown')
+    
+    print(f"  Matched {len([v for v in visitids_all if v != 'unknown'])} visit IDs")
+    
+    # Load brain ages
+    print(f"\nLoading brain ages...")
+    actual_ages_data = np.load(ACTUAL_AGES_NPZ)
+    predicted_ages_data = np.load(PREDICTED_AGES_NPZ)
+    
+    actual_ages = actual_ages_data['actual']
+    predicted_ages = predicted_ages_data['predicted']
+    
+    print(f"  Actual ages: {len(actual_ages)}")
+    print(f"  Predicted ages: {len(predicted_ages)}")
+    
+    # Load CAARS
+    print(f"\nLoading CAARS from: {CAARS_FILE}")
+    caars_df = pd.read_csv(CAARS_FILE, skiprows=1)
+    
+    # Perform analyses
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    
+    print('\n' + '='*80)
+    print('BRAIN-BEHAVIOR & BAG CORRELATION ANALYSES (CAARS)')
+    print('='*80)
+    
+    # IG features → behavior
+    perform_brain_behavior_analyses(
+        subjids_all,
+        visitids_all,
+        features_df,
+        '8100_CAARS-S-S_20191009.csv',
+        behavior_data_dir,
+        OUTPUT_DIR
+    )
+    
+    # BAG → behavior
+    perform_bag_behavior_correlation(
+        features_df,
+        actual_ages,
+        predicted_ages,
+        subjids_all,
+        visitids_all,
+        '8100_CAARS-S-S_20191009.csv',
+        behavior_data_dir,
+        OUTPUT_DIR
+    )
+    
+    print("\n" + "="*80)
+    print("Analysis complete!")
+    print("="*80)
 
-    # Load NKI data
+# Remove all the old code below (data loading, IG computation, etc.)
+'''
+    # OLD CODE - keeping for reference but not executed
     datao = np.load(
         OAK + 'deriveddata/public/nkirs/restfmri/timeseries/group_level/brainnetome/normz/nkirs_site-nkirs_run-rest_645_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs.pklz',
         allow_pickle=True
