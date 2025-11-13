@@ -47,21 +47,28 @@ python create_region_tables.py \
 python run_statistical_comparisons.py
 
 # 3. Brain-Behavior Analysis
-# All scripts use plot_styles.py for consistent formatting
-# Export: PNG + TIFF + AI (publication-ready, no post-processing)
 
-# TD Cohorts
-python run_nki_brain_behavior_enhanced.py           # NKI-RS (CAARS)
-python run_adhd200_brain_behavior_enhanced.py       # ADHD-200 TD Subset (NYU)
-python run_cmihbn_brain_behavior_enhanced.py        # CMI-HBN TD (C3SR)
+**IG-Feature Based** (pre-computed IG CSVs, PCA + LinearRegression):
+```bash
+# TD cohorts
+python scripts/nki_brain_behavior_ig_analysis.py                          # NKI-RS TD (CAARS, FDR corrected)
+python run_all_cohorts_brain_behavior_optimized.py --cohort adhd200_td    # ADHD-200 TD
+python run_all_cohorts_brain_behavior_optimized.py --cohort cmihbn_td     # CMI-HBN TD
 
-# ADHD Cohorts
-python run_adhd200_adhd_brain_behavior_enhanced.py  # ADHD-200 ADHD
-python run_cmihbn_adhd_brain_behavior_enhanced.py   # CMI-HBN ADHD (C3SR)
+# ADHD cohorts (use --measure HY or --measure IN)
+python scripts/adhd200_brain_behavior_ig_analysis.py --measure HY         # ADHD-200 ADHD (NYU, Hyperactivity)
+python scripts/adhd200_brain_behavior_ig_analysis.py --measure IN         # ADHD-200 ADHD (NYU, Inattention)
+python scripts/cmihbn_brain_behavior_ig_analysis.py                       # CMI-HBN ADHD (C3SR)
 
-# ASD Cohorts
-python run_stanford_asd_brain_behavior_enhanced.py  # Stanford ASD (SRS Total Score)
-python run_abide_asd_brain_behavior_enhanced.py     # ABIDE ASD (ADOS)
+# ASD cohorts
+python scripts/stanford_brain_behavior_ig_analysis.py                     # Stanford ASD (SRS)
+python scripts/abide_brain_behavior_ig_analysis.py                        # ABIDE ASD (ADOS)
+```
+These scripts perform **two analyses** per cohort:
+1. **IG → Behavior**: PCA (50 components) + LinearRegression predicts behavioral scores from IG features
+2. **BAG → Behavior**: Correlates Brain Age Gap (predicted - observed age) with behavioral scores (FDR correction applied for NKI)
+
+Ages loaded from oct25 NPZ files (aligned by fold_0.bin row order), behavioral scores merged by subject_id. Generates PNG/AI scatter plots for significant correlations.
 
 # 🚀 OPTIMIZED Brain-Behavior Analysis (Comprehensive Strategy Testing)
 # Tests 6 strategies with ~200-400 configurations per behavioral measure
@@ -176,6 +183,22 @@ python plot_brain_age_adhd_cohorts.py \
 python plot_brain_age_asd_cohorts.py \
   --output_dir /oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_plots
 ```
+
+---
+
+## 🎓 Model Training
+
+To train the brain age prediction ConvNet model:
+```bash
+python train_Convnet_hyperopt_wandb_v4.py
+```
+This script trains the 1D-CNN architecture on HCP-Development data using:
+- 5-fold cross-validation
+- Wandb hyperparameter optimization
+- Early stopping with validation monitoring
+- Bias correction via linear regression
+
+Pre-trained models are available in `scripts/train_regression_models/dev/` for immediate use in IG computation and brain-behavior analysis.
 
 ---
 
