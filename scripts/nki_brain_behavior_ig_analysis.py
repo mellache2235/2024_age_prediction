@@ -326,11 +326,17 @@ def perform_brain_behavior_analyses(subjids_all, visitids_all, features_df, beha
     print(f"[DEBUG] Features sample (first 3 values): {features_df.iloc[0, :3].values if not features_df.empty else 'empty'}")
     print(f"[DEBUG] Behavior sample (first 3 values): {behv_df.iloc[0, :3].values if not behv_df.empty else 'empty'}")
     
-    # Apply PCA dimensionality reduction
+    if features_df.shape[0] < 30:
+        print(f"  ⚠︎ Insufficient subjects ({features_df.shape[0]}) for reliable analysis; skipping.")
+        return
+    
+    # Apply PCA dimensionality reduction (limit components to avoid overfitting)
     sc = StandardScaler()
     features_scaled = sc.fit_transform(features_df)
     
-    pca = PCA(n_components=min(25, features_scaled.shape[0] - 1, features_scaled.shape[1]), random_state=0)
+    # Use conservative component count: min(10, N/3)
+    n_components = min(10, features_scaled.shape[0] // 3, features_scaled.shape[1])
+    pca = PCA(n_components=n_components, random_state=0)
     features_pca = pca.fit_transform(features_scaled)
     
     print(f"[DEBUG] PCA shape: {features_pca.shape}, Explained var: {pca.explained_variance_ratio_.sum():.2%}")
@@ -468,9 +474,21 @@ if __name__ == '__main__':
             data_all = np.concatenate((data_all, X_valid))
             labels_all = np.concatenate((labels_all, Y_valid))
 
-    # Save subject IDs (convert to numpy arrays for consistency)
-    subjids_all = np.asarray(subjids_all).astype('str')
-    visitids_all = np.asarray(visitids_all).astype('str')
+    # Load cached subject IDs from original location (read-only)
+    original_ids_path = OAK + 'projects/ksupekar/2024_scratch/mellache/results/models/stdnn_age_allsubjs/'
+    subjids_cache = os.path.join(original_ids_path, 'subjectids.txt')
+    visitids_cache = os.path.join(original_ids_path, 'visitids.txt')
+    
+    if os.path.exists(subjids_cache) and os.path.exists(visitids_cache):
+        print(f"  Loading cached subject IDs from: {original_ids_path}")
+        subjids_all = np.loadtxt(subjids_cache, dtype=str)
+        visitids_all = np.loadtxt(visitids_cache, dtype=str)
+        print(f"  Loaded {len(subjids_all)} subjects from cache")
+    else:
+        # Use the in-memory lists if cache doesn't exist
+        subjids_all = np.asarray(subjids_all).astype('str')
+        visitids_all = np.asarray(visitids_all).astype('str')
+        print(f"  Using {len(subjids_all)} subjects from fold matching")
 
     # Pre-trained HCP-Dev model paths
     model_paths = [
