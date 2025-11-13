@@ -28,7 +28,7 @@ FONT_PATH = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/
 
 # File paths
 IG_CSV = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/abide_asd_features_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS.csv'
-ADOS_CSV = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/abide/ADOS_data.csv'
+PKLZ_PATH = '/oak/stanford/groups/menon/deriveddata/public/abide/restfmri/timeseries/group_level/brainnetome/normz/abide_run-rest_brainnetome_mean_regMov-6param_wmcsf_dt1_bpf008-09_normz_246ROIs.pklz'
 ACTUAL_AGES_NPZ = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_predictions/npz_files/actual_abide_asd_ages_most_updated.npz'
 PREDICTED_AGES_NPZ = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_predictions/npz_files/predicted_abide_asd_ages_most_updated.npz'
 OUTPUT_DIR = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/abide_asd_ig_analysis'
@@ -215,19 +215,20 @@ if __name__ == '__main__':
     features_df['brain_age'] = predicted_ages[:min_n]
     features_df['BAG'] = features_df['brain_age'] - features_df['actual_age']
     
-    # Load ADOS behavioral data
-    print(f"Loading ADOS from: {ADOS_CSV}")
-    ados_df = pd.read_csv(ADOS_CSV)
-    ados_df['subject_id'] = ados_df['subject_id'].astype(str)
+    # Load ABIDE behavioral data from PKLZ
+    print(f"Loading ABIDE data from: {PKLZ_PATH}")
+    pklz_data = np.load(PKLZ_PATH, allow_pickle=True)
+    pklz_data['subject_id'] = pklz_data['subject_id'].astype(str)
+    pklz_data = pklz_data.drop_duplicates(subset='subject_id', keep='first')
     
     # Merge
-    merged = features_df.merge(ados_df, on='subject_id', how='inner')
-    ados_cols = [col for col in ados_df.columns if 'ADOS' in col and col != 'subject_id']
+    merged = features_df.merge(pklz_data, on='subject_id', how='inner')
+    ados_cols = [col for col in pklz_data.columns if 'ADOS' in col.upper()]
     
     print(f"\nMerged: {len(merged)} subjects with IG + ADOS + ages")
     
     # Perform analyses
-    perform_brain_behavior_regression(merged, ados_df, OUTPUT_DIR)
+    perform_brain_behavior_regression(merged, pklz_data, OUTPUT_DIR)
     perform_bag_behavior_correlation(merged, ados_cols, OUTPUT_DIR)
     
     print("\n" + "="*80)

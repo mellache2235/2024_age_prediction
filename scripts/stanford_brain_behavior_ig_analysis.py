@@ -28,7 +28,7 @@ FONT_PATH = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/
 
 # File paths
 IG_CSV = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/stanford_asd_features_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS.csv'
-SRS_CSV = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/stanford/SRS_data_20230925.csv'
+SRS_CSV = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/stanford_autism/SRS_data_20230925.csv'
 ACTUAL_AGES_NPZ = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_predictions/npz_files/actual_stanford_asd_ages_most_updated.npz'
 PREDICTED_AGES_NPZ = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_predictions/npz_files/predicted_stanford_asd_ages_most_updated.npz'
 OUTPUT_DIR = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/stanford_asd_ig_analysis'
@@ -217,8 +217,9 @@ if __name__ == '__main__':
     
     # Load SRS behavioral data
     print(f"Loading SRS from: {SRS_CSV}")
-    srs_df = pd.read_csv(SRS_CSV)
-    srs_df['subject_id'] = srs_df['subject_id'].astype(str)
+    srs_df = pd.read_csv(SRS_CSV, skiprows=[0])
+    srs_df = srs_df.drop_duplicates(subset=['record_id'], keep='last')
+    srs_df['subject_id'] = srs_df['record_id'].astype(str)
     
     # Merge
     merged = features_df.merge(srs_df, on='subject_id', how='inner')
