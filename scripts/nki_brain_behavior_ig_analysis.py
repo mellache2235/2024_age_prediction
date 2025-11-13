@@ -464,7 +464,7 @@ if __name__ == '__main__':
         np.savetxt(os.path.join(model_dir, 'subjectids.txt'), np.asarray(subjids_all).astype('str'), fmt='%s')
         np.savetxt(
             os.path.join(model_dir, 'visitids.txt'),
-            np.array([arr[0] if arr.size > 0 else None for arr in visitids_all]).astype('str'),
+            np.asarray(visitids_all).astype('str'),
             fmt='%s'
         )
 
