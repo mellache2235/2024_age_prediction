@@ -133,6 +133,13 @@ def get_and_analyze_features(data_all, labels_all, subjects, model_paths, output
     # Filter by age
     age_mask = labels_all < MAX_AGE
     attr_data_filtered = attr_data_median[age_mask, :, :]
+    
+    # Subjects array should match labels_all length
+    if len(subjects) != len(labels_all):
+        print(f"  ⚠︎ Subject count mismatch: {len(subjects)} IDs vs {len(labels_all)} ages")
+        # Use first N subjects
+        subjects = subjects[:len(labels_all)] if len(subjects) > len(labels_all) else np.pad(subjects, (0, len(labels_all) - len(subjects)), constant_values='unknown')
+    
     subjects_filtered = subjects[age_mask]
     
     # Median along time dimension
