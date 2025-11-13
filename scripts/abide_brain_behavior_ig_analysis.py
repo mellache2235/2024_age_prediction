@@ -29,8 +29,8 @@ FONT_PATH = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/
 # File paths
 IG_CSV = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/integrated_gradients/abide_asd_features_IG_convnet_regressor_trained_on_hcp_dev_top_regions_wIDS.csv'
 ADOS_CSV = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/abide/ADOS_data.csv'
-ACTUAL_AGES_NPZ = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/abide_updated/actual_abide_asd_ages_oct25.npz'
-PREDICTED_AGES_NPZ = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/abide_updated/predicted_abide_asd_ages_oct25.npz'
+ACTUAL_AGES_NPZ = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_predictions/npz_files/actual_abide_asd_ages_most_updated.npz'
+PREDICTED_AGES_NPZ = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_age_predictions/npz_files/predicted_abide_asd_ages_most_updated.npz'
 OUTPUT_DIR = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction_test/results/brain_behavior/abide_asd_ig_analysis'
 
 # Setup font
