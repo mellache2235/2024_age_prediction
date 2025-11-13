@@ -389,9 +389,13 @@ if __name__ == '__main__':
         OAK = '/oak/stanford/groups/menon/'
     
     data_dir = OAK + 'projects/mellache/2021_foundation_model/data/imaging/for_dnn/nki_age_cog_dev/'
-    result_dir = OAK + 'projects/ksupekar/2024_scratch/mellache/results/'
-    model_dir = OAK + 'projects/ksupekar/2024_scratch/mellache/results/models/stdnn_age_allsubjs/'
+    result_dir = OAK + 'projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td_ig_analysis/'
+    model_dir = OAK + 'projects/mellache/2024_age_prediction_test/results/brain_behavior/nki_rs_td_ig_analysis/'
     behavior_data_dir = OAK + 'projects/mellache/2021_foundation_model/scripts/FLUX/assessment_data/'
+    
+    # Create output directories
+    os.makedirs(result_dir, exist_ok=True)
+    os.makedirs(model_dir, exist_ok=True)
 
     # Load NKI data
     datao = np.load(
@@ -422,20 +426,28 @@ if __name__ == '__main__':
         path = data_dir + f'fold_{fold_id}.bin'
         X_train, X_valid, Y_train, Y_valid = get_data(path)
 
-        # Match subject IDs from pklz data
-        if not os.path.exists(os.path.join(model_dir, 'subjectids.txt')):
-            for row_id in range(Y_valid.shape[0]):
-                datao_pklz_sel = datao_pklz[datao_pklz['age'] == Y_valid[row_id]]
-                for sel_id in range(datao_pklz_sel.shape[0]):
-                    if np.sum(datao_pklz_sel.iloc[sel_id].data - X_valid[row_id]) == 0:
-                        if not (datao_pklz_sel.iloc[sel_id].subject_id in subjids_all):
-                            subjids_all.append(datao_pklz_sel.iloc[sel_id].subject_id)
-                            visitid = demo_datao[
-                                (demo_datao['ID'] == datao_pklz_sel.iloc[sel_id].subject_id) &
-                                (demo_datao['AGE'] == Y_valid[row_id])
-                            ]['VISIT'].values
-                            visitids_all.append(visitid)
-                            break
+        # Match subject IDs from pklz data (do this for every fold to maintain order)
+        fold_subjids = []
+        fold_visitids = []
+        for row_id in range(Y_valid.shape[0]):
+            datao_pklz_sel = datao_pklz[datao_pklz['age'] == Y_valid[row_id]]
+            found = False
+            for sel_id in range(datao_pklz_sel.shape[0]):
+                if np.sum(datao_pklz_sel.iloc[sel_id].data - X_valid[row_id]) == 0:
+                    fold_subjids.append(datao_pklz_sel.iloc[sel_id].subject_id)
+                    visitid = demo_datao[
+                        (demo_datao['ID'] == datao_pklz_sel.iloc[sel_id].subject_id) &
+                        (demo_datao['AGE'] == Y_valid[row_id])
+                    ]['VISIT'].values
+                    fold_visitids.append(visitid[0] if len(visitid) > 0 else 'unknown')
+                    found = True
+                    break
+            if not found:
+                fold_subjids.append(f'unknown_{fold_id}_{row_id}')
+                fold_visitids.append('unknown')
+        
+        subjids_all.extend(fold_subjids)
+        visitids_all.extend(fold_visitids)
 
         X_valid = reshapeData(X_valid)
         
