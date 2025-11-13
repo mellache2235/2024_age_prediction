@@ -27,7 +27,7 @@ RANDOM_SEED = 0
 FONT_PATH = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/clustering_analysis/arial.ttf'
 
 # File paths
-IG_CSV = 'abide_asd_features_IG_convnet_regressor_trained_on_hcp_dev_wIDS.csv'
+IG_CSV = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/feature_attribution/abide_asd_features_IG_convnet_regressor_trained_on_hcp_dev_wIDS.csv'
 ADOS_CSV = '/oak/stanford/groups/menon/projects/mellache/2021_foundation_model/scripts/dnn/prepare_data/abide/ADOS_data.csv'
 ACTUAL_AGES_NPZ = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/abide_updated/actual_abide_asd_ages_oct25.npz'
 PREDICTED_AGES_NPZ = '/oak/stanford/groups/menon/projects/mellache/2024_age_prediction/scripts/generalization/abide_updated/predicted_abide_asd_ages_oct25.npz'
