@@ -511,6 +511,22 @@ if __name__ == '__main__':
         print(f"Loading existing features from {feature_csv}")
         features_df = pd.read_csv(feature_csv)
     
+    # Use only the subject IDs from the features DataFrame (age <21 subset)
+    if 'subject_id' in features_df.columns:
+        subjids_all = features_df['subject_id'].values
+        # Try to load matching visitids for this subset from CAARS
+        visitids_all = ['unknown'] * len(subjids_all)  # Default
+        
+        # If demo file has visit info, try to match
+        for idx, subj_id in enumerate(subjids_all):
+            age = labels_all[idx] if idx < len(labels_all) else None
+            if age is not None:
+                visit_rows = demo_datao[(demo_datao['ID'] == subj_id) & (demo_datao['AGE'] == age)]
+                if not visit_rows.empty:
+                    visitids_all[idx] = str(visit_rows.iloc[0]['VISIT'])
+        
+        print(f"  Using {len(subjids_all)} subjects from features CSV (age <{MAX_AGE})")
+    
     # Load brain ages
     print(f"\nLoading brain ages...")
     actual_ages_data = np.load(ACTUAL_AGES_NPZ)
