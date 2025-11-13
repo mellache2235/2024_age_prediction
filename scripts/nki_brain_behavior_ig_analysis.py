@@ -458,18 +458,9 @@ if __name__ == '__main__':
             data_all = np.concatenate((data_all, X_valid))
             labels_all = np.concatenate((labels_all, Y_valid))
 
-    # Save/load subject IDs
-    if not os.path.exists(os.path.join(model_dir, 'subjectids.txt')):
-        os.makedirs(model_dir, exist_ok=True)
-        np.savetxt(os.path.join(model_dir, 'subjectids.txt'), np.asarray(subjids_all).astype('str'), fmt='%s')
-        np.savetxt(
-            os.path.join(model_dir, 'visitids.txt'),
-            np.asarray(visitids_all).astype('str'),
-            fmt='%s'
-        )
-
-    subjids_all = np.loadtxt(os.path.join(model_dir, 'subjectids.txt'), dtype=str)
-    visitids_all = np.loadtxt(os.path.join(model_dir, 'visitids.txt'), dtype=str)
+    # Save subject IDs (convert to numpy arrays for consistency)
+    subjids_all = np.asarray(subjids_all).astype('str')
+    visitids_all = np.asarray(visitids_all).astype('str')
 
     # Pre-trained HCP-Dev model paths
     model_paths = [
